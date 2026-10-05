@@ -9,7 +9,7 @@ export const notesApi = {
   analyzeNotes: (ids: string[]) =>
     call<{ project: string; exists: boolean; summary: string; proposals: Proposal[]; cost: number }>("POST", "/api/notes/analyze", { ids }),
   accept: (project: string, proposals: Proposal[]) => call<{ features: string[]; drafts: number }>("POST", "/api/notes/accept", { project, proposals }),
-  drafts: () => call<Draft[]>("GET", "/api/drafts"),
-  promoteDrafts: (project: string) => call<{ features: string[] }>("POST", "/api/drafts/promote", { project }),
-  deleteDraft: (id: string) => call("DELETE", `/api/drafts/${id}`),
+  drafts: () => call<Draft[]>("GET", "/api/notes/drafts"),
+  promoteDrafts: (project: string) => call<{ features: string[] }>("POST", "/api/notes/drafts/promote", { project }),
+  deleteDraft: (id: string) => call("DELETE", `/api/notes/drafts/${id}`),
 };

@@ -42,11 +42,11 @@ export const sessionsApi = {
   stopTask: (id: string, taskId: string) => call("POST", `/api/tabs/${id}/tasks/${taskId}/stop`),
   interrupt: (id: string) => call("POST", `/api/tabs/${id}/interrupt`),
   tabDiff: (id: string) => call<Diff>("GET", `/api/tabs/${id}/diff`),
-  history: (limit = 10) => call<HistoryItem[]>("GET", `/api/history?limit=${limit}`),
-  resume: (sessionId: string) => call<{ id: string; reused: boolean; forked?: boolean }>("POST", `/api/history/${seg(sessionId)}/resume`),
-  skills: () => call<Skill[]>("GET", "/api/skills"),
-  savePrefs: (disabled: string[], pinned: string[]) => call("PUT", "/api/skills/prefs", { disabled, pinned }),
-  recommend: (task: string, project: string) => call<{ skills: Recommendation[]; cost: number }>("POST", "/api/skills/recommend", { task, project }),
+  history: (limit = 10) => call<HistoryItem[]>("GET", `/api/sessions/history?limit=${limit}`),
+  resume: (sessionId: string) => call<{ id: string; reused: boolean; forked?: boolean }>("POST", `/api/sessions/history/${seg(sessionId)}/resume`),
+  skills: () => call<Skill[]>("GET", "/api/sessions/skills"),
+  savePrefs: (disabled: string[], pinned: string[]) => call("PUT", "/api/sessions/skills/prefs", { disabled, pinned }),
+  recommend: (task: string, project: string) => call<{ skills: Recommendation[]; cost: number }>("POST", "/api/sessions/skills/recommend", { task, project }),
 };
 
 export { prepareImage } from "@os/lib/images";

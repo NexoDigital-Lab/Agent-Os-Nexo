@@ -60,9 +60,9 @@ recent sessions and resume, full-text search over past sessions, skills and thei
   deleted).
 - **Routes:** `GET/POST /tabs`, `PATCH/DELETE /tabs/:id`, `GET /tabs/:id/stream` (server-sent events),
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
-  `GET /tabs/:id/diff`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /history`,
-  `POST /history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /skills`,
-  `PUT /skills/prefs` (in `library/profile.json`), `POST /skills/recommend`.
+  `GET /tabs/:id/diff`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
+  `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
+  `PUT /sessions/skills/prefs` (in `library/profile.json`), `POST /sessions/skills/recommend`.
 - **Stores:** data `tabs.json`; state `uploads/`, `search.db`.
 
 ## home
@@ -99,7 +99,7 @@ Free notes per project that an agent turns into features; a board of the feature
 `context/features/`, and drafts to promote.
 - **Depends on:** shell, projects, sessions. **View:** Notes.
 - **Routes:** `GET/POST /notes`, `PUT/DELETE /notes/:id`, `POST /notes/analyze|accept`,
-  `GET /drafts`, `DELETE /drafts/:id`, `POST /drafts/promote`. **Stores:** data (notes, drafts).
+  `GET /notes/drafts`, `DELETE /notes/drafts/:id`, `POST /notes/drafts/promote`. **Stores:** data (notes, drafts).
 
 ## docker
 The engine's containers, images, logs and shells; and a mirror dev container per project whose tools
@@ -131,8 +131,9 @@ The project's defined architecture (a document and a folder plan with rules per 
 Architect that advises against the real code, and a note that makes each tab's agent follow it.
 - **Depends on:** projects, sessions, editor. **Contributes:** `tab.views` (Architecture),
   `tab.overlay` (the Architect), a session contribution (prompt note unless the tab turned it off).
-- **Routes:** `GET /arch/:project`, `PUT /arch/:project/doc|tree`, `POST /arch/:project/import|advise|chat`,
-  `DELETE /arch/:project/chat`, `POST /tabs/:id/arch`.
+- **Routes:** `GET /architecture/:project`, `PUT /architecture/:project/doc|tree`,
+  `POST /architecture/:project/import|advise|chat`,
+  `DELETE /architecture/:project/chat`, `POST /tabs/:id/architecture`.
 - **Stores:** the project's `context/architecture/` (`architecture.md`, `tree.json`, `advice.json`,
   `chat.json`); tab meta `archOff`.
 

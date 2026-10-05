@@ -1,5 +1,5 @@
 // architecture: the project's defined architecture (doc + proposed folder tree, in context/architecture/), the
-// architect assistant (/api/arch/:project/*), and the note that makes each tab's agent follow it (off per tab).
+// architect assistant (/api/architecture/:project/*), and the note that makes each tab's agent follow it (off per tab).
 import { h, httpError, ok } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
 import * as agent from "../../sessions/server/agent.ts";
@@ -17,20 +17,20 @@ const register: ModuleServer = (ctx) => {
   const api = ctx.api;
   const proj = (req: { params: Record<string, unknown> }) => String(req.params.project);
 
-  api.get("/arch/:project", h((req) => store.readArch(proj(req))));
-  api.put("/arch/:project/doc", h((req) => (store.writeDoc(proj(req), req.body?.markdown), ok)));
-  api.put("/arch/:project/tree", h((req) => store.writeTree(proj(req), req.body?.tree)));
-  api.post("/arch/:project/import", h((req) => store.importTree(proj(req))));
-  api.post("/arch/:project/advise", h((req) => {
+  api.get("/architecture/:project", h((req) => store.readArch(proj(req))));
+  api.put("/architecture/:project/doc", h((req) => (store.writeDoc(proj(req), req.body?.markdown), ok)));
+  api.put("/architecture/:project/tree", h((req) => store.writeTree(proj(req), req.body?.tree)));
+  api.post("/architecture/:project/import", h((req) => store.importTree(proj(req))));
+  api.post("/architecture/:project/advise", h((req) => {
     const { mode, focus, lang } = req.body ?? {};
     if (mode !== "start" && mode !== "analyze") throw httpError(400, "Invalid mode");
     return advisor.advise(proj(req), mode, focus ? String(focus) : undefined, advisor.answerLanguage(lang));
   }));
-  api.post("/arch/:project/chat", h((req) => advisor.chat(proj(req), req.body?.message, advisor.answerLanguage(req.body?.lang))));
-  api.delete("/arch/:project/chat", h((req) => (store.dirOf(proj(req)), advisor.clearChat(proj(req)), ok)));
+  api.post("/architecture/:project/chat", h((req) => advisor.chat(proj(req), req.body?.message, advisor.answerLanguage(req.body?.lang))));
+  api.delete("/architecture/:project/chat", h((req) => (store.dirOf(proj(req)), advisor.clearChat(proj(req)), ok)));
 
   // Turns the architecture on/off for a tab; takes effect on its next turn.
-  api.post("/tabs/:id/arch", h((req) => (agent.setTabMeta(tabOf(req).id, "archOff", !req.body?.on), ok)));
+  api.post("/tabs/:id/architecture", h((req) => (agent.setTabMeta(tabOf(req).id, "archOff", !req.body?.on), ok)));
 };
 
 export default register;

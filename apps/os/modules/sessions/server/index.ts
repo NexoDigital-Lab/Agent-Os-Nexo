@@ -1,4 +1,4 @@
-// sessions: AI session tabs (/api/tabs), recent sessions and resume (/api/history), skills (/api/skills) and
+// sessions: AI session tabs (/api/tabs), recent sessions and resume (/api/sessions/history), skills (/api/sessions/skills) and
 // full-text search over past sessions (/api/sessions/search).
 import express, { type Request } from "express";
 import { existsSync } from "node:fs";
@@ -102,14 +102,14 @@ const register: ModuleServer = (ctx) => {
   api.delete("/tabs/:id/uploads/:name", h((req) => (deleteUpload(String(req.params.id), String(req.params.name)), ok)));
 
   // Recent sessions (terminal and agent-os), resumable in a tab with one click.
-  api.get("/history", h((req) =>
+  api.get("/sessions/history", h((req) =>
     listSessions(30)
       .slice(0, Number(req.query.limit ?? 10))
       .map(({ id, title, project, cwd, source, start, end, active, total, agents }) => ({
         id, title, project, cwd, source, start, end, active, cost: total.cost, agents: agents.length, tabId: agent.tabForSession(id),
       })),
   ));
-  api.post("/history/:id/resume", h((req) => {
+  api.post("/sessions/history/:id/resume", h((req) => {
     const sid = String(req.params.id);
     const open = agent.tabForSession(sid);
     if (open) return { id: open, reused: true };
@@ -123,12 +123,12 @@ const register: ModuleServer = (ctx) => {
   }));
 
   // Skills
-  api.get("/skills", h(() => listSkills()));
-  api.put("/skills/prefs", h((req) => {
+  api.get("/sessions/skills", h(() => listSkills()));
+  api.put("/sessions/skills/prefs", h((req) => {
     writePrefs({ disabled: req.body.disabled ?? [], pinned: req.body.pinned ?? [] });
     return readPrefs();
   }));
-  api.post("/skills/recommend", h((req) => recommendSkills(String(req.body.task ?? ""), req.body.project ?? null)));
+  api.post("/sessions/skills/recommend", h((req) => recommendSkills(String(req.body.task ?? ""), req.body.project ?? null)));
 
   // Full-text search over past sessions
   api.get("/sessions/search", h((req) => {

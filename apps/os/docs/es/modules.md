@@ -61,9 +61,9 @@ recomendación.
   de borrarlo).
 - **Rutas:** `GET/POST /tabs`, `PATCH/DELETE /tabs/:id`, `GET /tabs/:id/stream` (server-sent events),
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
-  `GET /tabs/:id/diff`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /history`,
-  `POST /history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /skills`,
-  `PUT /skills/prefs` (en `library/profile.json`), `POST /skills/recommend`.
+  `GET /tabs/:id/diff`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
+  `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
+  `PUT /sessions/skills/prefs` (en `library/profile.json`), `POST /sessions/skills/recommend`.
 - **Guarda:** data `tabs.json`; state `uploads/`, `search.db`.
 
 ## home
@@ -100,7 +100,7 @@ Notas libres por proyecto que un agente convierte en features; un tablero de las
 `context/features/`, y borradores para promover.
 - **Depende de:** shell, projects, sessions. **Vista:** Notas.
 - **Rutas:** `GET/POST /notes`, `PUT/DELETE /notes/:id`, `POST /notes/analyze|accept`,
-  `GET /drafts`, `DELETE /drafts/:id`, `POST /drafts/promote`. **Guarda:** data (notas, borradores).
+  `GET /notes/drafts`, `DELETE /notes/drafts/:id`, `POST /notes/drafts/promote`. **Guarda:** data (notas, borradores).
 
 ## docker
 Los contenedores, imágenes, logs y shells del motor; y un contenedor de desarrollo espejo por proyecto
@@ -133,8 +133,9 @@ La arquitectura definida del proyecto (un documento y un plan de carpetas con re
 Arquitecto flotante que aconseja contra el código real, y una nota que hace que el agente de cada pestaña la siga.
 - **Depende de:** projects, sessions, editor. **Aporta:** `tab.views` (Arquitectura), `tab.overlay` (el
   Arquitecto), una contribución a sesiones (nota de prompt salvo que la pestaña la haya apagado).
-- **Rutas:** `GET /arch/:project`, `PUT /arch/:project/doc|tree`, `POST /arch/:project/import|advise|chat`,
-  `DELETE /arch/:project/chat`, `POST /tabs/:id/arch`.
+- **Rutas:** `GET /architecture/:project`, `PUT /architecture/:project/doc|tree`,
+  `POST /architecture/:project/import|advise|chat`,
+  `DELETE /architecture/:project/chat`, `POST /tabs/:id/architecture`.
 - **Guarda:** el `context/architecture/` del proyecto (`architecture.md`, `tree.json`, `advice.json`,
   `chat.json`); meta de la pestaña `archOff`.
 

@@ -80,14 +80,14 @@ export function CoachPanel({ tab, plan, review, current, planning, validating, e
 
               <div className="ladder">
                 <button className={`btn sm ${level >= 1 ? "" : "ghost"}`} onClick={() => bump(current, 1)}><Pointer size={14} /> {tr("Pointer")}</button>
-                <button className={`btn sm ${level >= 2 ? "" : "ghost"}`} onClick={() => bump(current, 2)}><Compass size={14} /> Approach</button>
+                <button className={`btn sm ${level >= 2 ? "" : "ghost"}`} onClick={() => bump(current, 2)}><Compass size={14} /> {tr("Approach")}</button>
                 <button className={`btn sm ${level >= 3 ? "" : "ghost"}`} onClick={() => bump(current, 3)}><Bone size={14} /> {tr("Skeleton")}</button>
                 <button className={`btn sm ${level >= 4 ? "" : "ghost"}`} disabled={snippetBusy} onClick={() => askSnippet(current)}>
                   {snippetBusy ? <span className="spin" /> : <Lightbulb size={14} />} Snippet
                 </button>
               </div>
               {level >= 1 && <div className="hint"><b>{tr("Pointer.")}</b> {current.pointer}</div>}
-              {level >= 2 && <div className="hint"><b>Approach.</b> {current.approach}</div>}
+              {level >= 2 && <div className="hint"><b>{tr("Approach")}.</b> {current.approach}</div>}
               {level >= 3 && <pre className="hint code">{current.skeleton}</pre>}
               {level >= 4 && snippets[current.id] && <div className="hint md-hint" dangerouslySetInnerHTML={{ __html: renderMarkdown(snippets[current.id]) }} />}
 

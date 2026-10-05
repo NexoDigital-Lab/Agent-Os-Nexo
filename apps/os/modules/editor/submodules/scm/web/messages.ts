@@ -1,5 +1,6 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "Pull::git": "Traer (pull)",
   "(no branch)": "(sin rama)",
   "Abort the merge and go back to how it was?": "¿Abortar el merge y volver a como estaba antes?",
   "All branches": "Todas las ramas",

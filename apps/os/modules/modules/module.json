@@ -1,6 +1,6 @@
 {
   "name": "modules",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "Module manager: turn modules on and off, respecting their dependencies",
   "owner": "nexo",
   "core": true,

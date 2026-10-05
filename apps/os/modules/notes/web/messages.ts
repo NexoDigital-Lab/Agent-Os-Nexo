@@ -1,5 +1,6 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "OK": "OK",
   "(new)": "(nuevo)",
   "Acceptance criteria, one per line": "Criterios de aceptación, uno por línea",
   "All projects": "Todos los proyectos",

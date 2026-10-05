@@ -1,5 +1,6 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "Cache hit": "Aciertos de caché",
   "All projects": "Todos los proyectos",
   "By agent": "Por agente",
   "By model": "Por modelo",

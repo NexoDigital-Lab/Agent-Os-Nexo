@@ -165,7 +165,8 @@ La lógica de servidor con ramas (validación, parseo, políticas, máquinas de 
 `node:test` en `test/`. Cada bug arreglado suma un test de regresión. `npm run check` pasa antes de cada commit.
 
 ### R11 — Versiones y documentación
-Subí la `version` del módulo con cada cambio: patch para un arreglo, minor para una funcionalidad, major
+Desde la primera versión publicada del módulo, subí su `version` con cada cambio (hasta entonces queda en
+`1.0.0`): patch para un arreglo, minor para una funcionalidad, major
 cuando cambiás un slot o contrato que usan otros módulos. Mantené verdadera la entrada del módulo en
 [modules.md](modules.md) (propósito, rutas, slots, datos) y la `description` de su manifiesto, en los dos
 idiomas.

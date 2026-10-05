@@ -111,7 +111,7 @@ export function Monitor() {
           <div className="d">{t("{n} different types", { n: sum.byAgent.filter((b) => b.key !== "main").length })}</div>
         </div>
         <div className="kpi">
-          <div className="eyebrow">Cache hit</div>
+          <div className="eyebrow">{t("Cache hit")}</div>
           <div className="v">
             {Math.round((sum.total.cacheRead / Math.max(1, sum.total.cacheRead + sum.total.cacheWrite + sum.total.input)) * 100)}%
           </div>

@@ -26,7 +26,7 @@ export function ResponseView({ res, sending }: { res: HttpResult | undefined; se
       {!res ? (
         <div className="faint" style={{ padding: 16, fontSize: 13 }}>{sending ? t("Sending…") : t("The response shows up here. Enter in the URL sends too.")}</div>
       ) : !res.ok ? (
-        <div className="http-status"><span className="pill bad">Error</span><span className="errline">{res.error}</span></div>
+        <div className="http-status"><span className="pill bad">{t("Error")}</span><span className="errline">{res.error}</span></div>
       ) : (
         <>
           <div className="http-status">
@@ -34,7 +34,7 @@ export function ResponseView({ res, sending }: { res: HttpResult | undefined; se
             <span className="faint mono">{res.ms} ms · {kb(res.size)}</span>
             <span style={{ flex: 1 }} />
             <div className="seg">
-              <button className={resTab === "body" ? "on" : ""} onClick={() => setResTab("body")}>Body</button>
+              <button className={resTab === "body" ? "on" : ""} onClick={() => setResTab("body")}>{t("Body")}</button>
               <button className={resTab === "headers" ? "on" : ""} onClick={() => setResTab("headers")}>Headers · {res.headers.length}</button>
             </div>
             <button className="btn sm ghost" onClick={() => copy(res.body)} aria-label={copied ? t("Copied") : t("Copy the response")}>{copied ? <Check size={14} /> : t("Copy")}</button>

@@ -44,7 +44,7 @@ export function NoteEditor({ note, saved, allProjects, repoNames, onEdit, onRemo
             }}
           >
             <input autoFocus className="field" placeholder={t("Name of the new project")} aria-label={t("Name of the new project")} value={newProject} onChange={(e) => setNewProject(e.target.value)} />
-            <button className="btn sm primary">OK</button>
+            <button className="btn sm primary">{t("OK")}</button>
             <button type="button" className="btn sm ghost" aria-label={t("Cancel")} onClick={() => setNewProject(null)}><X size={14} /></button>
           </form>
         )}

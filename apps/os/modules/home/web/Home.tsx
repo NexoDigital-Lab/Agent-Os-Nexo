@@ -120,7 +120,7 @@ export function Home() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="card">
-            <div className="eyebrow">Inbox</div>
+            <div className="eyebrow">{t("Inbox")}</div>
             <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
               <input
                 className="field"

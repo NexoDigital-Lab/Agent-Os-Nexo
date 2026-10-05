@@ -157,7 +157,8 @@ Server logic with branches (validation, parsing, policies, state machines) has `
 `test/`. Every bug fixed gets a regression test. `npm run check` passes before every commit.
 
 ### R11 — Versions and docs
-Bump the module's `version` with every change: patch for a fix, minor for a feature, major when you
+From the module's first published release on, bump its `version` with every change (until then it stays
+`1.0.0`): patch for a fix, minor for a feature, major when you
 change a slot or contract other modules use. Keep the module's entry in [modules.md](modules.md)
 (purpose, routes, slots, data) and its manifest `description` true, in both languages
 (`docs/en/` and `docs/es/`).

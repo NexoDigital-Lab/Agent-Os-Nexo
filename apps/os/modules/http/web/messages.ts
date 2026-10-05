@@ -1,5 +1,7 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "Body": "Cuerpo",
+  "Error": "Error",
   "(copy)": "(copia)",
   "(empty)": "(vacío)",
   ", never versioned.": ", nunca se versiona.",

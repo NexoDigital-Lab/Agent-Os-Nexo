@@ -89,7 +89,7 @@ export function SourceControl({ tab, onOpenDiff, onOpenFile, onCount, refreshKey
         </span>
         <span className="scm-sync">
           <button disabled={!!busy} title={t("Get changes from the remote (fetch)")} onClick={() => act("fetch", () => api.scmSync(tab.id, "fetch"))}>{busy === "fetch" ? <span className="spin" /> : <RefreshCw size={14} />}</button>
-          <button disabled={!!busy} title="Pull" onClick={() => act("pull", () => api.scmSync(tab.id, "pull"))}>{busy === "pull" ? <span className="spin" /> : <ArrowDown size={14} />}</button>
+          <button disabled={!!busy} title={t("Pull::git")} aria-label={t("Pull::git")} onClick={() => act("pull", () => api.scmSync(tab.id, "pull"))}>{busy === "pull" ? <span className="spin" /> : <ArrowDown size={14} />}</button>
           <button disabled={!!busy} title={s.upstream ? "Push" : t("Push (creates the upstream on origin)")} onClick={() => act("push", () => api.scmSync(tab.id, "push"))}>{busy === "push" ? <span className="spin" /> : <ArrowUp size={14} />}</button>
         </span>
       </div>

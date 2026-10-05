@@ -1,0 +1,8 @@
+{
+  "name": "shell",
+  "version": "1.0.0",
+  "description": "The app frame: rail, views, Settings, notices and banners",
+  "owner": "nexo",
+  "core": true,
+  "entry": { "web": "web/index.tsx" }
+}

@@ -1,0 +1,102 @@
+/* Base styles every module builds on: reset, tokens (values come from the themes module), and the common
+   building blocks (.page, .card, .btn, .pill, .field, .empty). Module-specific styles live in each module. */
+:root {
+  /* Defaults = the Nexo palette; the themes module overwrites these on boot with the user's choice. */
+  color-scheme: dark;
+  --bg: #0a0a0f; --bg-2: #0f0f1a; --panel: #12121f; --panel-2: #1a1a2e; --line: #24203a; --line-2: #352d55;
+  --text: #f0f0ff; --text-2: #babac2; --text-3: #9a9ab0;
+  --accent: #a855f7; --accent-ink: #0a0a0f; --accent-text: #c084fc;
+  --accent-dim: color-mix(in srgb, var(--accent) 14%, transparent);
+  --ok: #4ade80; --ok-dim: color-mix(in srgb, var(--ok) 13%, transparent);
+  --bad: #ff2d78; --bad-dim: color-mix(in srgb, var(--bad) 13%, transparent);
+  --info: #00f5ff; --info-dim: color-mix(in srgb, var(--info) 11%, transparent);
+  --warn: #fbbf24; --violet: #818cf8; --add: #0d2a1c; --del: #2e0e1d;
+  --brand: linear-gradient(135deg, #00f5ff, #a855f7, #ff2d78);
+  --sans: "Inter Variable", "Inter", system-ui, sans-serif;
+  --display: "Outfit", "Inter Variable", system-ui, sans-serif;
+  --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  --select-chevron: none;
+  --r: 8px;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+/* WebKitGTK ignores a native <select>'s background, so drop the native look and draw the chevron ourselves. */
+select {
+  appearance: none; -webkit-appearance: none;
+  background-color: var(--bg-2);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat; background-position: right 8px center;
+  padding-right: 26px; /* room for the chevron; contextual select rules below must keep >=24px on the right */
+  border: 1px solid var(--line-2); border-radius: 6px;
+}
+/* Keyboard focus ring; .field controls keep their own box-shadow ring instead (select.field excluded to avoid a double ring). */
+button:focus-visible, select:not(.field):focus-visible, a:focus-visible, [role="button"]:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+option, optgroup { background: var(--panel); color: var(--text); }
+::selection { background: var(--accent); color: var(--accent-ink); }
+/* WebKitGTK paints placeholders in the full text color, so empty fields looked filled in the desktop app. */
+::placeholder { color: var(--text-3); opacity: 1; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; border: 3px solid var(--bg); }
+::-webkit-scrollbar-track { background: transparent; }
+
+.mono { font-family: var(--mono); }
+.muted { color: var(--text-2); }
+.faint { color: var(--text-3); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- common ---------- */
+/* .page is the view's scroll area: views use the full width (cards and text too). Don't put max-width on a .page
+   or its children — only on form controls (inputs, modals). A capped .page leaves a dead strip mid-screen. */
+.page { padding: 28px 32px; overflow: auto; flex: 1; }
+.page h1 { font: 600 22px var(--sans); margin: 0 0 4px; letter-spacing: -0.01em; }
+.page .sub { color: var(--text-2); margin: 0 0 24px; }
+.eyebrow { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.btn {
+  border: 1px solid var(--line-2); background: var(--panel-2); border-radius: var(--r);
+  padding: 7px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+}
+.btn:hover { border-color: var(--text-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: none; border-color: transparent; color: var(--text-2); }
+.btn.ghost:hover { color: var(--text); background: var(--panel-2); }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.sm { padding: 4px 9px; font-size: 12.5px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 5px; border-radius: 99px; padding: 1px 8px;
+  font: 500 11.5px var(--mono); background: var(--panel-2); border: 1px solid var(--line); color: var(--text-2);
+}
+.pill.accent { background: var(--accent-dim); border-color: color-mix(in srgb, var(--accent) 33%, transparent); color: var(--accent-text); }
+.pill.ok { background: var(--ok-dim); border-color: color-mix(in srgb, var(--ok) 27%, transparent); color: var(--ok); }
+.pill.bad { background: var(--bad-dim); border-color: color-mix(in srgb, var(--bad) 27%, transparent); color: var(--bad); }
+.pill.info { background: var(--info-dim); border-color: color-mix(in srgb, var(--info) 27%, transparent); color: var(--info); }
+input.field, textarea.field, select.field {
+  background-color: var(--bg-2); border: 1px solid var(--line-2); border-radius: var(--r); padding: 8px 10px; outline: none; width: 100%;
+}
+select.field { padding-right: 26px; }
+input.field:focus, textarea.field:focus, select.field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.empty { color: var(--text-3); text-align: center; padding: 48px 16px; }
+
+main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); display: inline-block; flex: none; }
+.dot.live { background: var(--ok); box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 53%, transparent); animation: pulse 1.6s infinite; }
+.dot.warn { background: var(--accent); }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 53%, transparent); }
+  70% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--ok) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 0%, transparent); }
+}
+
+.boot-error { padding: 40px; font-family: var(--sans); }
+.boot-error pre { white-space: pre-wrap; color: var(--bad); }

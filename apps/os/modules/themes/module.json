@@ -1,0 +1,9 @@
+{
+  "name": "themes",
+  "version": "1.0.0",
+  "description": "Color palettes and fonts; the user picks one in Settings (Nexo by default)",
+  "owner": "nexo",
+  "core": true,
+  "dependsOn": ["shell"],
+  "entry": { "web": "web/index.tsx" }
+}

@@ -1,0 +1,8 @@
+.modules { display: grid; gap: 10px; }
+.modules-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.modules-table th { text-align: left; font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.modules-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.modules-table tr.sub td:first-child { padding-left: 26px; }
+.modules-table .faint { font-size: 12px; }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; }
+.switch input { accent-color: var(--accent); width: 16px; height: 16px; }

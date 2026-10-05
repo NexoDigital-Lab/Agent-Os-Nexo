@@ -1,0 +1,18 @@
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.theme-card {
+  display: grid; gap: 6px; align-content: start; text-align: left; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 12px;
+}
+.theme-card:hover { border-color: var(--line-2); }
+.theme-card.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.theme-name { display: flex; align-items: center; gap: 6px; font: 600 14px var(--display); }
+.theme-name svg { margin-left: auto; color: var(--accent-text); }
+.theme-desc { color: var(--text-2); font-size: 12.5px; line-height: 1.45; }
+.theme-preview { display: grid; grid-template-columns: 26px 1fr; height: 84px; border: 1px solid; border-radius: 8px; overflow: hidden; }
+.theme-preview-rail { display: grid; align-content: start; justify-items: center; gap: 5px; padding-top: 6px; border-right: 1px solid; }
+.theme-preview-rail span { width: 14px; height: 14px; border-radius: 4px; }
+.theme-preview-rail i { width: 12px; height: 4px; border-radius: 2px; }
+.theme-preview-body { padding: 8px; display: grid; gap: 6px; align-content: start; }
+.theme-preview-body > div:first-child { border: 1px solid; border-radius: 6px; padding: 5px 7px; display: flex; justify-content: space-between; gap: 6px; font-size: 11px; }
+.theme-preview-chips { display: flex; gap: 4px; }
+.theme-preview-chips em { font: 600 10px/1 var(--sans); font-style: normal; padding: 3px 6px; border-radius: 99px; border: 1px solid transparent; }

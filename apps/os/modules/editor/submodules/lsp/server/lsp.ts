@@ -71,7 +71,14 @@ function framer(onMessage: (json: string) => void) {
 
 export function attachLsp(server: Server, port: number, cwdForTab: (id: string) => string) {
   const wss = new WebSocketServer({ noServer: true });
-  server.on("upgrade", async (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+  // An exception in an async "upgrade" listener is an unhandled rejection that ends the whole process: catch it.
+  server.on("upgrade", (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+    upgrade(req, socket, head).catch((error) => {
+      console.error("[lsp] upgrade failed:", error);
+      socket.destroy();
+    });
+  });
+  async function upgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
     const m = req.url?.match(/^\/api\/tabs\/([\w-]+)\/lsp\/(\w+)(?:\?.*)?$/);
     if (!m) return;
     if (!sameOrigin(req, port)) {
@@ -79,7 +86,8 @@ export function attachLsp(server: Server, port: number, cwdForTab: (id: string) 
       return socket.destroy();
     }
     const [, tab, lang] = m;
-    const spec = SERVERS[lang];
+    // Own keys only: "constructor" or "toString" must not resolve to Object's prototype.
+    const spec = lang && Object.hasOwn(SERVERS, lang) ? SERVERS[lang] : undefined;
     let cwd: string;
     try {
       cwd = cwdForTab(tab);
@@ -120,5 +128,5 @@ export function attachLsp(server: Server, port: number, cwdForTab: (id: string) 
         proc.kill();
       });
     });
-  });
+  }
 }

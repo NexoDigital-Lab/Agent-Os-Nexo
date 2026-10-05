@@ -24,4 +24,4 @@ What it writes for each enabled AI (next to every `AGENTS.md`):
 | Codex, OpenCode | nothing — they read `AGENTS.md` natively |
 
 Generated files may contain connection credentials; the environment is personal and is never
-versioned by Nexo. Zero runtime dependencies; Node 22.18+. License: GPL-3.0-only.
+versioned by Nexo. Zero runtime dependencies; Node 22.18+. License: PolyForm Noncommercial 1.0.0 (see LICENSE).

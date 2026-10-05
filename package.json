@@ -2,7 +2,7 @@
   "name": "agent-os-nexo",
   "private": true,
   "description": "Nexo: an open-source agent development environment, installed as an npm package.",
-  "license": "GPL-3.0-only",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "workspaces": [
     "packages/*",
     "apps/*"

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "agent-os: the local app of a Nexo environment, built from modules.",
-  "license": "GPL-3.0-only",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "engines": {
     "node": ">=22.18"

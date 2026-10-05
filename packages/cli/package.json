@@ -2,7 +2,7 @@
   "name": "@nexodigital-lab/nexo",
   "version": "0.1.0",
   "description": "Nexo CLI: installs and maintains a Nexo agent environment.",
-  "license": "GPL-3.0-only",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "bin": {
     "nexo": "dist/bin.js"

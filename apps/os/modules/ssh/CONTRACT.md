@@ -72,9 +72,11 @@ updating both sides; adding optional fields is fine).
     user (POST /api/ssh/plans/:id) — independent of the permission mode (bypass included). Returns approved/rejected.
   - All tools: if the console is not shared → error "The SSH console is not shared: ask the user to turn on
     'The agent sees the console'". If not connected → error saying so.
-- Running a command: write ` <command>; printf '\n__agos_<nonce>_%s__\n' "$?"\r` (leading space keeps it out of
+- Running a command: write ` export PAGER=cat GIT_PAGER=cat SYSTEMD_PAGER= MANPAGER=cat; <command>; printf '\n__agos_<nonce>_%s__\n' "$?"\r` (leading space keeps it out of
   bash history when HISTCONTROL=ignorespace) and capture until the marker; strip the echoed command line and the
-  marker from the output. One command at a time (busy).
+  marker from the output. One command at a time (busy). The pager exports keep `git log`, `journalctl` or `systemctl status` from
+  holding the console in `less` (they stay in that shell). A line ending in `>` or after `=` (mysql>, >>>,
+  psql's db=#) is not a shell prompt: nothing is typed into a REPL.
 - Plans travel as module events: `{ kind: "module", module: "ssh", type: "plan", id, waiting, data: SshPlan }`
   (emitted again with the final status — the chat shows the latest per id, through the "chat.events" slot).
 - System prompt note for SSH tabs: what the tools do, the read/plan rules, never ask the user for credentials in

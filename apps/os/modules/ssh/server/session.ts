@@ -23,7 +23,11 @@ const MAX_RAW = 1_000_000;
 // ssh runs LocalCommand once the connection is authenticated: an invisible title sequence tells us "connected".
 const CONNECTED = "\x1b]0;agos-ok\x07";
 const LOCAL_COMMAND = "printf '\\033]0;agos-ok\\007'";
-const IDLE_PROMPT = /[$#%>] $|[$#]$/; // a shell waiting for a command, as the last visible console line
+// A shell waiting for a command, as the last visible console line: `$`, `#` or `%` at the end. Not `>` (mysql>,
+// python's >>>) and not after `=` (psql's db=#, db=>): typing a shell command into a REPL would run it there.
+const IDLE_PROMPT = /(?<![=>])[$#%] ?$/;
+/** Pagers would hold the console in `less` (git log, journalctl, systemctl status) and the marker would never come. */
+const NO_PAGER = "export PAGER=cat GIT_PAGER=cat SYSTEMD_PAGER= MANPAGER=cat;";
 
 /** The slice of a pty this module uses: node-pty's IPty satisfies it, and tests can fake it. */
 export type PtyLike = {
@@ -372,7 +376,7 @@ export function runCommand(tabId: string, command: string, timeoutSec: number): 
       }
     }, 500);
     // Ctrl+U first wipes whatever the user half-typed. The leading space keeps it out of bash history (HISTCONTROL=ignorespace).
-    s.pty!.write(`\x15 ${command}; printf '\\n__agos_${nonce}_%s__\\n' "$?"\r`);
+    s.pty!.write(`\x15 ${NO_PAGER} ${command}; printf '\\n__agos_${nonce}_%s__\\n' "$?"\r`);
   });
 }
 

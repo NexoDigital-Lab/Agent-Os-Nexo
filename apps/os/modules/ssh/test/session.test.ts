@@ -67,7 +67,8 @@ test("runCommand returns the exit code and the output, without the echoed line o
   const { pty } = open("t-run");
   pty.emit(CONNECTED + "$ ");
   const p = runCommand("t-run", "uname -a", 5);
-  assert.match(pty.written.at(-1)!, /^\x15 uname -a; printf '\\n__agos_[0-9a-f]{12}_%s__\\n' "\$\?"\r$/);
+  // Pagers off first (git log, journalctl… would hold the console in less), then the command, then the marker.
+  assert.match(pty.written.at(-1)!, /^\x15 export PAGER=cat GIT_PAGER=cat SYSTEMD_PAGER= MANPAGER=cat; uname -a; printf '\\n__agos_[0-9a-f]{12}_%s__\\n' "\$\?"\r$/);
   assert.equal(status("t-run")?.busy, true);
   assert.throws(() => assertRunnable("t-run"), /busy/);
   answer(pty, "Linux box 6.1 x86_64\r\nline two", 3);
@@ -197,6 +198,21 @@ test("runCommand refuses when the console is not at a shell prompt, and types no
   assert.equal(pty.written.length, before);
   assert.equal(status("t-np")?.busy, false);
   kill("t-np");
+});
+
+test("a database or language REPL is not a shell prompt: nothing is typed into it", () => {
+  for (const [id, prompt] of [["t-mysql", "mysql> "], ["t-py", ">>> "], ["t-psql", "app=# "], ["t-psql2", "app=> "]]) {
+    const { pty } = open(id!);
+    pty.emit(CONNECTED + `deploy@web:~$ mysql\r\n${prompt}`);
+    const before = pty.written.length;
+    assert.throws(() => runCommand(id!, "ls", 5), /not at a shell prompt/, prompt);
+    assert.equal(pty.written.length, before, prompt);
+    kill(id!);
+  }
+  const { pty } = open("t-zsh");
+  pty.emit(CONNECTED + "me@host ~ % ");
+  assert.doesNotThrow(() => void runCommand("t-zsh", "ls", 1).catch(() => {}), "zsh's % prompt still counts");
+  kill("t-zsh");
 });
 
 test("a pending run resolves as closed on reconnect, pty exit and kill, and no Ctrl+C is sent afterwards", async () => {

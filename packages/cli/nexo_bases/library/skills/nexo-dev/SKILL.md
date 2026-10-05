@@ -2,7 +2,7 @@
 name: nexo-dev
 description: Build a feature or fix a bug end to end, with a plan gate, verification and a local commit. Use when the user says "nexo-dev <feature>", "build this", "fix this bug", or points at a file in context/features/.
 owner: nexo
-version: 1.0.0
+version: 1.1.0
 ---
 
 # nexo-dev
@@ -12,6 +12,7 @@ The standard way to turn a feature into verified, committed code. Scales with th
 ## Input
 
 A feature (`context/features/<id>-*.md`) or a request. No feature yet → run `nexo-features` first.
+A change of 3 files or fewer with no risk signal and a clear result → `nexo-quick` instead.
 
 ## 0. Mode and size
 
@@ -31,22 +32,26 @@ In every mode you may handle environment work (dependencies, containers, config)
 ## 1. Context
 
 Read the project `AGENTS.md`, `context/README.md`, the feature, and only the conventions the task
-needs (`library/index.json` first). Check `blueprints/index.json` for a matching blueprint.
+needs (`library/index.json` first). Find code through `context/map/` (`nexo map` when missing or
+stale) instead of exploring cold; how to run and build the project is `context/infra.md` (`nexo-infra`).
+Check `blueprints/index.json` for a matching blueprint.
 
 ## 2. Plan — GATE 1
 
 Write a short plan: files to change, approach, risks, how it will be verified. For M/L list the
-tasks in order. Present it with the size and mode, and **wait for approval**. Size S: a three-line
-plan is enough.
+tasks in order, and run `nexo-budget` on it: its signals, review set and model routing go with the
+plan, and the user picks recommended, lighter, heavier or manual. For L (or an ambiguous request),
+`challenger` reviews the request first. Present it with the size and mode, and **wait for approval**.
+Size S: a three-line plan is enough.
 
 ## 3. Build
 
 - Create the branch from `library/conventions/git/` unless the user said to work on main.
 - Size S: implement directly.
 - Size M: implement task by task; review your own diff after each task.
-- Size L: implement task by task; at the end dispatch review subagents (`library/agents/`, e.g.
-  `code-reviewer`, plus `security-reviewer` when there is a risk signal) on the whole diff.
-  Respect the model ceiling in `profile.json`.
+- Size L: implement task by task; at the end dispatch the review set `nexo-budget` chose
+  (`library/agents/`: `code-reviewer`, `simplifier`, `security-reviewer`, `critic`) on the whole diff,
+  with its model routing. Respect the model ceiling in `profile.json`.
 - Fix every real finding; say which findings you rejected and why.
 
 ## 4. Verify
@@ -66,7 +71,8 @@ approval.
 2. Update the feature: `status: done`, plus a short "What was done" section.
 3. Record decisions or new knowledge in `context/` (and `library/memory/` if it holds across
    projects).
-4. If something was hard to set up and is reusable, **ask** whether to save it with
+4. M/L: run `nexo-budget`'s learning step (one line in `context/pipeline/runs.md`).
+5. If something was hard to set up and is reusable, **ask** whether to save it with
    `nexo-blueprint`.
 
 ## Does not

@@ -62,7 +62,9 @@ commit, read `library/conventions/git/` — not every convention.
 | Skill | Use it to |
 |---|---|
 | `nexo-features` (alias `CT`) | Turn a request into a feature in `context/features/` |
-| `nexo-dev` | Build a feature or fix a bug end to end |
+| `nexo-dev` | Build a feature or fix a bug end to end (`nexo-budget` sizes it) |
+| `nexo-quick` | A small, clear change: ≤3 files, no risk signal |
+| `nexo-infra` | How a project runs and builds, kept in `context/infra.md` |
 | `nexo-idea` | Turn an idea into an options document, without deciding |
 | `nexo-research` | Research a topic with sources |
 | `nexo-debug` | Find a root cause before fixing |
@@ -74,7 +76,7 @@ After finishing a feature that was hard to set up, **ask** whether to save it as
 
 ## CLI — prefer it over doing things by hand
 
-`nexo clone <repo> [--ws <name>]`, `nexo new <name>`, `nexo connect <service>`, `nexo doctor`,
+`nexo clone <repo> [--ws <name>]`, `nexo new <name>`, `nexo map [project]` (code map), `nexo connect <service>`, `nexo doctor`,
 `nexo analyze`, `nexo update`, `nexo os status|versions|preview|build`. If `nexo doctor` recommends `nexo analyze`,
 tell the user; never run the analysis on your own.
 

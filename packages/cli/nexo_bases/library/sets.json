@@ -5,6 +5,8 @@
     "skills/nexo-idea",
     "skills/nexo-dev",
     "skills/nexo-features",
+    "skills/nexo-budget",
+    "skills/nexo-quick",
     "conventions/git",
     "hooks/block-force-push.json"
   ]

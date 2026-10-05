@@ -44,7 +44,8 @@ environments/
 │   │   ├── AGENTS.md         project rules (next to code, never inside it)
 │   │   ├── code/             the clone, untouched by work conventions
 │   │   ├── context/          everything for the AI: business logic, specs, features (features/),
-│   │   │                     the defined architecture (architecture/), docs graph,
+│   │   │                     the defined architecture (architecture/), the code map (map/,
+│   │   │                     `nexo map`), how it runs (infra.md), past runs (pipeline/), docs graph,
 │   │   │                     permissions.json (overrides the global one)
 │   │   ├── worktrees/<name>/ extra checkouts of code/ for parallel work
 │   │   └── secrets/

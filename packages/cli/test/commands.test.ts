@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { freshEnv, tempDir } from "./helpers.ts";
 import { init } from "../src/commands/init.ts";
@@ -71,6 +71,27 @@ test("init --factory none installs no factory items", async () => {
   assert.deepEqual(readdirSync(join(root, "library/skills")), []);
   assert.ok(!existsSync(join(root, "library/hooks/scripts")));
   assert.throws(() => update({ root, factory: "some" }), /Unknown factory set/);
+});
+
+test("Claude sees the library: .claude/skills links to it and agents get Claude's tool names", async () => {
+  const root = await freshEnv("claude");
+  assert.ok(lstatSync(join(root, ".claude/skills")).isSymbolicLink());
+  assert.equal(readlinkSync(join(root, ".claude/skills")), "../library/skills");
+  assert.ok(existsSync(join(root, ".claude/skills/nexo-dev/SKILL.md")));
+  const planner = readFileSync(join(root, ".claude/agents/planner.md"), "utf8");
+  assert.match(planner, /^---\nname: planner\n/);
+  assert.match(planner, /\ntools: Read, Grep, Glob\n/);
+  assert.match(planner, /\nmodel: sonnet\n/);
+  assert.doesNotMatch(planner, /owner:/);
+  create("shop", { root });
+  assert.equal(readlinkSync(join(root, "projects/shop/.claude/skills")), "../../../library/skills");
+  assert.ok(existsSync(join(root, "projects/shop/.claude/agents/code-reviewer.md")));
+  // a dropped library agent disappears from .claude/agents on update; the user's own agent stays
+  rmSync(join(root, "library/agents/planner.md"));
+  writeFileSync(join(root, ".claude/agents/mine.md"), "---\nname: mine\n---\nhi\n");
+  update({ root });
+  assert.ok(!existsSync(join(root, ".claude/agents/planner.md")));
+  assert.ok(existsSync(join(root, ".claude/agents/mine.md")));
 });
 
 test("init refuses an existing environment and unknown options", async () => {

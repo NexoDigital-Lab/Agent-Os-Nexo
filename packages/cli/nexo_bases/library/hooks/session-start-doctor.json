@@ -1,0 +1,9 @@
+{
+  "name": "session-start-doctor",
+  "description": "At session start, runs a quick environment check and surfaces recommendations (for example, a stale OS analysis).",
+  "owner": "nexo",
+  "version": "1.0.0",
+  "event": "session-start",
+  "match": "*",
+  "run": "nexo doctor --quick"
+}

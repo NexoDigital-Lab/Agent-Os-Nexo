@@ -1,0 +1,14 @@
+{
+  "identity": {
+    "name": "",
+    "email": ""
+  },
+  "language": "en",
+  "git": {
+    "aiCoAuthorTrailer": false
+  },
+  "models": {
+    "subagentDefault": "haiku",
+    "subagentCeiling": "sonnet"
+  }
+}

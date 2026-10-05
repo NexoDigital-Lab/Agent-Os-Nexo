@@ -1,0 +1,20 @@
+{
+  "name": "os-analysis",
+  "description": "Toolchains checked by `nexo analyze`. Each entry runs its command and reads the first version-looking token of the output.",
+  "owner": "nexo",
+  "version": "1.0.0",
+  "toolchains": [
+    { "name": "node", "run": ["node", "--version"] },
+    { "name": "npm", "run": ["npm", "--version"] },
+    { "name": "pnpm", "run": ["pnpm", "--version"] },
+    { "name": "bun", "run": ["bun", "--version"] },
+    { "name": "git", "run": ["git", "--version"] },
+    { "name": "gh", "run": ["gh", "--version"] },
+    { "name": "docker", "run": ["docker", "--version"] },
+    { "name": "python", "run": ["python3", "--version"] },
+    { "name": "go", "run": ["go", "version"] },
+    { "name": "rust", "run": ["rustc", "--version"] },
+    { "name": "java", "run": ["java", "-version"] }
+  ],
+  "packageManagers": ["dnf", "apt", "pacman", "zypper", "brew", "winget", "choco"]
+}

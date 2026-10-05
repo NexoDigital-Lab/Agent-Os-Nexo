@@ -25,7 +25,7 @@ export function Versions() {
           {s.builds.map((b) => (
             <li key={b.version} className={b.version === s.next ? "next" : ""}>
               <span className="num">{b.version}</span>
-              {b.version === s.running && <span className="pill ok">{t("running")}</span>}
+              {b.version === s.running && <span className="pill ok">{t("running::build")}</span>}
               {b.version === s.next && b.version !== s.running && <span className="pill accent">{t("loads on next start")}</span>}
               {b.version === s.pinned && <span className="pill">{t("pinned")}</span>}
               <span className="faint">{b.builtAt ? new Date(b.builtAt).toLocaleString(locale()) : ""}</span>

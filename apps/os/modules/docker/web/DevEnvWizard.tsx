@@ -89,7 +89,7 @@ export function DevEnvWizard({ tab, env, onClose, onDone }: { tab: Tab; env: Dev
           {t("If the repository has no .devcontainer/devcontainer.json yet, one is written so VS Code can open it too; if it has one, it is left alone.")}
         </p>
         {recreate && <p className="dk-warn">{t("Replaces the current container: what you installed inside (pip/npm) is lost and has to be installed again. Your code is not touched.")}</p>}
-        <label className="eyebrow" htmlFor={`${uid}-lang`}>{t("Language")}</label>
+        <label className="eyebrow" htmlFor={`${uid}-lang`}>{t("Language::code")}</label>
         <select ref={langRef} autoFocus id={`${uid}-lang`} className="field" value={lang} disabled={busy} onChange={(e) => pickLang(e.target.value as Lang)}>
           <option value="python">Python</option>
           <option value="node">Node</option>

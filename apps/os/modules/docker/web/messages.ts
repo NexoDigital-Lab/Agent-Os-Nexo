@@ -34,7 +34,7 @@ export const es: Record<string, string> = {
   "Install dependencies": "Instalar dependencias",
   "Install dependencies in the container": "Instalar dependencias en el contenedor",
   "in use": "en uso",
-  "Language": "Lenguaje",
+  "Language::code": "Lenguaje",
   "Loading…": "Cargando…",
   "No containers.": "No hay contenedores.",
   "No images.": "No hay imágenes.",

@@ -43,5 +43,6 @@ test("a key's context is hidden in English and picks its own translation", () =>
   assert.equal(t("All::containers"), "Todos");
   assert.equal(t("All"), "Todo");
   assert.equal(t("Missing::ctx"), "Missing", "untranslated keys fall back without the context");
+  for (const raw of ["connect ECONNREFUSED ::1:443", "std::io::Error", "::error::build failed", "a :: b"]) assert.equal(t(raw), raw, raw);
   setLanguage("en");
 });

@@ -26,9 +26,12 @@ export function setLanguage(lang: Language): void {
 
 export const language = (): Language => current;
 
+/** A trailing "::lowercase-word" only, so server text passed through t() ("ECONNREFUSED ::1", "std::io::Error") stays whole. */
+const CONTEXT = /::[a-z][a-z0-9-]*$/;
+
 /** Translates `key` and fills `{name}` placeholders: t("{n} tabs", { n: 3 }). */
 export function t(key: string, vars?: Record<string, string | number>): string {
-  const text = dict[current]?.[key] ?? key.replace(/::.*$/s, "");
+  const text = dict[current]?.[key] ?? key.replace(CONTEXT, "");
   return vars ? text.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : text;
 }
 

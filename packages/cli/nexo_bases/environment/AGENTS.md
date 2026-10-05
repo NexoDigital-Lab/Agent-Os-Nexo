@@ -68,6 +68,7 @@ commit, read `library/conventions/git/` — not every convention.
 | `nexo-debug` | Find a root cause before fixing |
 | `nexo-blueprint` | Save something hard to set up as a reusable blueprint |
 | `nexo-onboard` | Fill a new project's `AGENTS.md` and `context/` |
+| `nexo-module-review` | Review an agent-os module against its rules and say what to fix |
 
 After finishing a feature that was hard to set up, **ask** whether to save it as a blueprint.
 

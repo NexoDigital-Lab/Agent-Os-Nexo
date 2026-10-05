@@ -9,7 +9,9 @@ itself; the environment that Nexo installs has its own template at
 - `packages/cli/` — the `nexo` CLI (TypeScript, zero runtime dependencies) and `nexo_bases/`,
   the factory content copied into a user's environment.
 - `apps/os/` — agent-os. Modular: every sector is a module under `apps/os/modules/<name>/` with a
-  `module.json` manifest (see `apps/os/README.md`).
+  `module.json` manifest. Its documentation, in English and Spanish, is `apps/os/docs/` (index:
+  `apps/os/docs/README.md`).
+- `apps/desktop/` — the optional Tauri window for agent-os (not an npm workspace).
 - `docs/` — architecture (`docs/architecture.md`) and decisions (`docs/decisions/`).
 
 ## Commands
@@ -20,7 +22,8 @@ itself; the environment that Nexo installs has its own template at
 
 ## Rules
 
-1. **English** for code, comments, docs and factory content. Agents answer users in the language
+1. **English** for code, comments, docs and factory content (agent-os's own documentation also has a
+   Spanish copy, kept in step: see below). Agents answer users in the language
    the user writes in.
 2. **Nothing personal in the repo.** No names, emails, paths like `/home/<user>`, client rules or
    tokens. Personal data lives in the user's `library/`, never in `nexo_bases/`.
@@ -40,6 +43,15 @@ itself; the environment that Nexo installs has its own template at
 7. **Versioning**: the major version is set only by repo maintainers.
 8. **Tests**: every CLI command has tests in `packages/cli/test/` (`node:test`). Bugs get a
    regression test.
+
+## agent-os modules
+
+Any change to a module follows `apps/os/docs/en/module-rules.md` (M1–M5 checked by
+`node apps/os/scripts/check-modules.ts`, R1–R12 in review). Reviewing a module or a contribution —
+yours, a contributor's, or when someone asks — follows `apps/os/docs/en/review.md`: machine checks first,
+then findings by rule, severity and file:line, each with its fix. A change to a module updates its entry
+in `apps/os/docs/{en,es}/modules.md`; a change to any document updates both languages and the index
+(`npm run docs -w apps/os`).
 
 ## Commits
 

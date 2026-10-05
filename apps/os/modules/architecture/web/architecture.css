@@ -1,0 +1,73 @@
+.arch-page { display: flex; flex-direction: column; gap: 12px; }
+.arch-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.arch-head .sub { margin-bottom: 0; }
+.arch-head-r { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.arch-state { font-size: 12.5px; min-width: 110px; text-align: right; }
+.arch-follow { width: auto; display: flex; align-items: center; gap: 10px; padding: 6px 12px; cursor: pointer; color: var(--text); font: inherit; }
+.arch-follow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.arch-empty { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.arch-empty h3, .arch-doc-title { margin: 0; }
+.arch-empty p { margin: 0; }
+.arch-empty-btns, .arch-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.arch-count { margin-left: auto; font-size: 12.5px; }
+.arch-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.arch-left, .arch-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.arch-hint { margin: 0; font-size: 12.5px; }
+.arch-ul { list-style: none; margin: 0; padding: 0; }
+.arch-tree { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-2); padding: 4px; max-height: 340px; overflow: auto; }
+.arch-row { display: flex; align-items: center; gap: 4px; min-height: 30px; padding-right: 4px; border-radius: 6px; border: 1px solid transparent; }
+.arch-row:hover { background: var(--panel-2); }
+.arch-row.on { background: var(--accent-dim); }
+.arch-row.over { border-color: var(--accent); background: var(--accent-dim); }
+.arch-row.dragging { opacity: 0.5; }
+.arch-row[draggable="true"] { cursor: grab; }
+.arch-twist { width: 22px; flex: none; padding: 2px; }
+.arch-name { flex: 1; min-width: 0; text-align: left; border: 0; background: none; color: var(--text); cursor: pointer; padding: 4px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; border-radius: 4px; }
+.arch-name:focus-visible, .arch-twist:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.arch-rename { flex: 1; min-width: 0; padding: 3px 6px; font-family: var(--mono); font-size: 13px; }
+.arch-acts { display: flex; gap: 0; flex: none; opacity: 0.55; }
+.arch-row:hover .arch-acts, .arch-row:focus-within .arch-acts, .arch-row.on .arch-acts { opacity: 1; }
+.arch-rules { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.arch-rules p { margin: 0; }
+.arch-rules-title { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.arch-move { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.arch-move select { flex: 1; min-width: 0; max-width: 360px; }
+.arch-md { display: flex; flex-direction: column; gap: 8px; }
+.arch-seg { align-self: flex-start; }
+.arch-ta { width: 100%; resize: vertical; line-height: 1.5; font-size: 13px; }
+.arch-preview { min-height: 120px; max-height: 60vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); margin: 0; }
+@media (max-width: 1000px) { .arch-cols { grid-template-columns: minmax(0, 1fr); } }
+.arch-pill { position: absolute; right: 20px; bottom: 20px; z-index: 9; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 8px 24px #0008; }
+.arch-pill:hover { border-color: var(--accent); }
+.arch-pill:focus-visible, .arch-steps:focus-visible, .arch-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.arch-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.arch-float { position: absolute; right: 20px; bottom: 20px; z-index: 9; width: min(360px, calc(100% - 32px)); height: 420px; max-height: calc(100% - 80px); padding: 0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 36px #000a; border-color: var(--line-2); }
+.arch-float-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--line); flex: none; }
+.arch-float-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.arch-float-body p { margin: 0; }
+.arch-float-foot { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); flex: none; flex-wrap: wrap; }
+.arch-float-foot .btn:last-child { margin-left: auto; }
+.arch-busy { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+.arch-summary.md, .arch-detail.md { padding: 0; line-height: 1.5; }
+.arch-summary.md { color: var(--text-2); padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.arch-detail.md p { margin: 0 0 6px; }
+.arch-step-nav { display: flex; align-items: center; justify-content: space-between; }
+.arch-step-title { margin: 0; font-size: 14px; }
+.arch-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.arch-chip { cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.arch-chat { padding-bottom: 8px; }
+.arch-log { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.arch-bubble { max-width: 92%; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); overflow-wrap: anywhere; white-space: pre-wrap; }
+.arch-bubble.user { align-self: flex-end; background: var(--accent-dim); border-color: transparent; }
+.arch-bubble.assistant { align-self: flex-start; white-space: normal; }
+.arch-bubble .md { padding: 0; line-height: 1.5; }
+.arch-bubble .md p { margin: 0 0 6px; }
+.arch-compose { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.arch-compose textarea { resize: none; }
+.arch-compose-btns { display: flex; gap: 6px; }
+.arch-compose-btns .btn:last-child, .arch-compose-btns .btn.ghost { margin-left: auto; }
+.arch-fs { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.arch-fs:disabled { opacity: 0.6; pointer-events: none; }
+.arch-retry { margin-left: 2px; }
+.arch-close { display: inline-flex; align-items: center; gap: 4px; }
+.arch-off { margin: 0; padding: 6px 14px; font-size: 12px; border-bottom: 1px solid var(--line); flex: none; }

@@ -61,7 +61,7 @@ recomendación.
   de borrarlo).
 - **Rutas:** `GET/POST /tabs`, `PATCH/DELETE /tabs/:id`, `GET /tabs/:id/stream` (server-sent events),
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
-  `GET /tabs/:id/diff`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
+  `GET /tabs/:id/diff`, `POST /tabs/:id/uploads`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
   `PUT /sessions/skills/prefs` (en `library/profile.json`), `POST /sessions/skills/recommend`.
 - **Guarda:** data `tabs.json`; state `uploads/`, `search.db`.

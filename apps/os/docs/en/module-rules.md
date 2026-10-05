@@ -131,14 +131,16 @@ submodule off. Prefer a slot the parent owns when the submodule only adds someth
 ### R7 — UI
 - Reuse the host's building blocks before inventing: `.page`, `.card`, `.btn` (`primary`, `ghost`,
   `danger`, `sm`), `.field`, `.pill` (`ok`, `bad`, `info`, `accent`), `.seg`, `.modal`, `.errline`,
-  `.faint`, `.empty`, `.spin`; `ConfirmDelete`, `renderMarkdown`, `readLS`/`writeLS` from `@os/lib`.
+  `.faint`, `.empty`, `.spin`; `ConfirmDelete`, `ConfirmButton`, `askText`/`askConfirm`, `renderMarkdown`,
+  `readLS`/`writeLS` from `@os/lib`.
 - Views use the full width: no `max-width` on `.page`, cards or text; only form controls keep a width.
 - Fonts through `var(--sans)`, `var(--display)`, `var(--mono)`.
 - Every view has its loading, empty and error states.
 - Accessibility: icon-only buttons have `aria-label` (and `title`); dialogs have `role="dialog"`,
   `aria-modal`, a label, a focus trap and Escape; errors use `role="alert"`; toggles use `aria-pressed`
   or `role="switch"`.
-- Destructive actions use `ConfirmDelete` (click twice), never `window.confirm`.
+- Destructive or irreversible actions ask twice with `ConfirmDelete` / `ConfirmButton`; a question or a
+  name comes from `askConfirm` / `askText` (`@os/lib/dialog`) — never the browser's dialogs (M6).
 - Polling: 3 s or slower, stopped on unmount, and a slow response for a previous item never overwrites
   the current one.
 

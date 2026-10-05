@@ -53,7 +53,8 @@ Host routes: `GET /api/os/info` (version, newer build, environment, language), `
 
 ## Boot, web side (`host/web/src/main.tsx`)
 
-1. Ask the server which modules are active and the user's prefs.
+1. Ask the server which modules are active and the user's prefs. Without this run's access cookie
+   (`host/server/access.ts`) the API answers 401 and the page explains how to get in (`nexo os open`).
 2. Import the `web/index.tsx` of each active module (`import.meta.glob` makes them all available to the
    bundle; only active ones are loaded), register their translations, run their `setup()`.
 3. Render the `root` the shell module provides. The shell renders the rail from every module's `views`,

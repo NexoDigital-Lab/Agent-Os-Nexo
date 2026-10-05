@@ -12,7 +12,7 @@ nexo clone git@github.com:you/app.git   # projects/app/{AGENTS.md, code/, contex
 nexo doctor                             # check everything; never changes anything
 ```
 
-Commands: `init`, `update`, `doctor`, `analyze`, `index`, `clone`, `new`, `connect`, `os`.
+Commands: `init`, `update`, `doctor`, `analyze`, `index`, `clone`, `new`, `map`, `connect`, `os`.
 Run `nexo --help` for options.
 
 What it writes for each enabled AI (next to every `AGENTS.md`):

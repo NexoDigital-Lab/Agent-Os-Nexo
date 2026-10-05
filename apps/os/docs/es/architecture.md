@@ -54,7 +54,8 @@ Rutas del host: `GET /api/os/info` (versión, build más nuevo, entorno, idioma)
 
 ## Arranque, lado web (`host/web/src/main.tsx`)
 
-1. Le pregunta al servidor qué módulos están activos y las preferencias del usuario.
+1. Le pregunta al servidor qué módulos están activos y las preferencias del usuario. Sin la cookie de acceso
+   de esta ejecución (`host/server/access.ts`) la API responde 401 y la página explica cómo entrar (`nexo os open`).
 2. Importa el `web/index.tsx` de cada módulo activo (`import.meta.glob` los deja todos disponibles en el
    bundle; solo se cargan los activos), registra sus traducciones y corre su `setup()`.
 3. Renderiza el `root` que provee el módulo shell. El shell arma el riel con las `views` de cada módulo, y

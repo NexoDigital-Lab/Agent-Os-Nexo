@@ -77,7 +77,9 @@ agent-os is a local app built from modules (see `apps/os/README.md`), distribute
 package (`@nexodigital-lab/agent-os`) that `nexo os install` copies into `os/source`. Each user has a
 personal version history starting at `1.0.0`: a requested change is previewed in the browser
 (`nexo os preview`), built only on approval (`nexo os build`), and loaded on the next restart (the
-app detects the new build and asks to restart; agents never close it). Patch +1 per approved build, every 10 rolls the minor (`1.0.9` → `1.1.0`). The
+app detects the new build and asks to restart; agents never close it). Each run has its own access token (only the
+browser holding its link, or the desktop app, can use it), and `nexo os check` keeps every module to the
+rules in `apps/os/docs/en/module-rules.md`. Patch +1 per approved build, every 10 rolls the minor (`1.0.9` → `1.1.0`). The
 major version is reserved for Nexo releases. Personal changes stay local; `os/source` is a git repository whose `base` branch holds
 Nexo's releases, and `nexo os update` merges a new one into the user's version, keeping their changes
 and stopping on real conflicts.

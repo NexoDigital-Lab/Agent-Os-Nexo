@@ -136,7 +136,8 @@ todos los submódulos apagados. Preferí un slot del padre cuando el submódulo 
 ### R7 — Interfaz
 - Reusá las piezas del host antes de inventar: `.page`, `.card`, `.btn` (`primary`, `ghost`, `danger`,
   `sm`), `.field`, `.pill` (`ok`, `bad`, `info`, `accent`), `.seg`, `.modal`, `.errline`, `.faint`,
-  `.empty`, `.spin`; `ConfirmDelete`, `renderMarkdown`, `readLS`/`writeLS` de `@os/lib`.
+  `.empty`, `.spin`; `ConfirmDelete`, `ConfirmButton`, `askText`/`askConfirm`, `renderMarkdown`,
+  `readLS`/`writeLS` de `@os/lib`.
 - Las vistas usan todo el ancho: nada de `max-width` en `.page`, tarjetas o texto; solo los controles de
   formulario conservan un ancho.
 - Tipografías con `var(--sans)`, `var(--display)`, `var(--mono)`.
@@ -144,7 +145,8 @@ todos los submódulos apagados. Preferí un slot del padre cuando el submódulo 
 - Accesibilidad: los botones con solo ícono tienen `aria-label` (y `title`); los diálogos tienen
   `role="dialog"`, `aria-modal`, una etiqueta, foco atrapado y Escape; los errores usan `role="alert"`; los
   interruptores usan `aria-pressed` o `role="switch"`.
-- Las acciones destructivas usan `ConfirmDelete` (dos clics), nunca `window.confirm`.
+- Las acciones destructivas o irreversibles preguntan dos veces con `ConfirmDelete` / `ConfirmButton`; una
+  pregunta o un nombre salen de `askConfirm` / `askText` (`@os/lib/dialog`): nunca los diálogos del navegador (M6).
 - Polling: cada 3 s o más, se detiene al desmontar, y una respuesta lenta de un ítem anterior nunca pisa
   al actual.
 

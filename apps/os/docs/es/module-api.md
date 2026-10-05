@@ -221,6 +221,8 @@ Código web compartido: el bus del editor (`editor/web/bus.ts`: `openInEditor(vi
 | `@os/lib/http` | `call<T>(method, url, body?)`, `seg(id)` (codifica el id de un proyecto para la URL), `isLocked(e)`, `hostApi` |
 | `@os/i18n` | `t(key, vars)`, `language()`, `locale()` |
 | `@os/lib/ConfirmDelete` | Botón de borrado en dos pasos |
+| `@os/lib/ConfirmButton` | Cualquier acción que necesita un segundo clic (`confirmText` dice qué va a hacer) |
+| `@os/lib/dialog` | `askText(mensaje, inicial)`, `askConfirm(mensaje, textoConfirmar)` — promesas; el shell monta el diálogo |
 | `@os/lib/markdown` | `renderMarkdown(src)` (sanitizado) |
 | `@os/lib/storage` | `readLS`, `writeLS`, `readStr`, `writeStr` (comodidades por navegador) |
 | `@os/lib/images` | `prepareImage(blob)` — achica la imagen antes de subirla |

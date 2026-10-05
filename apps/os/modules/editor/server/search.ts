@@ -45,8 +45,13 @@ export function replaceInRepo(root: string, o: SearchOpts & { replacement: strin
   } catch (e: any) {
     throw httpError(400, `Invalid regex: ${e.message}`);
   }
+  if (typeof o.replacement !== "string") throw httpError(400, "replacement must be text");
+  if (!Array.isArray(o.files) || !o.files.every((f) => typeof f === "string")) throw httpError(400, "files must be a list of paths");
+  // How many capture groups the pattern really has: $n beyond them is empty, never another callback argument
+  // (the match offset, or the whole file text).
+  const groups = new RegExp(`${re.source}|`).exec("")!.length - 1;
   const changed: { path: string; count: number }[] = [];
-  for (const rel of o.files ?? []) {
+  for (const rel of o.files) {
     const abs = safePath(root, rel);
     if (!existsSync(abs) || statSync(abs).size > MAX_READ) continue;
     const before = readFileSync(abs, "utf8");
@@ -54,7 +59,12 @@ export function replaceInRepo(root: string, o: SearchOpts & { replacement: strin
     const after = before.replace(re, (...m) => {
       count++;
       // $1…$n / $& in the replacement, like VS Code with regex on.
-      return o.regex ? o.replacement.replace(/\$(\d+|&)/g, (_, g) => (g === "&" ? m[0] : m[Number(g)] ?? "")) : o.replacement;
+      if (!o.regex) return o.replacement;
+      return o.replacement.replace(/\$(\d+|&)/g, (_, g: string) => {
+        if (g === "&") return m[0];
+        const n = Number(g);
+        return n >= 1 && n <= groups ? ((m[n] as string | undefined) ?? "") : "";
+      });
     });
     if (count) {
       writeFileSync(abs, after);

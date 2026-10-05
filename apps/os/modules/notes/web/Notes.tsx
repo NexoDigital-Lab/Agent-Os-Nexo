@@ -59,7 +59,6 @@ export function Notes() {
   }
 
   async function removeNote(n: Note) {
-    if (!confirm(t("Delete the note \"{title}\"?", { title: n.title || n.body.slice(0, 40) || t("untitled") }))) return;
     await api.deleteNote(n.id);
     setNotes((prev) => prev.filter((x) => x.id !== n.id));
     if (current?.id === n.id) setCurrent(null);

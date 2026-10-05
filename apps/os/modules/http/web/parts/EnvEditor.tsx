@@ -5,6 +5,7 @@ import { uid } from "../curl";
 import type { Env, HttpStore } from "../api";
 import { KVTable } from "./KVTable";
 import { t } from "@os/i18n";
+import { ConfirmButton } from "@os/lib/ConfirmButton";
 
 export function EnvEditor({ store, update, onClose }: { store: HttpStore; update: (fn: (s: HttpStore) => HttpStore) => void; onClose: () => void }) {
   const [cur, setCur] = useState<string | null>(store.activeEnv ?? store.envs[0]?.id ?? null);
@@ -35,11 +36,10 @@ export function EnvEditor({ store, update, onClose }: { store: HttpStore; update
             <KVTable rows={env.vars} onChange={(vars) => patch({ vars })} keyPh="variable" valPh="valor" />
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn sm ghost" onClick={() => { const n = prompt(t("Name"), env.name); if (n) patch({ name: n }); }}>{t("Rename")}</button>
-              <button className="btn sm ghost" onClick={() => {
-                if (!confirm(t("Delete the environment {name}?", { name: env.name }))) return;
+              <ConfirmButton className="btn sm ghost danger" title={t("Delete")} confirmText={t("Delete the environment {name}?", { name: env.name })} onConfirm={() => {
                 update((s) => ({ ...s, envs: s.envs.filter((e) => e.id !== env.id), activeEnv: s.activeEnv === env.id ? null : s.activeEnv }));
                 setCur(null);
-              }}>{t("Delete")}</button>
+              }}>{t("Delete")}</ConfirmButton>
             </div>
           </>
         )}

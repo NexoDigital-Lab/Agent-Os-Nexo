@@ -9,6 +9,7 @@ import { projectsApi, type Feature, type Project } from "../../../projects/web/a
 import { refreshProjects } from "../../../projects/web/store";
 import { draftTo, openTab } from "../../../sessions/web/tabs/store";
 import { notesApi, type Draft } from "../api";
+import { ConfirmButton } from "@os/lib/ConfirmButton";
 
 const TYPE_CLS: Record<Feature["type"], string> = { feature: "accent", bug: "bad", chore: "" };
 const STATUSES: { v: Feature["status"]; label: string }[] = [
@@ -89,17 +90,17 @@ export function FeatureBoard({ projects, drafts, reloadDrafts, project, setProje
                     <button className="btn sm" title={t("Opens a tab on the project with the feature loaded")} onClick={() => void work(it)}>
                       <Play size={14} /> {t("Work on it")}
                     </button>
-                    <button
+                    <ConfirmButton
                       className="btn sm ghost danger"
-                      aria-label={t("Delete the feature")}
-                      onClick={async () => {
-                        if (!confirm(t("Move the feature \"{title}\" to the trash?", { title: f.title }))) return;
+                      title={t("Delete the feature")}
+                      confirmText={t("Move the feature \"{title}\" to the trash?", { title: f.title })}
+                      onConfirm={async () => {
                         await projectsApi.removeFeature(it.project, f.slug);
                         await refreshProjects();
                       }}
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </ConfirmButton>
                   </div>
                 </div>
               );

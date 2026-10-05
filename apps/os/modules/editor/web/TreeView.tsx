@@ -137,7 +137,8 @@ export function NameInput({ depth, initial, kind, onDone, onCancel }: { depth: n
   );
 }
 
-type MenuItem = { label: string; icon?: LucideIcon; run: () => void; danger?: boolean };
+/** `confirm`: the item asks once more (its label becomes this question) before it runs. */
+type MenuItem = { label: string; icon?: LucideIcon; run: () => void; danger?: boolean; confirm?: string };
 
 export function TreeMenu({ x, y, items, onClose }: { x: number; y: number; items: MenuItem[]; onClose: () => void }) {
   useEffect(() => {
@@ -152,14 +153,23 @@ export function TreeMenu({ x, y, items, onClose }: { x: number; y: number; items
       window.removeEventListener("keydown", esc);
     };
   }, []);
+  const [armed, setArmed] = useState<string | null>(null);
   // Keep it on screen near the bottom/right edges.
   const top = Math.min(y, window.innerHeight - items.length * 30 - 12);
   const left = Math.min(x, window.innerWidth - 210);
   return (
     <div className="ctx-menu" style={{ top, left }} onClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
       {items.map((it) => (
-        <button key={it.label} className={it.danger ? "danger" : ""} onClick={() => { onClose(); it.run(); }}>
-          {it.icon && <it.icon size={14} />} {it.label}
+        <button
+          key={it.label}
+          className={`${it.danger ? "danger" : ""}${armed === it.label ? " armed" : ""}`}
+          onClick={() => {
+            if (it.confirm && armed !== it.label) return setArmed(it.label);
+            onClose();
+            it.run();
+          }}
+        >
+          {it.icon && <it.icon size={14} />} {armed === it.label ? it.confirm : it.label}
         </button>
       ))}
     </div>

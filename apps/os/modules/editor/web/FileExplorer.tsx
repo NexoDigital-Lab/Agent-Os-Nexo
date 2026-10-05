@@ -81,10 +81,14 @@ export function FileExplorer({ tab, files, active, onOpen, onChanged, onMoved, o
       onMoved(from, to);
     });
 
-  const remove = (n: TreeNode) => {
+  /** What the second click on "Move to the trash" will do, unsaved work included. */
+  const trashQuestion = (n: TreeNode) => {
     const unsaved = unsavedUnder(n.path);
     const what = n.children ? t("the folder {path} and everything in it", { path: n.path }) : n.path;
-    if (!confirm(`${t("Move {what} to the trash?", { what })}${unsaved ? `\n\n${t("{n} open file(s) have unsaved changes that will be lost.", { n: unsaved })}` : ""}`)) return;
+    return `${t("Move {what} to the trash?", { what })}${unsaved ? ` ${t("{n} open file(s) have unsaved changes that will be lost.", { n: unsaved })}` : ""}`;
+  };
+
+  const remove = (n: TreeNode) => {
     attempt(async () => {
       await api.deleteEntry(tab.id, n.path);
       onDeleted(n.path);
@@ -168,9 +172,9 @@ export function FileExplorer({ tab, files, active, onOpen, onChanged, onMoved, o
             { label: t("New folder"), icon: FolderPlus, run: () => newIn("dir", dirOf(menu.node)) },
             ...(menu.node
               ? [
-                  { label: "Renombrar", icon: Pencil, run: () => setEdit({ kind: "rename", path: menu.node!.path }) },
-                  { label: "Copiar ruta", icon: Clipboard, run: () => navigator.clipboard?.writeText(menu.node!.path) },
-                  { label: t("Move to the trash"), icon: Trash2, danger: true, run: () => remove(menu.node!) },
+                  { label: t("Rename"), icon: Pencil, run: () => setEdit({ kind: "rename", path: menu.node!.path }) },
+                  { label: t("Copy path"), icon: Clipboard, run: () => navigator.clipboard?.writeText(menu.node!.path) },
+                  { label: t("Move to the trash"), icon: Trash2, danger: true, confirm: trashQuestion(menu.node), run: () => remove(menu.node!) },
                 ]
               : []),
           ]}

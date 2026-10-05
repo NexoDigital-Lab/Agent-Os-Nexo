@@ -3,6 +3,7 @@ import { Trash2, X } from "lucide-react";
 import { useState } from "react";
 import type { Note } from "../api";
 import { t } from "@os/i18n";
+import { ConfirmButton } from "@os/lib/ConfirmButton";
 
 export function NoteEditor({ note, saved, allProjects, repoNames, onEdit, onRemove }: {
   note: Note;
@@ -19,7 +20,7 @@ export function NoteEditor({ note, saved, allProjects, repoNames, onEdit, onRemo
       <div className="n-editor-head">
         <input className="n-title-input" placeholder={t("Title (optional)")} aria-label={t("Title (optional)")} value={current.title} onChange={(e) => onEdit({ title: e.target.value })} />
         <span className="faint mono" style={{ fontSize: 11.5 }}>{saved && t(saved)}</span>
-        <button className="btn sm ghost danger" aria-label={t("Delete note")} onClick={onRemove}><Trash2 size={14} /></button>
+        <ConfirmButton className="btn sm ghost danger" title={t("Delete note")} confirmText={t("Delete the note \"{title}\"?", { title: note.title || note.body.slice(0, 40) || t("untitled") })} onConfirm={onRemove}><Trash2 size={14} /></ConfirmButton>
       </div>
       <div className="n-proj">
         <span className="eyebrow">{t("Project")}</span>

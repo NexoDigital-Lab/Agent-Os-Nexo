@@ -1,5 +1,8 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "Click to dismiss": "Clic para cerrar",
+  "Copy path": "Copiar ruta",
+  "Rename": "Renombrar",
   "Add a command…": "Agregar comando…",
   "All": "Todo",
   "Autosave (1 s after you stop typing)": "Autoguardado (1 s después de dejar de escribir)",

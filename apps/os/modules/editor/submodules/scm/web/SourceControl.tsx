@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FileIcon } from "../../../web/icons";
 import { editorApi as api, type Branch, type Change, type ScmStatus, type Tab } from "../../../web/api";
 import { t } from "@os/i18n";
+import { ConfirmButton } from "@os/lib/ConfirmButton";
 
 /** Source Control in the editor sidebar, VS Code style: stage → commit → push, branches, stash, conflicts. */
 export function SourceControl({ tab, onOpenDiff, onOpenFile, onCount, refreshKey }: {
@@ -66,10 +67,12 @@ export function SourceControl({ tab, onOpenDiff, onOpenFile, onCount, refreshKey
           <button title={t("Unstage")} onClick={() => act("u", () => api.scmUnstage(tab.id, [c.path]))}><Minus size={14} /></button>
         ) : (
           <>
-            <button
+            <ConfirmButton
+              className=""
               title={kind === "untracked" ? t("Move to the trash") : t("Discard changes (back to the last commit)")}
-              onClick={() => confirm(kind === "untracked" ? t("Move {path} to the trash?", { path: c.path }) : t("Discard the changes to {path}? It can't be undone.", { path: c.path })) && act("d", () => api.scmDiscard(tab.id, [c.path]))}
-            ><Undo2 size={14} /></button>
+              confirmText={kind === "untracked" ? t("Move {path} to the trash?", { path: c.path }) : t("Discard the changes to {path}? It can't be undone.", { path: c.path })}
+              onConfirm={() => act("d", () => api.scmDiscard(tab.id, [c.path]))}
+            ><Undo2 size={14} /></ConfirmButton>
             <button title={t("Stage")} onClick={() => act("s", () => api.scmStage(tab.id, [c.path]))}><Plus size={14} /></button>
           </>
         )}
@@ -111,7 +114,7 @@ export function SourceControl({ tab, onOpenDiff, onOpenFile, onCount, refreshKey
       {s.merging && (
         <div className="scm-merge">
           {t("Merge in progress")}{s.conflicts.length ? ` · ${t("{n} conflict(s)", { n: s.conflicts.length })}` : ` · ${t("no conflicts: commit to finish it")}`}
-          <button className="linkish" onClick={() => confirm(t("Abort the merge and go back to how it was?")) && act("abort", () => api.scmAbortMerge(tab.id))}>{t("abort")}</button>
+          <ConfirmButton className="linkish" title={t("abort")} confirmText={t("Abort the merge and go back to how it was?")} onConfirm={() => act("abort", () => api.scmAbortMerge(tab.id))}>{t("abort")}</ConfirmButton>
         </div>
       )}
 
@@ -160,7 +163,7 @@ export function SourceControl({ tab, onOpenDiff, onOpenFile, onCount, refreshKey
             <span className="scm-acts" style={{ display: "flex" }}>
               <button title={t("Apply and drop the stash (pop)")} onClick={() => act("st", () => api.scmStash(tab.id, { op: "pop", index: st.index }))}>pop</button>
               <button title={t("Apply without dropping")} onClick={() => act("st", () => api.scmStash(tab.id, { op: "apply", index: st.index }))}>apply</button>
-              <button title={t("Drop the stash")} onClick={() => confirm(t("Drop this stash?")) && act("st", () => api.scmStash(tab.id, { op: "drop", index: st.index }))}><X size={12} /></button>
+              <ConfirmButton className="" title={t("Drop the stash")} confirmText={t("Drop this stash?")} onConfirm={() => act("st", () => api.scmStash(tab.id, { op: "drop", index: st.index }))}><X size={12} /></ConfirmButton>
             </span>
           </div>
         ))}

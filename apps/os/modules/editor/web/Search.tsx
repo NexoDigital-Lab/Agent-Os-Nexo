@@ -4,6 +4,7 @@ import { FileIcon } from "./icons";
 import { editorApi as api, type SearchHit, type Tab } from "./api";
 import { toggled } from "@os/lib/ui";
 import { t } from "@os/i18n";
+import { ConfirmButton } from "@os/lib/ConfirmButton";
 
 /** Buscar en todo el proyecto (Ctrl+Shift+F), with replace in the files you leave ticked. */
 export function Search({ tab, onOpen, onReplaced, focusKey }: { tab: Tab; onOpen: (path: string, line: number, col: number) => void; onReplaced: (paths: string[]) => void; focusKey: number }) {
@@ -36,10 +37,11 @@ export function Search({ tab, onOpen, onReplaced, focusKey }: { tab: Tab; onOpen
     return [...m];
   }, [res]);
 
+  const ticked = { files: byFile.filter(([f]) => !skip.has(f)).length, n: byFile.filter(([f]) => !skip.has(f)).reduce((k, [, hs]) => k + hs.length, 0) };
+
   async function replaceAll() {
     const files = byFile.map(([f]) => f).filter((f) => !skip.has(f));
-    const n = byFile.filter(([f]) => !skip.has(f)).reduce((k, [, hs]) => k + hs.length, 0);
-    if (!files.length || !confirm(t("Replace {n} match(es) in {files} file(s)? It writes to disk (you can revert it from Changes).", { n, files: files.length }))) return;
+    if (!files.length) return;
     setBusy(true);
     try {
       const r = await api.replace(tab.id, { q, ...opts, replacement: rep, files });
@@ -68,7 +70,7 @@ export function Search({ tab, onOpen, onReplaced, focusKey }: { tab: Tab; onOpen
       {showRep && (
         <div className="search-row" style={{ paddingLeft: 22 }}>
           <input className="field mono" placeholder={t("Replace with")} aria-label={t("Replace with")} value={rep} onChange={(e) => setRep(e.target.value)} />
-          <button className="btn sm" disabled={!res?.hits.length || busy} title={t("Replace in the ticked files")} onClick={replaceAll}>{busy ? <span className="spin" /> : <ReplaceAll size={14} />} {t("All")}</button>
+          <ConfirmButton className="btn sm" disabled={!res?.hits.length || busy} title={t("Replace in the ticked files")} confirmText={t("Replace {n} match(es) in {files} file(s)? It writes to disk (you can revert it from Changes).", { n: ticked.n, files: ticked.files })} onConfirm={replaceAll}>{busy ? <span className="spin" /> : <ReplaceAll size={14} />} {t("All")}</ConfirmButton>
         </div>
       )}
       {error && <div className="errline" style={{ padding: "0 10px" }}>{error}</div>}

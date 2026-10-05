@@ -410,7 +410,7 @@ export function EditorWorkspace({ tab, draft, handoff }: TabViewProps) {
           onOpenIssue={(file, line) => openAny(file, line)}
         />
       )}
-      {!coach && error && <div className="toast" onClick={() => setError("")}>{error}</div>}
+      {!coach && error && <div className="toast" role="alert" title={t("Click to dismiss")} onClick={() => setError("")}>{t(error)}</div>}
     </div>
   );
 }

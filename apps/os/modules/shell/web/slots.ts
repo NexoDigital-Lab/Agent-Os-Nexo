@@ -22,3 +22,9 @@ export interface BannerItem {
   id: string;
   component: ComponentType;
 }
+
+/** "shell.overlays": always mounted (dialogs a module opens from anywhere, notification watchers). */
+export interface OverlayItem {
+  id: string;
+  component: ComponentType;
+}

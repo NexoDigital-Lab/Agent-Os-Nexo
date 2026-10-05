@@ -1,6 +1,8 @@
 // Helpers every module's server code shares: errors, JSON files, the route wrapper, request guards.
 import { execFile } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { delimiter, join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { promisify } from "node:util";
 import type { NextFunction, Request, Response } from "express";
@@ -87,4 +89,18 @@ export function guardRequest(port: number) {
     res.setHeader("X-Agent-OS", "1");
     next();
   };
+}
+
+/**
+ * Dirs to look for user-installed binaries. The server may start without the user's profile (a desktop
+ * launcher), so ~/.local/bin, ~/.npm-global/bin and the system dirs are added to PATH.
+ */
+export function userBinPath(): string[] {
+  const home = homedir();
+  return [...new Set([join(home, ".local", "bin"), join(home, ".npm-global", "bin"), ...(process.env.PATH ?? "").split(delimiter), "/usr/local/bin", "/usr/bin"].filter(Boolean))];
+}
+
+/** First executable called `name` in the user bin dirs, or null. */
+export function findBin(name: string, extraDirs: string[] = []): string | null {
+  return [...userBinPath(), ...extraDirs].map((d) => join(d, name)).find((f) => existsSync(f)) ?? null;
 }

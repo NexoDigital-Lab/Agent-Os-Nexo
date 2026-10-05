@@ -5,7 +5,7 @@ import { readStr, writeStr } from "@os/lib/storage";
 import { slot, views as allViews } from "@os/registry";
 import { onNavigate, onNotice } from "./nav";
 import { Rail } from "./Rail";
-import type { BannerItem } from "./slots";
+import type { BannerItem, OverlayItem } from "./slots";
 
 export function App() {
   const views = allViews();
@@ -26,6 +26,7 @@ export function App() {
 
   const active = views.find((v) => v.id === view);
   const banners = slot<BannerItem>("shell.banners");
+  const overlays = slot<OverlayItem>("shell.overlays");
   return (
     <div className="shell">
       <Rail views={views} view={view} setView={setView} />
@@ -33,6 +34,7 @@ export function App() {
         {banners.map((b) => <b.component key={b.id} />)}
         {active ? <active.component /> : <div className="empty">{t("No views are active. Turn modules on in Settings.")}</div>}
       </main>
+      {overlays.map((o) => <o.component key={o.id} />)}
       {notice && (
         <div className="toast" role="status" onClick={() => setNotice("")}>
           {notice}

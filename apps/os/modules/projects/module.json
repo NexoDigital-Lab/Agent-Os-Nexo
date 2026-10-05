@@ -1,0 +1,9 @@
+{
+  "name": "projects",
+  "version": "1.0.0",
+  "description": "Projects in the environment: list, create, clone, delete, worktrees and their features",
+  "owner": "nexo",
+  "core": true,
+  "dependsOn": ["shell"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

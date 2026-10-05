@@ -18,7 +18,7 @@ export function addMessages(messages: Partial<Record<Language, Record<string, st
 
 export function setLanguage(lang: Language): void {
   current = lang;
-  document.documentElement.lang = lang;
+  if (typeof document !== "undefined") document.documentElement.lang = lang;
 }
 
 export const language = (): Language => current;

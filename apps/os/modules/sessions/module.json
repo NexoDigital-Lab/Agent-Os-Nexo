@@ -1,0 +1,9 @@
+{
+  "name": "sessions",
+  "version": "1.0.0",
+  "description": "AI session tabs: chat, agents, review of changes, recent sessions, search and skills",
+  "owner": "nexo",
+  "dependsOn": ["shell", "projects"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Tabs", "icon": "terminal", "order": 20 }
+}

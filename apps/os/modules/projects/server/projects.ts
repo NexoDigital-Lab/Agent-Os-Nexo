@@ -2,7 +2,7 @@
 // (the repository), context/ and secrets/. A project's id is its path under projects/ ("api-ws/web").
 // These lookups are the only way an id from a request reaches the filesystem.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Env } from "../../../host/server/env.ts";
 import { git } from "./git.ts";
 import { listFeatures, type Feature } from "./features.ts";
@@ -42,6 +42,15 @@ export function projectDir(id: string): string | null {
 export function projectPath(id: string): string | null {
   const dir = projectDir(id);
   return dir && isDir(join(dir, "code")) ? join(dir, "code") : null;
+}
+
+/** The project a path belongs to (its folder, code/, a worktree or anything inside), or null when it is outside projects/. */
+export function projectOfPath(p: string): string | null {
+  if (!root) return null;
+  const rel = relative(root, resolve(p));
+  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return null;
+  const [first, second] = rel.split(sep);
+  return first!.endsWith("-ws") && second ? `${first}/${second}` : first!;
 }
 
 /** The workspace folder (<ws>-ws) a part belongs to, or null for a standalone project. */

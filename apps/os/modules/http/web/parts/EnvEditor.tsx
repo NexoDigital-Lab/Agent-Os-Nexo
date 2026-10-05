@@ -44,7 +44,7 @@ export function EnvEditor({ store, update, onClose }: { store: HttpStore; update
           </>
         )}
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button className="btn primary" onClick={onClose}>{t("Done")}</button>
+          <button className="btn primary" onClick={onClose}>{t("Done::close")}</button>
         </div>
       </div>
     </div>

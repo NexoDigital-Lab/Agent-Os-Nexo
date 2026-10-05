@@ -44,7 +44,7 @@ export function DockerContainers({ containers, reload, busyRef, onLogs, onShell,
       <div className="dk-section-head">
         <h2>{t("Containers")}</h2>
         <div className="seg">
-          <button className={!onlyActive ? "on" : ""} aria-pressed={!onlyActive} onClick={() => setOnlyActive(false)}>{t("All")}</button>
+          <button className={!onlyActive ? "on" : ""} aria-pressed={!onlyActive} onClick={() => setOnlyActive(false)}>{t("All::containers")}</button>
           <button className={onlyActive ? "on" : ""} aria-pressed={onlyActive} onClick={() => setOnlyActive(true)}>{t("Running")}</button>
         </div>
       </div>
@@ -70,7 +70,7 @@ export function DockerContainers({ containers, reload, busyRef, onLogs, onShell,
                     <span className="spin" role="status" aria-label={t("Working on {name}", { name: c.name })} />
                   ) : (
                     <>
-                      <button className="btn sm ghost" title={running ? t("Stop") : t("Start")} aria-label={running ? t("Stop {name}", { name: c.name }) : t("Start {name}", { name: c.name })} onClick={() => act(c, running ? "stop" : "start")}>
+                      <button className="btn sm ghost" title={running ? t("Stop::container") : t("Start")} aria-label={running ? t("Stop {name}", { name: c.name }) : t("Start {name}", { name: c.name })} onClick={() => act(c, running ? "stop" : "start")}>
                         {running ? <Square size={14} /> : <Play size={14} />}
                       </button>
                       <button className="btn sm ghost" title={t("Restart")} aria-label={t("Restart {name}", { name: c.name })} onClick={() => act(c, "restart")}><RotateCw size={14} /></button>

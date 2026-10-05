@@ -54,7 +54,7 @@ export function ReviewTray({ tabId, refreshKey }: { tabId: string; refreshKey?: 
         ))}
       </ol>
       <div className="rv-foot">
-        <button className="btn sm ghost danger" onClick={() => reviewActions.clear(tabId)}>{t("Clear")}</button>
+        <button className="btn sm ghost danger" onClick={() => reviewActions.clear(tabId)}>{t("Clear::review")}</button>
         <button
           className="btn primary"
           onClick={() => {

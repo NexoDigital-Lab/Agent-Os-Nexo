@@ -15,7 +15,7 @@ export const es: Record<string, string> = {
   "Delete collection": "Borrar colección",
   "Delete the collection \"{name}\" and its {n} requests?": "¿Borrar la colección \"{name}\" y sus {n} requests?",
   "Delete the environment {name}?": "¿Borrar el entorno {name}?",
-  "Done": "Listo",
+  "Done::close": "Listo",
   "Duplicate": "Duplicar",
   "Edit environments and variables": "Editar entornos y variables",
   "Environment": "Entorno",

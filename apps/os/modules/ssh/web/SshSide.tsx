@@ -113,7 +113,7 @@ export function SshSide({ tab, stream }: SidePanelProps) {
         <div className="ssh-side">
           <div className="ssh-side-head">
             <span className="ssh-side-name" title={info?.hostName ?? host?.hostName}>{info?.hostName ?? host?.hostName ?? "SSH"}</span>
-            {st && <span className={`pill ${st.cls}`} role="status">{t(st.label)}{info?.busy ? ` · ${t("running")}` : ""}</span>}
+            {st && <span className={`pill ${st.cls}`} role="status">{t(st.label)}{info?.busy ? ` · ${t("running::command")}` : ""}</span>}
             <span style={{ flex: 1 }} />
             <button className="btn sm" onClick={reconnect} disabled={busy || locked}><RefreshCw size={14} /> {t("Reconnect")}</button>
           </div>

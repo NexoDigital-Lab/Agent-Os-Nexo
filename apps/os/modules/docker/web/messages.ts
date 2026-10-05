@@ -1,7 +1,7 @@
 // Spanish for this module's UI text (English is the key).
 export const es: Record<string, string> = {
   "A container uses it": "La usa un contenedor",
-  "All": "Todos",
+  "All::containers": "Todos",
   "Cancel": "Cancelar",
   "close": "cerrar",
   "Close": "Cerrar",
@@ -68,7 +68,7 @@ export const es: Record<string, string> = {
   "{shims} of this project run in the container": "{shims} de este proyecto corren en el contenedor",
   "Start": "Iniciar",
   "Start {name}": "Iniciar {name}",
-  "Stop": "Detener",
+  "Stop::container": "Detener",
   "Stop {name}": "Detener {name}",
   "stopped": "detenido",
   "container missing": "falta el contenedor",

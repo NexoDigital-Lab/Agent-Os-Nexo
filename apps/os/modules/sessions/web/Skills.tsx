@@ -40,7 +40,7 @@ export function Skills() {
         <div className="seg">
           {(["all", "nexo", "library", "claude", "off"] as const).map((k) => (
             <button key={k} className={kind === k ? "on" : ""} onClick={() => setKind(k)}>
-              {t({ all: "All", nexo: "Nexo", library: "Yours", claude: "~/.claude", off: "Off" }[k])}
+              {t({ all: "All::skills", nexo: "Nexo", library: "Yours", claude: "~/.claude", off: "Off::skills" }[k])}
             </button>
           ))}
         </div>
@@ -48,7 +48,7 @@ export function Skills() {
       <table className="sk-table">
         <thead>
           <tr>
-            <th style={{ width: 50 }}>{t("On")}</th>
+            <th style={{ width: 50 }}>{t("On::skills")}</th>
             <th style={{ width: 30 }} />
             <th>Skill</th>
             <th>{t("What it does")}</th>

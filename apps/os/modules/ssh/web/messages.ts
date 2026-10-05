@@ -54,7 +54,7 @@ export const es: Record<string, string> = {
   "Rejected": "Rechazado",
   "Repeat it": "Repetila",
   "Replace": "Reemplazar",
-  "running": "ejecutando",
+  "running::command": "ejecutando",
   "Save": "Guardar",
   "Stored": "Guardada",
   "Saved accesses": "Accesos guardados",

@@ -1,0 +1,8 @@
+{
+  "name": "lsp",
+  "version": "1.0.0",
+  "description": "Language servers in the editor: completion, hover, go to definition and diagnostics for Go (gopls) and Python (pyright)",
+  "owner": "nexo",
+  "dependsOn": ["sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

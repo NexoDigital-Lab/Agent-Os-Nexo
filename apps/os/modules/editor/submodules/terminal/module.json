@@ -1,0 +1,8 @@
+{
+  "name": "terminal",
+  "version": "1.0.0",
+  "description": "Real terminals per tab that live on the server and reattach after a reload",
+  "owner": "nexo",
+  "dependsOn": ["sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

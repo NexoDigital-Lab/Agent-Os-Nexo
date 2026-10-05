@@ -63,6 +63,13 @@ const subscribe = (fn: () => void) => {
   return () => listeners.delete(fn);
 };
 
+/** Calls `fn` with each new palette (for things outside React, like Monaco's theme). */
+export function onPaletteChange(fn: (p: Palette) => void): () => void {
+  const h = () => fn(current);
+  listeners.add(h);
+  return () => listeners.delete(h);
+}
+
 /** The active palette; re-renders when the user picks another one. */
 export function usePalette(): Palette {
   return useSyncExternalStore(subscribe, currentPalette);

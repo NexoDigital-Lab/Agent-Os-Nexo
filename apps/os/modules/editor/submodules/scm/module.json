@@ -1,0 +1,8 @@
+{
+  "name": "scm",
+  "version": "1.0.0",
+  "description": "Git in the editor: changes, commits, sync, branches, stash, conflicts, the commit graph and diff review",
+  "owner": "nexo",
+  "dependsOn": ["sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

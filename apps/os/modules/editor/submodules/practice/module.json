@@ -1,0 +1,8 @@
+{
+  "name": "practice",
+  "version": "1.0.0",
+  "description": "Practice mode: the AI plans steps with hints and checks your work; you write the code",
+  "owner": "nexo",
+  "dependsOn": ["sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "setup",
+  "version": "1.0.0",
+  "description": "Project setup assistant: template, toolchains, dependencies, .env, extensions and Run commands",
+  "owner": "nexo",
+  "dependsOn": ["sessions", "extensions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

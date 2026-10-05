@@ -1,0 +1,8 @@
+{
+  "name": "editor",
+  "version": "1.0.0",
+  "description": "A full editor in each tab: files, Monaco, search, panel with problems and Run, settings and extensions' plugins",
+  "owner": "nexo",
+  "dependsOn": ["sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

@@ -287,7 +287,7 @@ function HostForm({ host, projects, onClose, onSaved, onLocked }: {
 
         {auth !== "local" && hadSecretForAuth && !replaceSecret && (
           <div className="ssh-saved">
-            <span className="pill ok">{t("Saved")}</span>
+            <span className="pill ok">{t("Stored")}</span>
             <span className="faint" style={{ fontSize: 12.5 }}>{auth === "password" ? t("Password saved, not shown.") : t("Private key saved, not shown.")}</span>
             <button type="button" className="btn sm ghost" disabled={busy} onClick={() => setReplaceSecret(true)}>{t("Replace")}</button>
           </div>
@@ -306,7 +306,7 @@ function HostForm({ host, projects, onClose, onSaved, onLocked }: {
         )}
         {auth === "key" && host?.hasPassphrase && host.auth === "key" && !replacePass ? (
           <div className="ssh-saved">
-            <span className="pill ok">{t("Saved")}</span>
+            <span className="pill ok">{t("Stored")}</span>
             <span className="faint" style={{ fontSize: 12.5 }}>{t("Key passphrase saved.")}</span>
             <button type="button" className="btn sm ghost" disabled={busy} onClick={() => setReplacePass(true)}>{t("Replace")}</button>
           </div>

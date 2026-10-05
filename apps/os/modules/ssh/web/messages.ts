@@ -56,7 +56,7 @@ export const es: Record<string, string> = {
   "Replace": "Reemplazar",
   "running": "ejecutando",
   "Save": "Guardar",
-  "Saved": "Guardada",
+  "Stored": "Guardada",
   "Saved accesses": "Accesos guardados",
   "Save your servers encrypted with a master password and open them as a tab. The agent never sees the credentials.": "Guardá tus servidores cifrados con una contraseña maestra y abrilos como una pestaña. El agente nunca ve las credenciales.",
   "Server": "Servidor",

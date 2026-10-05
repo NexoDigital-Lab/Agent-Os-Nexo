@@ -79,10 +79,11 @@ tell the user; never run the analysis on your own.
 
 ## agent-os
 
-- Change it only in `os/source/`. Show it with `nexo os preview`; build a new version
-  (`nexo os build --notes "<what changed>"`) only after the user approves.
-- Never close or restart agent-os (`nexo os stop`/`start` only when the user asks). It detects new
-  builds and asks the user to restart.
+- Change it only in `os/source/`. Show it with `nexo os preview` and stop it with
+  `nexo os stop --preview`; build a new version (`nexo os build --notes "<what changed>"`) only after
+  the user approves. Before building, `nexo os check` must report no findings.
+- Never close or restart agent-os (plain `nexo os stop`/`start` only when the user asks). It detects
+  new builds and asks the user to restart.
 - Skip a skill the user turned off in `library/profile.json` (`skills.disabled`); always consider the
   pinned ones (`skills.pinned`).
 - Versions: patch +1 per approved build; after `x.y.9` comes `x.(y+1).0`. Never change the major.

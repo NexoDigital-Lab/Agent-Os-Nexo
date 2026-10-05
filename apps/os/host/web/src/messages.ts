@@ -1,6 +1,7 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
   "Click again to confirm.": "Clic de nuevo para confirmar.",
+  "Could not process the image": "No pude procesar la imagen",
   "Confirm the deletion": "Confirmar el borrado",
   "Confirm the deletion. It cancels itself in 4 seconds.": "Confirmá el borrado. Se cancela solo en 4 segundos.",
   "Confirm: delete {name}": "Confirmar: borrar {name}",

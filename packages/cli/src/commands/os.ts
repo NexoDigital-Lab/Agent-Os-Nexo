@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { findRoot } from "../core/paths.ts";
@@ -12,9 +13,10 @@ export interface OsOptions {
   port?: string;
   preview?: boolean;
   all?: boolean;
+  module?: string;
 }
 
-const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all].";
+const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], check [--module <id>].";
 
 export async function os(action: string | undefined, arg: string | undefined, opts: OsOptions, run: Runner = defaultRunner): Promise<string> {
   const root = findRoot(opts.root);
@@ -86,6 +88,15 @@ export async function os(action: string | undefined, arg: string | undefined, op
       // Just the app by default: an agent stopping its preview must never take down the agent-os it runs in.
       const stopped = stopProcesses(stateDir, opts.all ? ["app", "preview"] : opts.preview ? ["preview"] : ["app"]);
       return stopped.length ? `Stopped: ${stopped.join(", ")}.` : "agent-os was not running.";
+    }
+    case "check": {
+      // The mechanical module rules (os/source/docs/module-rules.md), run by the source's own checker.
+      const script = join(source, "scripts", "check-modules.ts");
+      if (!existsSync(script)) throw new Error("No agent-os source with a module checker in os/source. Run `nexo os install`.");
+      const r = spawnSync(process.execPath, [script, ...(opts.module ? [`--module=${opts.module}`] : [])], { cwd: source, encoding: "utf8" });
+      const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
+      if (r.status !== 0) throw new Error(out || `The module checker failed (exit ${r.status}).`);
+      return out;
     }
     default:
       throw new Error(`Unknown action "${action}". ${USAGE}`);

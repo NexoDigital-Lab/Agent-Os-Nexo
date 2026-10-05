@@ -380,3 +380,14 @@ test("os start fails loudly with the log when the server does not come up", asyn
   assert.match(await os("status", undefined, { root }), /^agent-os 1\.0\.0/);
   assert.doesNotMatch(await os("status", undefined, { root }), /Running/);
 });
+
+test("os check runs the source's module checker and fails with its findings", async () => {
+  const root = await freshEnv("claude");
+  const src = fakeOsSource();
+  await os("install", undefined, { root, from: src }, fakeRunner([]));
+  const script = join(root, "os", "source", "scripts", "check-modules.ts");
+  writeFileSync(script, 'console.log("Modules follow the rules (docs/module-rules.md).");\n');
+  assert.match(await os("check", undefined, { root }), /follow the rules/);
+  writeFileSync(script, 'console.log(`M3 modules/x/web/x.css:1 — hardcoded color ${process.argv.slice(2).join(" ")}`); process.exit(1);\n');
+  await assert.rejects(os("check", undefined, { root, module: "x" }), /M3 modules\/x\/web\/x\.css:1 — hardcoded color --module=x/);
+});

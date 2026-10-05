@@ -5,7 +5,7 @@ import { ImagePlus, X } from "lucide-react";
 import { locale } from "@os/i18n";
 import { ConfirmDelete } from "@os/lib/ConfirmDelete";
 import { call } from "@os/lib/http";
-import { prepareImage } from "../../sessions/web/api";
+import { prepareImage } from "@os/lib/images";
 import type { VisualBug } from "../server/bugs.ts";
 import { t } from "@os/i18n";
 

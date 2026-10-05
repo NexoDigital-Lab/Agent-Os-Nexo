@@ -1,5 +1,6 @@
 // Spanish for this module's UI text (English is the key).
 export const es: Record<string, string> = {
+  "Loading…": "Cargando…",
   "Always load the newest": "Cargar siempre la más nueva",
   "Later": "Después",
   "Load this one next": "Cargar esta al reiniciar",

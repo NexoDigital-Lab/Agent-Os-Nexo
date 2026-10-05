@@ -34,6 +34,7 @@ Usage: nexo <command> [options]
   os build [--notes <text>]         Build os/source into the next version
   os start|preview [--port <n>]     Run the active build (4780) / the source with hot reload (4781)
   os stop [--preview|--all]         Stop the app (default), the preview, or both
+  os check [--module <id>]          Check os/source against the module rules
 
 Global: --root <path> (or NEXO_ROOT) selects the environment; otherwise the nearest parent with
 environment.config.json is used.`;
@@ -57,6 +58,7 @@ async function main(argv: string[]): Promise<number> {
       port: { type: "string" },
       preview: { type: "boolean" },
       all: { type: "boolean" },
+      module: { type: "string" },
       quick: { type: "boolean" },
       json: { type: "boolean" },
       ws: { type: "string" },

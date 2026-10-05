@@ -1,0 +1,9 @@
+{
+  "name": "home",
+  "version": "1.0.0",
+  "description": "Start page: projects, recent sessions, goals, an inbox and today's log",
+  "owner": "nexo",
+  "dependsOn": ["shell", "projects", "sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Home", "icon": "house", "order": 10 }
+}

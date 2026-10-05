@@ -1,0 +1,8 @@
+/* Home: project cards, goals, inbox and log. */
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.pcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; cursor: pointer; transition: 0.15s; }
+.pcard:hover { border-color: color-mix(in srgb, var(--accent) 40%, transparent); transform: translateY(-1px); }
+.pcard .n { font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+.pcard .m { font: 12px var(--mono); color: var(--text-3); margin-top: 6px; }
+.pcard .c { font-size: 12.5px; color: var(--text-2); margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcard:hover .del-proj, .proj:hover .del-proj { opacity: 0.55; }

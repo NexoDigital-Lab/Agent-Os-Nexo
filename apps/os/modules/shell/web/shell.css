@@ -1,5 +1,4 @@
 /* The app frame: rail on the left, the active view on the right. */
-.shell { display: grid; grid-template-columns: 64px 1fr; height: 100%; }
 .rail {
   background: var(--bg-2);
   border-right: 1px solid var(--line);

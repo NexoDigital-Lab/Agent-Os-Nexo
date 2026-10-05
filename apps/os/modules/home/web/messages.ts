@@ -1,0 +1,28 @@
+// Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
+export const es: Record<string, string> = {
+  "Delete {name}…": "Borrar {name}…",
+  "Drop an idea or a task, then Enter": "Tirá una idea o tarea y Enter",
+  "Edit": "Editar",
+  "Goals": "Objetivos",
+  "Good afternoon": "Buenas tardes",
+  "Good evening": "Buenas noches",
+  "Good morning": "Buen día",
+  "Home": "Inicio",
+  "Inbox": "Inbox",
+  "New project": "Nuevo proyecto",
+  "No goals yet. Press Edit.": "Todavía no hay objetivos. Tocá Editar.",
+  "No projects yet. Create one or clone one of yours.": "Todavía no hay proyectos. Creá uno o cloná uno tuyo.",
+  "Nothing yet today.": "Nada todavía hoy.",
+  "Projects": "Proyectos",
+  "Recent sessions": "Sesiones recientes",
+  "Save": "Guardar",
+  "Today's log": "Registro de hoy",
+  "Unknown document": "Documento desconocido",
+  "from agent-os": "desde agent-os",
+  "live now · click to resume": "activa ahora · clic para retomar",
+  "no code/ yet": "sin code/ todavía",
+  "no commits": "sin commits",
+  "today you've spent": "hoy llevás",
+  "{n} changes": "{n} cambios",
+  "{n} features": "{n} features"
+};

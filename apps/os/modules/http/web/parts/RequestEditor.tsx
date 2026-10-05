@@ -43,7 +43,7 @@ export function RequestEditor({ req, vars, patchReq, sending, sendReq, onError }
         <button className={reqTab === "curl" ? "on" : ""} onClick={() => setReqTab("curl")}>cURL</button>
       </div>
       <div className="http-reqpane">
-        {reqTab === "headers" && <KVTable rows={req.headers} onChange={(headers) => patchReq({ headers })} keyPh="Header" valPh="Valor — {{token}} usa el entorno" />}
+        {reqTab === "headers" && <KVTable rows={req.headers} onChange={(headers) => patchReq({ headers })} keyPh="Header" valPh={t("Value — {{token}} uses the environment")} />}
         {reqTab === "body" && (
           <>
             <textarea className="field mono http-body" spellCheck={false} placeholder='{"email": "{{user}}"}' value={req.body} onChange={(e) => patchReq({ body: e.target.value })} />

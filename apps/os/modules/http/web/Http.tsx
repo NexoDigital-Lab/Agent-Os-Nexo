@@ -37,8 +37,8 @@ export function Http() {
       loaded.current = true;
       return;
     }
-    const t = setTimeout(() => api.saveHttpStore(store).catch((e) => setError(e.message)), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => api.saveHttpStore(store).catch((e) => setError(e.message)), 400);
+    return () => clearTimeout(timer);
   }, [store]);
 
   const vars = store?.envs.find((e) => e.id === store.activeEnv)?.vars ?? [];
@@ -87,7 +87,7 @@ export function Http() {
     try {
       addCollection(fromPostman(JSON.parse(await f.text())));
     } catch (e: any) {
-      setError(`No pude importar ${f.name}: ${e.message}`);
+      setError(t("Could not import {file}: {error}", { file: f.name, error: e.message }));
     }
   }
 

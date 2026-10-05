@@ -55,7 +55,7 @@ export function parseCurl(cmd: string): Omit<HttpRequest, "id" | "name"> {
   for (let i = 1; i < t.length; i++) {
     const a = t[i];
     const next = () => {
-      if (i + 1 >= t.length) throw new Error(`Falta el valor de ${a}`);
+      if (i + 1 >= t.length) throw new Error(i18n("Missing the value of {option}", { option: a }));
       return t[++i];
     };
     if (a === "-X" || a === "--request") method = next().toUpperCase();

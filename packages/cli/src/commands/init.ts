@@ -11,6 +11,8 @@ import { loadPermissions, PRESETS, type Preset } from "../core/permissions.ts";
 import { createAsker } from "../core/prompt.ts";
 import { gitConfig } from "../core/exec.ts";
 import { nexoVersion } from "../core/version.ts";
+import { os, type OsOptions } from "./os.ts";
+import type { Runner } from "../core/osruntime.ts";
 
 export interface InitOptions {
   root?: string;
@@ -21,11 +23,15 @@ export interface InitOptions {
   email?: string;
   language?: string;
   factory?: string;
+  /** "yes" installs agent-os right away (`nexo os install`); it can always be added later. */
+  os?: string;
+  /** Where to copy agent-os from instead of npm (a local checkout). */
+  from?: string;
 }
 
 const LIBRARY_DIRS = ["conventions", "dictionary", "commands", "memory", "skills", "agents", "hooks", "connections"];
 
-export async function init(opts: InitOptions): Promise<string> {
+export async function init(opts: InitOptions, run?: Runner): Promise<string> {
   const asker = createAsker(Boolean(opts.yes));
   try {
     const root = resolve(expandHome(opts.root ?? (await asker.ask("Where should the environment live?", defaultRoot()))));
@@ -46,6 +52,8 @@ export async function init(opts: InitOptions): Promise<string> {
     const language = opts.language ?? (await asker.ask("Language agents should answer in", "en"));
     const factorySet = opts.factory ?? (await asker.ask(`Default skills, agents, hooks and commands (${FACTORY_SETS.join(", ")})`, "all"));
     if (!isFactorySet(factorySet)) throw new Error(`Unknown factory set "${factorySet}". Choose from: ${FACTORY_SETS.join(", ")}.`);
+    const withOs = (opts.os ?? (await asker.ask("Install agent-os, the local app (yes, no)", "no"))).toLowerCase();
+    if (withOs !== "yes" && withOs !== "no") throw new Error(`Answer yes or no for agent-os, not "${withOs}".`);
 
     const config: EnvironmentConfig = {
       nexo: { version: nexoVersion(), updatePolicy: "owner" },
@@ -79,11 +87,16 @@ export async function init(opts: InitOptions): Promise<string> {
     ensureDir(join(root, config.folders.state));
 
     const adapters = generateAdapters(root, config, root, loadPermissions(join(library, "permissions.json")));
+    const osLine =
+      withOs === "yes"
+        ? os("install", undefined, { root, from: opts.from } satisfies OsOptions, run).split("\n")[0]
+        : "agent-os not installed (add it any time with `nexo os install`).";
 
     return [
       `Nexo environment created at ${root}`,
       `  AIs: ${toolList.join(", ") || "none"} · permissions: ${preset} · factory: ${factorySet} (${factory.installed.length} items)`,
       `  Generated: ${adapters.join(", ") || "nothing (no AI needs extra files)"}`,
+      `  ${osLine}`,
       "",
       "Next:",
       `  cd ${root}`,

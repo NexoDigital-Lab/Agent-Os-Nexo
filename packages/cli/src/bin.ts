@@ -17,6 +17,7 @@ Usage: nexo <command> [options]
   init [path]                       Create an environment (default ~/environments)
         --yes  --tools claude,gemini  --preset strict|normal|relaxed
         --name <n>  --email <e>  --language <code>  --factory all|core|none
+        --os yes|no                 install agent-os now (later: nexo os install)
   update [--factory all|core|none]  Refresh factory items (owner: nexo) and AI files
   doctor [--quick] [--json]         Check the environment; reports, never changes
   analyze                           Record OS and toolchains (summary in the config)
@@ -29,6 +30,10 @@ Usage: nexo <command> [options]
                                     Add a connection; without a name, list them
   os [status|versions|next|use <x.y.z|latest>]
                                     agent-os builds
+  os install [--from <dir>]         Copy agent-os into os/source, install its runtime, build 1.0.0
+  os build [--notes <text>]         Build os/source into the next version
+  os start|preview [--port <n>]     Run the active build (4780) / the source with hot reload (4781)
+  os stop [--preview]               Stop them
 
 Global: --root <path> (or NEXO_ROOT) selects the environment; otherwise the nearest parent with
 environment.config.json is used.`;
@@ -46,6 +51,11 @@ async function main(argv: string[]): Promise<number> {
       email: { type: "string" },
       language: { type: "string" },
       factory: { type: "string" },
+      os: { type: "string" },
+      from: { type: "string" },
+      notes: { type: "string" },
+      port: { type: "string" },
+      preview: { type: "boolean" },
       quick: { type: "boolean" },
       json: { type: "boolean" },
       ws: { type: "string" },

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { freshEnv, tempDir } from "./helpers.ts";
 import { init } from "../src/commands/init.ts";
@@ -12,6 +12,7 @@ import { clone, create } from "../src/commands/project.ts";
 import { connect } from "../src/commands/connect.ts";
 import { os } from "../src/commands/os.ts";
 import { readConfig } from "../src/core/config.ts";
+import { copySource, runtimeHash, type Runner } from "../src/core/osruntime.ts";
 
 const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
@@ -200,7 +201,7 @@ test("connect: MCP servers reach each AI's config; remote ones are only register
 
 test("os: versions, next and pinning", async () => {
   const root = await freshEnv();
-  assert.match(os(undefined, undefined, { root }), /no builds yet/);
+  assert.match(os(undefined, undefined, { root }), /not installed: `nexo os install`/);
   assert.equal(os("next", undefined, { root }), "1.0.0");
   for (const v of ["1.0.0", "1.0.9"]) execFileSync("mkdir", ["-p", join(root, "os/versions", v)]);
   assert.equal(os("next", undefined, { root }), "1.1.0");
@@ -211,3 +212,115 @@ test("os: versions, next and pinning", async () => {
   assert.equal(os("versions", undefined, { root }), "  1.0.0\n* 1.0.9");
   assert.throws(() => os("use", "3.0.0", { root }), /No build/);
 });
+
+// ── agent-os lifecycle: a fake source and a fake runner (no network, no real npm) ────────────────────────────────
+
+function fakeOsSource(deps: Record<string, string> = { express: "^5" }): string {
+  const src = join(tempDir(), "agent-os");
+  mkdirSync(join(src, "modules", "shell"), { recursive: true });
+  mkdirSync(join(src, "scripts"), { recursive: true });
+  mkdirSync(join(src, "host", "server"), { recursive: true });
+  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os", dependencies: deps }));
+  writeFileSync(join(src, "scripts", "build.ts"), "// real builds run Vite; the fake runner stands in for it\n");
+  // A server that just stays alive, so start/stop can be tested for real.
+  writeFileSync(join(src, "host", "server", "main.ts"), "setInterval(() => {}, 1000);\n");
+  for (const junk of ["node_modules/x", "dist/web", ".git"]) mkdirSync(join(src, junk), { recursive: true });
+  return src;
+}
+
+/** npm install makes node_modules; the build script copies the fake server into --out. */
+function fakeRunner(calls: string[][]): Runner {
+  return (cmd, args, cwd) => {
+    calls.push([cmd, ...args]);
+    if (cmd === "npm" && args[0] === "install") mkdirSync(join(cwd, "node_modules"), { recursive: true });
+    if (cmd === process.execPath) {
+      const out = args[args.indexOf("--out") + 1]!;
+      mkdirSync(join(out, "host", "server"), { recursive: true });
+      writeFileSync(join(out, "host", "server", "main.ts"), "setInterval(() => {}, 1000);\n");
+      writeFileSync(join(out, "build.json"), JSON.stringify({ version: args[args.indexOf("--version") + 1] }));
+    }
+  };
+}
+
+test("copySource leaves dependencies, builds and git out, and refuses what isn't agent-os", () => {
+  const src = fakeOsSource();
+  const dst = join(tempDir(), "copy");
+  copySource(src, dst);
+  assert.ok(existsSync(join(dst, "modules", "shell")));
+  for (const junk of ["node_modules", "dist", ".git"]) assert.ok(!existsSync(join(dst, junk)), junk);
+  assert.throws(() => copySource(tempDir(), join(tempDir(), "x")), /not an agent-os source/);
+});
+
+test("runtimeHash depends on the dependency set, not on key order", () => {
+  assert.equal(runtimeHash({ dependencies: { a: "1", b: "2" } }), runtimeHash({ dependencies: { b: "2" }, devDependencies: { a: "1" } }));
+  assert.notEqual(runtimeHash({ dependencies: { a: "1" } }), runtimeHash({ dependencies: { a: "2" } }));
+});
+
+test("os install copies the source, installs one shared runtime, and builds 1.0.0", async () => {
+  const root = await freshEnv("claude");
+  const calls: string[][] = [];
+  const run = fakeRunner(calls);
+  const out = os("install", undefined, { root, from: fakeOsSource() }, run);
+  assert.match(out, /built as 1\.0\.0/);
+  const osDir = join(root, "os");
+  assert.ok(existsSync(join(osDir, "source", "modules", "shell")));
+  assert.ok(!existsSync(join(osDir, "source", "dist")));
+  const runtimes = readdirSync(join(osDir, "runtime"));
+  assert.equal(runtimes.length, 1);
+  for (const dir of ["source", "versions/1.0.0"]) {
+    assert.ok(lstatSync(join(osDir, dir, "node_modules")).isSymbolicLink(), `${dir}/node_modules is a link`);
+    assert.equal(readlinkSync(join(osDir, dir, "node_modules")), join(osDir, "runtime", runtimes[0]!, "node_modules"));
+  }
+  assert.throws(() => os("install", undefined, { root }, run), /already installed/);
+
+  // A second build reuses the runtime: npm install ran once.
+  assert.match(os("build", undefined, { root, notes: "tweak" }, run), /Built 1\.0\.1/);
+  assert.equal(calls.filter((c) => c[0] === "npm").length, 1);
+  assert.ok(!existsSync(join(osDir, "versions", "1.0.1.building")));
+  assert.match(os("status", undefined, { root }), /agent-os 1\.0\.1 \(of 2 build/);
+});
+
+test("a failed build leaves no version behind", async () => {
+  const root = await freshEnv("claude");
+  const ok = fakeRunner([]);
+  os("install", undefined, { root, from: fakeOsSource() }, ok);
+  const failing: Runner = (cmd, args, cwd) => {
+    if (cmd === process.execPath) throw new Error("vite exploded");
+    ok(cmd, args, cwd);
+  };
+  assert.throws(() => os("build", undefined, { root }, failing), /vite exploded/);
+  assert.deepEqual(readdirSync(join(root, "os", "versions")), ["1.0.0"]);
+});
+
+test("os start runs the active build in the background and os stop ends it", async () => {
+  const root = await freshEnv("claude");
+  os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
+  const started = os("start", undefined, { root, port: "4799" });
+  const pid = Number(/pid (\d+)/.exec(started)![1]);
+  assert.match(started, /agent-os 1\.0\.0 started .*localhost:4799/);
+  assert.doesNotThrow(() => process.kill(pid, 0));
+  assert.throws(() => os("start", undefined, { root }), /already running/);
+  assert.match(os("status", undefined, { root }), /Running \(pid/);
+  assert.equal(os("stop", undefined, { root }), "Stopped: app.");
+  for (let i = 0; i < 50 && isAlive(pid); i++) await new Promise((r) => setTimeout(r, 20));
+  assert.ok(!isAlive(pid), "the process is gone");
+  assert.equal(os("stop", undefined, { root }), "agent-os was not running.");
+});
+
+test("init --os yes installs agent-os; the default leaves it for later", async () => {
+  const later = await freshEnv("claude");
+  assert.ok(!existsSync(join(later, "os", "runtime")));
+  const root = join(tempDir(), "env");
+  const out = await init({ root, yes: true, tools: "claude", name: "T", email: "t@example.com", language: "en", os: "yes", from: fakeOsSource() }, fakeRunner([]));
+  assert.match(out, /agent-os installed .* built as 1\.0\.0/);
+  await assert.rejects(init({ root: join(tempDir(), "env"), yes: true, os: "maybe" }), /yes or no/);
+});
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}

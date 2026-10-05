@@ -15,7 +15,7 @@ user runs. This file is the single source of rules. Read it fully; read everythi
 | `library/memory/` | What you learned about the user | Start of a task, via its index |
 | `library/skills/`, `library/agents/`, `library/hooks/` | Methods, subagents, hooks | Listed in `library/index.json` |
 | `library/connections/` | MCP and service connections | A task needs an external service |
-| `library/profile.json` | Identity and preferences | Commits, model choice, language |
+| `library/profile.json` | Identity and preferences; `skills`: the ones turned off or pinned | Commits, model choice, language, picking skills |
 | `library/permissions.json` | What you may do alone | Before any write, command or connection call |
 | `blueprints/` | Reusable setups (`index.json` first) | Setting up something already solved before |
 | `projects/<name>/` | Projects: `AGENTS.md`, `code/`, `context/`, `secrets/` | Working on that project |
@@ -74,12 +74,15 @@ After finishing a feature that was hard to set up, **ask** whether to save it as
 ## CLI — prefer it over doing things by hand
 
 `nexo clone <repo> [--ws <name>]`, `nexo new <name>`, `nexo connect <service>`, `nexo doctor`,
-`nexo analyze`, `nexo update`, `nexo os versions`. If `nexo doctor` recommends `nexo analyze`,
+`nexo analyze`, `nexo update`, `nexo os status|versions|preview|build`. If `nexo doctor` recommends `nexo analyze`,
 tell the user; never run the analysis on your own.
 
 ## agent-os
 
-- Change it only in `os/source/`. Show a browser preview; build a new version only after the user
-  approves.
-- Never close or restart agent-os. It detects new builds and asks the user to restart.
+- Change it only in `os/source/`. Show it with `nexo os preview`; build a new version
+  (`nexo os build --notes "<what changed>"`) only after the user approves.
+- Never close or restart agent-os (`nexo os stop`/`start` only when the user asks). It detects new
+  builds and asks the user to restart.
+- Skip a skill the user turned off in `library/profile.json` (`skills.disabled`); always consider the
+  pinned ones (`skills.pinned`).
 - Versions: patch +1 per approved build; after `x.y.9` comes `x.(y+1).0`. Never change the major.

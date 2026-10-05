@@ -8,6 +8,7 @@ import { analyze } from "./commands/analyze.ts";
 import { clone, create } from "./commands/project.ts";
 import { connect } from "./commands/connect.ts";
 import { os } from "./commands/os.ts";
+import { map } from "./commands/map.ts";
 import { nexoVersion } from "./core/version.ts";
 
 const HELP = `nexo — install and maintain a Nexo agent environment
@@ -22,6 +23,7 @@ Usage: nexo <command> [options]
   doctor [--quick] [--json]         Check the environment; reports, never changes
   analyze                           Record OS and toolchains (summary in the config)
   index                             Rebuild library/index.json
+  map [project] [--check]           Code map (symbols by file) in the project's context/map/
   clone <repo-url> [--ws <name>] [--name <part>]
                                     Clone into projects/ with context ready
   new <name> [--ws <name>]          Create an empty project
@@ -62,6 +64,7 @@ async function main(argv: string[]): Promise<number> {
       all: { type: "boolean" },
       module: { type: "string" },
       continue: { type: "boolean" },
+      check: { type: "boolean" },
       abort: { type: "boolean" },
       quick: { type: "boolean" },
       json: { type: "boolean" },
@@ -101,6 +104,8 @@ async function main(argv: string[]): Promise<number> {
       return print(create(rest[0], values));
     case "connect":
       return print(connect(rest[0], values));
+    case "map":
+      return print(map(rest[0], values));
     case "os":
       return print(await os(rest[0], rest[1], values));
     default:

@@ -71,3 +71,14 @@ test("every published package carries the repository's LICENSE, unchanged", () =
     assert.equal(readFileSync(join(repo, pkg, "LICENSE"), "utf8"), license, `${pkg}/LICENSE differs: copy the root LICENSE again`);
   }
 });
+
+test("symbolsOf finds top-level symbols in each language, not calls or locals", async () => {
+  const { symbolsOf } = await import("../src/core/symbols.ts");
+  const names = (text: string, ext: string) => symbolsOf(text, ext).map((s) => `${s.kind} ${s.name}`);
+  assert.deepEqual(names("export async function load() {}\nconst x = 1;\nexport class Store {}\nexport type Id = string;\nexport const api = {};\nif (x) call();\n", ".ts"),
+    ["function load", "class Store", "type Id", "const api"]);
+  assert.deepEqual(names("class Repo:\n    def get(self):\n        pass\ndef main():\n    print('x')\n", ".py"), ["class Repo", "method get", "function main"]);
+  assert.deepEqual(names("func (s *Server) Start() error {\nfunc main() {\ntype Config struct {\n", ".go"), ["method Start", "function main", "type Config"]);
+  assert.deepEqual(names("pub struct App;\nimpl App {\n    pub async fn run(&self) {}\n}\n", ".rs"), ["type App", "impl App", "function run"]);
+  assert.deepEqual(symbolsOf("function f() {}", ".md"), []);
+});

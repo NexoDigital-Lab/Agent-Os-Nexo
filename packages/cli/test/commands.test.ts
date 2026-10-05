@@ -469,3 +469,29 @@ test("update stops on a real conflict; --continue needs it resolved, --abort und
   assert.equal(gitOut(source, "status", "--porcelain"), "");
   assert.match(gitOut(source, "log", "-1", "--format=%s"), /Update to agent-os 1\.1\.0/);
 });
+
+test("nexo map writes the code map by part and knows when it is stale", async () => {
+  const root = await freshEnv("claude");
+  const { map } = await import("../src/commands/map.ts");
+  create("shop", { root });
+  const code = join(root, "projects", "shop", "code");
+  mkdirSync(join(code, "apps", "web", "src"), { recursive: true });
+  mkdirSync(join(code, "apps", "api", "src"), { recursive: true });
+  mkdirSync(join(code, "node_modules", "dep"), { recursive: true });
+  writeFileSync(join(code, "package.json"), JSON.stringify({ workspaces: ["apps/*"] }));
+  writeFileSync(join(code, "apps/web/src/App.tsx"), "export function App() {}\n");
+  writeFileSync(join(code, "apps/api/src/server.ts"), "export class Server {}\nexport const port = 1;\n");
+  writeFileSync(join(code, "node_modules/dep/index.js"), "function hidden() {}\n");
+  const out = map("shop", { root });
+  assert.match(out, /context\/map\/apps-api\.txt: 1 files, 2 symbols/);
+  assert.match(out, /context\/map\/apps-web\.txt: 1 files, 1 symbols/);
+  const api = readFileSync(join(root, "projects/shop/context/map/apps-api.txt"), "utf8");
+  assert.match(api, /apps\/api\/src\/server\.ts\n\s+1 class Server\n\s+2 const port/);
+  assert.doesNotMatch(readdirSync(join(root, "projects/shop/context/map")).join(), /node_modules|dep/);
+  assert.equal(map("shop", { root, check: true }), "The code map is current.");
+  const later = new Date(Date.now() + 5000);
+  writeFileSync(join(code, "apps/web/src/New.tsx"), "export function New() {}\n");
+  (await import("node:fs")).utimesSync(join(code, "apps/web/src/New.tsx"), later, later);
+  assert.match(map("shop", { root, check: true }), /older than the code/);
+  assert.throws(() => map("nope", { root }), /Unknown project/);
+});

@@ -1,4 +1,4 @@
-// The module rules (docs/module-rules.md) hold for every module in this repository, and the checker really
+// The module rules (docs/en/module-rules.md) hold for every module in this repository, and the checker really
 // catches each rule it claims to (a checker that always passes would hide every regression).
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +12,7 @@ const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 test("every module in this repository follows the mechanical rules", () => {
   const findings = checkModules(appDir).map((f) => `${f.rule} ${f.file}${f.line ? `:${f.line}` : ""} — ${f.message}`);
-  assert.deepEqual(findings, [], "run `node scripts/check-modules.ts` and fix per docs/module-rules.md");
+  assert.deepEqual(findings, [], "run `node scripts/check-modules.ts` and fix per docs/en/module-rules.md");
 });
 
 const fixture = mkdtempSync(join(tmpdir(), "module-rules-"));

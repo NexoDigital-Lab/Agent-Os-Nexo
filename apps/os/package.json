@@ -10,6 +10,7 @@
     "modules",
     "src",
     "schema",
+    "docs",
     "scripts",
     "vite.config.ts",
     "tsconfig.json",
@@ -24,7 +25,8 @@
     "start": "node host/server/main.ts",
     "build": "node scripts/build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\" \"host/**/*.test.ts\" \"modules/**/*.test.ts\""
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\" \"host/**/*.test.ts\" \"modules/**/*.test.ts\"",
+    "docs": "node scripts/docs-index.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.281",

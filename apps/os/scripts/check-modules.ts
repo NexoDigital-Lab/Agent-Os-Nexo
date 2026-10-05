@@ -1,4 +1,4 @@
-// The mechanical part of the module rules (docs/module-rules.md): what a machine can check, it checks here, so a
+// The mechanical part of the module rules (docs/en/module-rules.md): what a machine can check, it checks here, so a
 // review only has to look at what needs judgment. Each finding names its rule, so the fix is in the doc.
 //   node scripts/check-modules.ts [--module <id>] [--json]      exit 1 when anything is found
 // test/module-rules.test.ts runs it on this repository; `nexo os check` runs it on a personal os/source.
@@ -37,7 +37,7 @@ const lineOf = (text: string, index: number) => text.slice(0, index).split("\n")
 
 /**
  * Every module a module may lean on: its dependencies, theirs, its parent (for a submodule), itself, and its own
- * submodules (a parent may render them, always behind isActive("<parent>/<sub>"): rule M2 in docs/module-rules.md).
+ * submodules (a parent may render them, always behind isActive("<parent>/<sub>"): rule M2 in docs/en/module-rules.md).
  */
 function allowedFor(mod: DiscoveredModule, byId: Map<string, DiscoveredModule>): Set<string> {
   const allowed = new Set<string>([mod.id, ...[...byId.values()].filter((m) => m.parent === mod.id).map((m) => m.id)]);
@@ -179,10 +179,10 @@ function main() {
   const appDir = resolve(values.root ?? join(dirname(fileURLToPath(import.meta.url)), ".."));
   const findings = checkModules(appDir, values.module);
   if (values.json) console.log(JSON.stringify(findings, null, 2));
-  else if (!findings.length) console.log("Modules follow the rules (docs/module-rules.md).");
+  else if (!findings.length) console.log("Modules follow the rules (docs/en/module-rules.md).");
   else {
     for (const f of findings) console.log(`${f.rule} ${f.file}${f.line ? `:${f.line}` : ""} — ${f.message}`);
-    console.log(`\n${findings.length} finding(s). Rules and fixes: docs/module-rules.md`);
+    console.log(`\n${findings.length} finding(s). Rules and fixes: docs/en/module-rules.md`);
   }
   process.exit(findings.length ? 1 : 0);
 }

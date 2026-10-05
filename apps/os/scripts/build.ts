@@ -10,7 +10,7 @@ import { parseArgs } from "node:util";
 const appDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** What a build carries from the source, relative to it. */
-export const SERVER_PARTS = ["host/server", "src", "schema", "package.json"];
+export const SERVER_PARTS = ["host/server", "src", "schema", "docs", "package.json"];
 
 /** True for what a build leaves out of modules/: web sources, tests, dependencies. */
 export function skipInModules(rel: string): boolean {

@@ -1,0 +1,169 @@
+---
+title: Modules
+summary: Every module: what it does, its dependencies, routes, slots and data.
+order: 5
+---
+
+# Modules
+
+Every module of agent-os: what it does, what it depends on, what it exposes and where it keeps data.
+Routes are under `/api`. "Core" modules cannot be turned off. When a module changes, its entry here
+changes in the same commit, in both languages (rule R11).
+
+Data columns: **data** is `os/data/<id>/` (persistent), **state** is `.state/os/<id>/` (regenerable).
+
+---
+
+## shell — core
+The app frame: the rail, the active view, Settings, notices and banners.
+- **Depends on:** nothing.
+- **Owns slots:** `settings.sections`, `rail.footer`, `shell.banners`, `shell.overlays` (`web/slots.ts`).
+- **Provides:** the `root` component; the Settings view (language, zoom in the desktop app); `goTo` /
+  `notify` (`web/nav.ts`); page zoom for the desktop app (`web/zoom.ts`).
+
+## themes — core
+Eight palettes (Nexo by default; Night, Amber, Aurora, Ocean, Synthwave, Nexo Light, High contrast) and
+bundled fonts, applied as CSS tokens on `:root`; derives the Monaco, xterm and git-graph themes.
+- **Depends on:** shell. **Contributes:** `settings.sections` (palette picker).
+- **Stores:** the choice in `os/data/prefs.json` (`theme`) through the host, plus a browser cache for
+  the first paint.
+
+## modules — core
+Turn modules on and off with dependency checks (takes effect on the next start); shows why a module
+did not load.
+- **Depends on:** shell. **Contributes:** `settings.sections`. **Uses:** `GET/PUT /api/os/modules`.
+
+## versions — core
+Personal builds: lists them, pins the one to load, and announces a newer one.
+- **Depends on:** shell. **Contributes:** `settings.sections`, `shell.banners` ("New version detected").
+- **Routes:** `GET /versions`, `PUT /versions/pin` (writes `os/current`).
+
+## projects — core
+Projects of the environment: list, create, clone, delete (code, folder, GitHub repository), worktrees,
+and their features (`context/features/<slug>.md`).
+- **Depends on:** shell. **Contributes:** `shell.overlays` (new / delete project dialogs).
+- **Owns:** project hooks (`server/hooks.ts`: `addProjectHooks`).
+- **Routes:** `GET/POST /projects`, `POST /projects/clone`, `GET /projects/:id/delete-check`,
+  `POST /projects/:id/delete`, `GET /projects/:id/diff`, `GET/POST /projects/:id/features`,
+  `GET/PATCH/DELETE /projects/:id/features/:slug`, `GET /github/repos`.
+- **Shared server code:** `projects.ts` (paths of projects and worktrees), `repo.ts` (`safePath`,
+  `repoFiles`), `vscode.ts`.
+
+## sessions
+AI session tabs: chat with the agent, its sub-agents, review of its changes, permissions, images,
+recent sessions and resume, full-text search over past sessions, skills and their recommendation.
+- **Depends on:** shell, projects. **View:** Tabs, Skills.
+- **Owns slots:** `tab.views`, `tab.side`, `tab.sideReplace`, `tab.overlay`, `chat.events`,
+  `composer.actions`, `tab.badges` (`web/slots.ts`); owns `contributeToSessions`
+  (`server/contributions.ts`).
+- **Contributes:** `shell.overlays` (notifications); project hooks (closes a project's tabs before it is
+  deleted).
+- **Routes:** `GET/POST /tabs`, `PATCH/DELETE /tabs/:id`, `GET /tabs/:id/stream` (server-sent events),
+  `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
+  `GET /tabs/:id/diff`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /history`,
+  `POST /history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /skills`,
+  `PUT /skills/prefs` (in `library/profile.json`), `POST /skills/recommend`.
+- **Stores:** data `tabs.json`; state `uploads/`, `search.db`.
+
+## home
+Start page: projects, recent sessions, goals, an inbox and today's log.
+- **Depends on:** shell, projects, sessions. **View:** Home. **Contributes:** a session contribution
+  (logs each turn).
+- **Routes:** `GET/PUT /home/:doc`, `POST /home/inbox`. **Stores:** data (goals, inbox, logs).
+
+## editor
+A full editor in each project tab: file tree, Monaco with palette-aware themes, search and replace,
+a bottom panel with Problems and Run, editor settings, and the agent-os equivalents of VS Code
+extensions.
+- **Depends on:** themes, sessions, extensions. **Contributes:** `tab.views` (Editor).
+- **Shared web code:** `web/bus.ts` (`openInEditor`, `usePanelHeight`).
+- **Routes:** `GET/PUT /tabs/:id/file`, `GET /tabs/:id/files`, `GET /tabs/:id/image`,
+  `POST /tabs/:id/fs|move|replace|open-editor`, `GET /tabs/:id/search`, `GET/PUT /tabs/:id/run`,
+  `GET /tabs/:id/toolchains`, `GET /icons/manifest`, `/icons/svg/*`.
+- **Submodules** (each can be turned off; the editor works without them):
+  - **editor/terminal** — real terminals per tab that live on the server and reattach after a reload;
+    the Terminal view. Owns `terminal.bar` and shell providers (`addShellProvider`). Routes
+    `GET/POST /tabs/:id/terms`, `POST /tabs/:id/terms/:tid/input`, `DELETE /tabs/:id/terms/:tid`;
+    WebSocket per terminal.
+  - **editor/lsp** — language servers (gopls, pyright): completion, hover, definition, diagnostics.
+    `GET /lsp/:lang/status`; WebSocket `/api/tabs/:id/lsp/:lang`.
+  - **editor/scm** — Git: changes, commit, sync, branches, stash, conflicts, the commit graph (Git
+    view), diff review. Routes under `/tabs/:id/scm/*` and `/tabs/:id/git/*`.
+  - **editor/practice** — Practice mode: the agent plans steps with hints and checks the user's code.
+    Contributes `composer.actions`. Routes `/tabs/:id/practice*`. Stores data (plans).
+  - **editor/setup** — project setup assistant (template, toolchains, dependencies, `.env`,
+    extensions, Run commands). Depends on extensions. Routes `/tabs/:id/setup*`.
+
+## notes
+Free notes per project that an agent turns into features; a board of the features read from
+`context/features/`, and drafts to promote.
+- **Depends on:** shell, projects, sessions. **View:** Notes.
+- **Routes:** `GET/POST /notes`, `PUT/DELETE /notes/:id`, `POST /notes/analyze|accept`,
+  `GET /drafts`, `DELETE /drafts/:id`, `POST /drafts/promote`. **Stores:** data (notes, drafts).
+
+## docker
+The engine's containers, images, logs and shells; and a mirror dev container per project whose tools
+(python, node, go…) the tab's terminals and agent use first.
+- **Depends on:** shell, projects, sessions, editor/terminal. **View:** Docker.
+- **Contributes:** `terminal.bar` (dev container controls), a shell provider, a session contribution
+  (`CLAUDE_ENV_FILE` + prompt note), project hooks (offer to remove the container).
+- **Routes:** `GET /docker/info|containers|images|terms`, `POST /docker/containers/:id/:action`,
+  `GET /docker/containers/:id/logs`, `DELETE /docker/images/:id`, `POST /docker/pull`,
+  `POST /docker/terms`, `DELETE /docker/terms/:tid`, `GET/POST/DELETE /tabs/:id/devenv`,
+  `POST /tabs/:id/devenv/install`.
+- **Stores:** state `shims/<project>/` (shims, env file, container config).
+
+## ssh
+Saved SSH accesses in an encrypted vault, an SSH console per session tab, and tools the tab's agent can
+use on the server only while the user shares the console, with one approved plan for any change.
+- **Depends on:** shell, projects, sessions, editor/terminal. **View:** SSH.
+- **Contributes:** `tab.sideReplace` (the console), `chat.events` (`ssh/plan`), `tab.badges`; a session
+  contribution (MCP tools, PreToolUse guard for every session, turn and close cleanup).
+- **Routes:** `GET /ssh/state`, `POST /ssh/setup|unlock|lock`, `GET/POST /ssh/hosts`,
+  `PUT/DELETE /ssh/hosts/:id`, `POST /ssh/hosts/:id/open`, `GET /ssh/sessions/:tabId`,
+  `POST /ssh/sessions/:tabId/connect|share`, `POST /ssh/plans/:planId`; WebSocket `/api/ssh/term/:tabId`.
+  Everything but `/ssh/state`, `/setup` and `/unlock` needs the vault cookie.
+- **Stores:** data `vault/vault.json` (AES-256-GCM); state `run/` (temporary key files).
+  Design and threat model: `modules/ssh/CONTRACT.md`, [security.md](security.md).
+
+## architecture
+The project's defined architecture (a document and a folder plan with rules per folder), the floating
+Architect that advises against the real code, and a note that makes each tab's agent follow it.
+- **Depends on:** projects, sessions, editor. **Contributes:** `tab.views` (Architecture),
+  `tab.overlay` (the Architect), a session contribution (prompt note unless the tab turned it off).
+- **Routes:** `GET /arch/:project`, `PUT /arch/:project/doc|tree`, `POST /arch/:project/import|advise|chat`,
+  `DELETE /arch/:project/chat`, `POST /tabs/:id/arch`.
+- **Stores:** the project's `context/architecture/` (`architecture.md`, `tree.json`, `advice.json`,
+  `chat.json`); tab meta `archOff`.
+
+## http
+An HTTP client with collections, environments and curl / Postman import.
+- **Depends on:** shell. **View:** HTTP client.
+- **Routes:** `GET/PUT /http`, `POST /http/send`. **Stores:** data (collections, environments).
+
+## monitor
+Token use and estimated cost of every AI session, and the plan's usage limits in the rail.
+- **Depends on:** shell, sessions. **View:** Monitor. **Contributes:** `rail.footer`, a session
+  contribution (reads rate limits).
+- **Routes:** `GET /limits`, `GET /usage/summary`, `GET /usage/sessions`.
+
+## extensions
+VS Code extensions per project (recommended by stack or by an agent, synced to `.vscode/extensions.json`)
+and their agent-os editor equivalents.
+- **Depends on:** shell, projects, sessions. **View:** Extensions.
+- **Routes:** `GET /extensions`, `PUT /extensions/general`, `POST /extensions/install`,
+  `GET/PUT /projects/:id/extensions`, `POST /projects/:id/extensions/sync|recommend`.
+
+## visual-bugs
+A gallery of screenshots of what looks wrong in agent-os, with notes, for an agent to read and fix.
+- **Depends on:** shell. **View:** Visual bugs.
+- **Routes:** `GET/POST /visual-bugs` (POST takes the raw image), `GET/PATCH/DELETE /visual-bugs/:name`.
+  **Stores:** data (images + `index.json` of notes).
+
+## docs
+This documentation inside the app, in the app's language (English when a document has no translation yet):
+an index, full-text search and a reader where links between documents open in place.
+- **Depends on:** shell. **View:** Docs.
+- **Routes:** `GET /docs?lang=`, `GET /docs/search?q=&lang=`, `GET /docs/:slug?lang=`.
+- **Reads:** `docs/<lang>/*.md` of the running build (shipped with it); `src/core/docs.ts` parses them, and
+  `npm run docs` regenerates `docs/README.md`, the index for reading outside the app.

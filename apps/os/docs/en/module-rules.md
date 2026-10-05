@@ -1,3 +1,9 @@
+---
+title: Module rules
+summary: The standard every module follows: M rules checked by the machine, R rules checked in review.
+order: 3
+---
+
 # Module rules
 
 The standard every agent-os module follows — Nexo's own, a contributor's, or the ones a user adds to their
@@ -153,7 +159,8 @@ Server logic with branches (validation, parsing, policies, state machines) has `
 ### R11 — Versions and docs
 Bump the module's `version` with every change: patch for a fix, minor for a feature, major when you
 change a slot or contract other modules use. Keep the module's entry in [modules.md](modules.md)
-(purpose, routes, slots, data) and its manifest `description` true.
+(purpose, routes, slots, data) and its manifest `description` true, in both languages
+(`docs/en/` and `docs/es/`).
 
 ### R12 — TypeScript
 `strict`, no `any` except at a validated boundary, no non-null `!` where a check is cheap. Node runs the

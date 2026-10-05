@@ -90,7 +90,7 @@ export async function os(action: string | undefined, arg: string | undefined, op
       return stopped.length ? `Stopped: ${stopped.join(", ")}.` : "agent-os was not running.";
     }
     case "check": {
-      // The mechanical module rules (os/source/docs/module-rules.md), run by the source's own checker.
+      // The mechanical module rules (os/source/docs/en/module-rules.md), run by the source's own checker.
       const script = join(source, "scripts", "check-modules.ts");
       if (!existsSync(script)) throw new Error("No agent-os source with a module checker in os/source. Run `nexo os install`.");
       const r = spawnSync(process.execPath, [script, ...(opts.module ? [`--module=${opts.module}`] : [])], { cwd: source, encoding: "utf8" });

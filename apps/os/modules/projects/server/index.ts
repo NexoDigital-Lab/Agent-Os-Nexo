@@ -1,7 +1,8 @@
 // projects: the environment's projects (/api/projects, /api/github/repos).
-import { h, httpError, ok } from "../../../host/server/http.ts";
+import { join } from "node:path";
+import { h, httpError, ok, trash } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
-import { FEATURE_SIZES, FEATURE_STATUSES, FEATURE_TYPES, listFeatures, readFeature, setFeatureField, writeFeature, type NewFeature } from "./features.ts";
+import { FEATURE_PRIORITIES, FEATURE_SIZES, FEATURE_STATUSES, FEATURE_TYPES, featuresDir, listFeatures, readFeature, setFeatureField, writeFeature, type NewFeature } from "./features.ts";
 import { cloneProject, createProject, deleteCheck, deleteProject, listRemoteRepos } from "./lifecycle.ts";
 import { initProjects, listProjects, projectDiff, projectDir, projectPath } from "./projects.ts";
 
@@ -46,13 +47,23 @@ const register: ModuleServer = (ctx) => {
   }));
   api.patch("/projects/:id/features/:slug", h((req) => {
     const dir = dirOf(id(req.params.id));
-    const { status } = req.body as { status?: string };
-    if (!FEATURE_STATUSES.includes(status as (typeof FEATURE_STATUSES)[number])) throw httpError(400, "Invalid status");
+    const body = req.body as { status?: string; priority?: string };
+    const valid: Array<["status" | "priority", readonly string[]]> = [["status", FEATURE_STATUSES], ["priority", FEATURE_PRIORITIES]];
+    const changes = valid.filter(([k]) => body[k] !== undefined);
+    if (!changes.length || changes.some(([k, allowed]) => !allowed.includes(String(body[k])))) throw httpError(400, "Invalid status or priority");
     try {
-      setFeatureField(dir, String(req.params.slug), "status", status!);
+      for (const [k] of changes) setFeatureField(dir, String(req.params.slug), k, String(body[k]));
     } catch {
       throw httpError(404, "Feature not found");
     }
+    return ok;
+  }));
+  // A feature file goes to the trash, never a plain delete.
+  api.delete("/projects/:id/features/:slug", h(async (req) => {
+    const dir = dirOf(id(req.params.id));
+    const slug = String(req.params.slug);
+    if (readFeature(dir, slug) === null) throw httpError(404, "Feature not found");
+    await trash(join(featuresDir(dir), `${slug}.md`), `context/features/${slug}.md`);
     return ok;
   }));
 };

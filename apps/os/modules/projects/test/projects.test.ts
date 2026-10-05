@@ -67,6 +67,9 @@ test("features: write, list, read, update status", () => {
   const [f] = listFeatures(shop);
   assert.equal(f?.title, "Añadir login con Google");
   assert.equal(f?.status, "todo");
+  assert.equal(f?.priority, "P2");
+  setFeatureField(shop, slug, "priority", "P0");
+  assert.equal(listFeatures(shop)[0]?.priority, "P0");
   setFeatureField(shop, slug, "status", "doing");
   assert.equal(listFeatures(shop)[0]?.status, "doing");
   assert.match(readFeature(shop, slug)!, /- \[ \] Logs in/);

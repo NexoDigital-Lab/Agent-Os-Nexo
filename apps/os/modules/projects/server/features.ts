@@ -6,6 +6,7 @@ import { join } from "node:path";
 export const FEATURE_TYPES = ["feature", "bug", "chore"] as const;
 export const FEATURE_STATUSES = ["todo", "doing", "done"] as const;
 export const FEATURE_SIZES = ["S", "M", "L"] as const;
+export const FEATURE_PRIORITIES = ["P0", "P1", "P2", "P3"] as const;
 
 export interface Feature {
   /** File name without .md: "0007-refresh-tokens". */
@@ -14,6 +15,8 @@ export interface Feature {
   title: string;
   type: (typeof FEATURE_TYPES)[number];
   size: (typeof FEATURE_SIZES)[number];
+  /** P0 urgent … P3 someday; P2 when the file has none. */
+  priority: (typeof FEATURE_PRIORITIES)[number];
   status: (typeof FEATURE_STATUSES)[number];
   link: string;
   created: string;
@@ -47,6 +50,7 @@ export function parseFeature(slug: string, text: string, mtime: number): Feature
     title: fm.title || heading || slug,
     type: pick(fm.type === "fix" ? "bug" : fm.type, FEATURE_TYPES, "feature"),
     size: pick(fm.size, FEATURE_SIZES, "M"),
+    priority: pick(fm.priority, FEATURE_PRIORITIES, "P2"),
     status: pick(fm.status, FEATURE_STATUSES, "todo"),
     link: fm.link ?? "",
     created: fm.created ?? "",
@@ -92,6 +96,7 @@ export interface NewFeature {
   title: string;
   type: Feature["type"];
   size: Feature["size"];
+  priority?: Feature["priority"];
   status?: Feature["status"];
   context?: string;
   criteria?: string[];
@@ -110,6 +115,7 @@ id: "${id}"
 title: ${f.title.replace(/\n/g, " ")}
 type: ${f.type}
 size: ${f.size}
+priority: ${f.priority ?? "P2"}
 status: ${f.status ?? "todo"}
 link:
 created: ${new Date().toLocaleDateString("sv-SE")}
@@ -132,7 +138,7 @@ ${f.assumptions?.trim() || ""}
 }
 
 /** Updates one frontmatter field (e.g. status) in place, keeping the rest of the file. */
-export function setFeatureField(projectDir: string, slug: string, key: "status" | "size" | "type", value: string): void {
+export function setFeatureField(projectDir: string, slug: string, key: "status" | "size" | "type" | "priority", value: string): void {
   const text = readFeature(projectDir, slug);
   if (text === null) throw new Error(`No feature ${slug}`);
   const re = new RegExp(`^(${key}:).*$`, "m");

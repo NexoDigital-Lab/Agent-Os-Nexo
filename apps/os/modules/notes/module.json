@@ -1,0 +1,9 @@
+{
+  "name": "notes",
+  "version": "1.0.0",
+  "description": "Free notes per project; an AI turns them into features, shown on a board read from context/features",
+  "owner": "nexo",
+  "dependsOn": ["shell", "projects", "sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Notes", "icon": "file-text", "order": 30 }
+}

@@ -34,6 +34,7 @@ id: "0007"
 title: <short imperative title>
 type: feature | bug | chore
 size: S | M | L
+priority: P0 | P1 | P2 | P3
 status: todo
 link: <external URL or empty>
 created: <YYYY-MM-DD>
@@ -58,6 +59,8 @@ Why this is needed; what exists today.
 | S | 1–3 files, no risk signal (auth, payments, data migrations, secrets, multi-tenant) |
 | M | Several files or one risk signal |
 | L | Cross-cutting, several risk signals, or a new module |
+
+Priority: P0 urgent (blocks work or users), P1 next, P2 normal (default), P3 someday.
 
 ## Does not
 

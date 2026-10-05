@@ -22,6 +22,7 @@ export const projectsApi = {
   features: (id: string) => call<Feature[]>("GET", `/api/projects/${seg(id)}/features`),
   feature: (id: string, slug: string) => call<{ markdown: string }>("GET", `/api/projects/${seg(id)}/features/${seg(slug)}`),
   addFeature: (id: string, f: NewFeature) => call<{ slug: string }>("POST", `/api/projects/${seg(id)}/features`, f),
-  setFeatureStatus: (id: string, slug: string, status: Feature["status"]) =>
-    call("PATCH", `/api/projects/${seg(id)}/features/${seg(slug)}`, { status }),
+  setFeature: (id: string, slug: string, patch: Partial<Pick<Feature, "status" | "priority">>) =>
+    call("PATCH", `/api/projects/${seg(id)}/features/${seg(slug)}`, patch),
+  removeFeature: (id: string, slug: string) => call("DELETE", `/api/projects/${seg(id)}/features/${seg(slug)}`),
 };

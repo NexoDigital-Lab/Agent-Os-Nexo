@@ -27,6 +27,9 @@ export function applyPalette(p: Palette): void {
     "--add": c.add, "--del": c.del, "--brand": p.brand,
     "--sans": p.fonts.sans, "--display": p.fonts.display,
     "--select-chevron": chevron(c.text3),
+    // Depth: shadows under floating panels and the dimmed backdrop behind dialogs (softer on light palettes).
+    "--shadow": p.dark ? "#00000088" : "#1a14402e",
+    "--scrim": p.dark ? "#000000a6" : "#1a144066",
   };
   const root = document.documentElement;
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);

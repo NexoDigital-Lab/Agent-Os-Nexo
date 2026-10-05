@@ -33,7 +33,7 @@
 .toast {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: min(640px, 90vw);
   background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 16px;
-  box-shadow: 0 10px 30px #0008; cursor: pointer;
+  box-shadow: 0 10px 30px var(--shadow); cursor: pointer;
 }
 .settings-section { display: grid; gap: 12px; padding: 18px 0; border-top: 1px solid var(--line); }
 .settings-section h2 { margin: 0; font: 600 16px var(--display); }

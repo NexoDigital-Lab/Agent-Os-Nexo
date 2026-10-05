@@ -11,6 +11,6 @@
 .vb-card textarea { resize: vertical; font-size: 13px; }
 .vb-meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
 .vb-meta > span { display: inline-flex; }
-.vb-zoom { position: fixed; inset: 0; z-index: 100; background: #000c; display: grid; place-items: center; padding: 32px; cursor: zoom-out; }
-.vb-zoom img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 40px #0008; }
+.vb-zoom { position: fixed; inset: 0; z-index: 100; background: var(--scrim); display: grid; place-items: center; padding: 32px; cursor: zoom-out; }
+.vb-zoom img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 40px var(--shadow); }
 .vb-close { position: absolute; top: 16px; right: 16px; color: var(--text); }

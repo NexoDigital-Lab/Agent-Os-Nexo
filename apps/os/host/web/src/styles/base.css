@@ -10,6 +10,7 @@
   --ok: #4ade80; --ok-dim: color-mix(in srgb, var(--ok) 13%, transparent);
   --bad: #ff2d78; --bad-dim: color-mix(in srgb, var(--bad) 13%, transparent);
   --info: #00f5ff; --info-dim: color-mix(in srgb, var(--info) 11%, transparent);
+  --shadow: #00000088; --scrim: #000000a6;
   --warn: #fbbf24; --violet: #818cf8; --add: #0d2a1c; --del: #2e0e1d;
   --brand: linear-gradient(135deg, #00f5ff, #a855f7, #ff2d78);
   --sans: "Inter Variable", "Inter", system-ui, sans-serif;

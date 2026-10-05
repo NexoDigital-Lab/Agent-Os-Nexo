@@ -38,6 +38,6 @@
   position: fixed; left: 76px; bottom: 16px; z-index: 60; max-width: 320px;
   display: flex; align-items: center; gap: 10px;
   padding: 10px 12px; border-radius: 10px; border: 1px solid var(--accent);
-  background: var(--panel); color: var(--text); font-size: 13px; box-shadow: 0 8px 28px #0008;
+  background: var(--panel); color: var(--text); font-size: 13px; box-shadow: 0 8px 28px var(--shadow);
 }
 .usage-toast button { border: 0; background: none; color: var(--text-3); font-size: 16px; cursor: pointer; }

@@ -102,7 +102,7 @@
 .branch-ic { vertical-align: -0.15em; flex: none; }
 .tree-row.editing { cursor: default; background: var(--panel-2); }
 .tree-input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; color: var(--text); font-size: 12.5px; padding: 1px 5px; outline: none; }
-.ctx-menu { position: fixed; z-index: 30; min-width: 190px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 4px; box-shadow: 0 8px 24px #0008; display: flex; flex-direction: column; }
+.ctx-menu { position: fixed; z-index: 30; min-width: 190px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 4px; box-shadow: 0 8px 24px var(--shadow); display: flex; flex-direction: column; }
 .ctx-menu button { text-align: left; background: none; border: 0; color: var(--text); font-size: 13px; padding: 6px 10px; border-radius: 5px; cursor: pointer; }
 .ctx-menu button:hover { background: var(--panel-2); }
 .ctx-menu button.danger { color: var(--bad); }
@@ -126,7 +126,7 @@
 .tool-main { flex: 1; min-width: 0; }
 .run-menu { position: relative; }
 .run-btn { color: var(--ok); }
-.run-drop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; width: 320px; max-height: 420px; overflow: auto; background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 4px; box-shadow: 0 8px 24px #0008; }
+.run-drop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; width: 320px; max-height: 420px; overflow: auto; background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 4px; box-shadow: 0 8px 24px var(--shadow); }
 .run-item { display: flex; align-items: center; }
 .run-item > button:first-child { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; background: none; border: 0; color: var(--text); padding: 6px 8px; border-radius: 5px; cursor: pointer; font-size: 13px; text-align: left; }
 .run-item > button:first-child:hover { background: var(--panel-2); }
@@ -180,14 +180,14 @@
 .md-preview code { font-family: var(--mono); font-size: 12.5px; }
 .img-wrap { flex: 1; overflow: auto; display: grid; place-items: center; padding: 20px; background: repeating-conic-gradient(var(--panel) 0 25%, var(--bg-2) 0 50%) 0 0 / 20px 20px; }
 .img-wrap img { max-width: 100%; max-height: 100%; }
-.settings-box { position: absolute; right: 12px; top: 44px; z-index: 25; width: 300px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; box-shadow: 0 8px 24px #0008; }
+.settings-box { position: absolute; right: 12px; top: 44px; z-index: 25; width: 300px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; box-shadow: 0 8px 24px var(--shadow); }
 .settings-box label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .settings-box .field { width: 90px; padding: 3px 6px; }
 .settings-box select.field { padding-right: 24px; }
 .settings-box input[type=checkbox] { accent-color: var(--accent); }
 .p-main { position: relative; }
-.palette-bg { position: fixed; inset: 0; z-index: 40; background: #0006; }
-.palette { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); width: min(620px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 16px 40px #000a; overflow: hidden; }
+.palette-bg { position: fixed; inset: 0; z-index: 40; background: var(--scrim); }
+.palette { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); width: min(620px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 16px 40px var(--shadow); overflow: hidden; }
 .palette .field { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; font-size: 14px; padding: 12px 14px; }
 .palette-list { max-height: 50vh; overflow: auto; padding: 4px; }
 .palette-item { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }

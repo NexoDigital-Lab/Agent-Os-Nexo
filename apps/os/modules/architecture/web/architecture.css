@@ -37,11 +37,11 @@
 .arch-ta { width: 100%; resize: vertical; line-height: 1.5; font-size: 13px; }
 .arch-preview { min-height: 120px; max-height: 60vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); margin: 0; }
 @media (max-width: 1000px) { .arch-cols { grid-template-columns: minmax(0, 1fr); } }
-.arch-pill { position: absolute; right: 20px; bottom: 20px; z-index: 9; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 8px 24px #0008; }
+.arch-pill { position: absolute; right: 20px; bottom: 20px; z-index: 9; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 8px 24px var(--shadow); }
 .arch-pill:hover { border-color: var(--accent); }
 .arch-pill:focus-visible, .arch-steps:focus-visible, .arch-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .arch-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.arch-float { position: absolute; right: 20px; bottom: 20px; z-index: 9; width: min(360px, calc(100% - 32px)); height: 420px; max-height: calc(100% - 80px); padding: 0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 36px #000a; border-color: var(--line-2); }
+.arch-float { position: absolute; right: 20px; bottom: 20px; z-index: 9; width: min(360px, calc(100% - 32px)); height: 420px; max-height: calc(100% - 80px); padding: 0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 36px var(--shadow); border-color: var(--line-2); }
 .arch-float-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--line); flex: none; }
 .arch-float-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
 .arch-float-body p { margin: 0; }

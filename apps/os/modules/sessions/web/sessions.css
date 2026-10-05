@@ -12,7 +12,7 @@
 .tabview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); min-height: 0; flex: 1; }
 .tabview.solo { grid-template-columns: 1fr; }
 .stream-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.to-bottom { position: absolute; right: 18px; bottom: 14px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 10px #0006; }
+.to-bottom { position: absolute; right: 18px; bottom: 14px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 10px var(--shadow); }
 .to-bottom:hover { border-color: var(--accent); }
 .to-bottom-n { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-size: 10px; font-weight: 700; display: grid; place-items: center; }
 .stream { flex: 1; min-height: 0; overflow: auto; padding: 20px 22px 8px; display: flex; flex-direction: column; gap: 10px; }
@@ -68,7 +68,7 @@
 .attach { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .att { position: relative; width: 72px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line-2); background: var(--bg); display: grid; place-items: center; }
 .att img { width: 100%; height: 100%; object-fit: cover; }
-.att button { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: #000b; color: var(--text); cursor: pointer; font-size: 11px; line-height: 20px; padding: 0; }
+.att button { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: var(--scrim); color: var(--text); cursor: pointer; font-size: 11px; line-height: 20px; padding: 0; }
 .att button:hover { background: var(--bad); }
 .thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 .thumbs img { max-width: 180px; max-height: 120px; border-radius: 6px; border: 1px solid var(--line-2); display: block; }

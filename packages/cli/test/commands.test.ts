@@ -86,11 +86,14 @@ test("Claude sees the library: .claude/skills links to it and agents get Claude'
   create("shop", { root });
   assert.equal(readlinkSync(join(root, "projects/shop/.claude/skills")), "../../../library/skills");
   assert.ok(existsSync(join(root, "projects/shop/.claude/agents/code-reviewer.md")));
-  // a dropped library agent disappears from .claude/agents on update; the user's own agent stays
-  rmSync(join(root, "library/agents/planner.md"));
+  // an agent removed from the library disappears from .claude/agents; a file the user put there stays
+  writeFileSync(join(root, "library/agents/scout.md"), "---\nname: scout\ndescription: d\nowner: user\ntools: [read]\n---\nlook\n");
+  update({ root });
+  assert.match(readFileSync(join(root, ".claude/agents/scout.md"), "utf8"), /tools: Read\n/);
+  rmSync(join(root, "library/agents/scout.md"));
   writeFileSync(join(root, ".claude/agents/mine.md"), "---\nname: mine\n---\nhi\n");
   update({ root });
-  assert.ok(!existsSync(join(root, ".claude/agents/planner.md")));
+  assert.ok(!existsSync(join(root, ".claude/agents/scout.md")));
   assert.ok(existsSync(join(root, ".claude/agents/mine.md")));
 });
 

@@ -1,0 +1,16 @@
+{
+  "name": "@nexodigital-lab/agent-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "agent-os: the local app of a Nexo environment, built from modules.",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.0"
+  }
+}

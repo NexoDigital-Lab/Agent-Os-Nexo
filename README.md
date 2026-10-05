@@ -35,8 +35,8 @@ Factory content (default skills such as `nexo-dev`, hooks, commands, permission 
 
 | Command | What it does |
 |---|---|
-| `nexo init` | Create an environment (asks path, AIs, permission preset, profile) |
-| `nexo update` | Refresh factory items (`owner: nexo`) |
+| `nexo init` | Create an environment (asks path, AIs, permission preset, profile, and which default skills to take: all, core or none) |
+| `nexo update` | Refresh factory items (`owner: nexo`); `--factory all` adds the ones skipped at init |
 | `nexo doctor` | Check structure and formats; recommends what to fix, never fixes on its own |
 | `nexo analyze` | Analyze the OS and toolchains; summary into the config, detail into `.state/` |
 | `nexo index` | Rebuild `library/index.json` |

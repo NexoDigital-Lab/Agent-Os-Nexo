@@ -1,0 +1,11 @@
+{
+  "$comment": "Factory sets offered by `nexo init --factory`. `all` installs every item; `none` installs nothing. Paths are relative to library/.",
+  "core": [
+    "skills/nexo-onboard",
+    "skills/nexo-idea",
+    "skills/nexo-dev",
+    "skills/nexo-features",
+    "conventions/git",
+    "hooks/block-force-push.json"
+  ]
+}

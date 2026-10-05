@@ -4,7 +4,7 @@ import { basesDir, CONFIG_FILE, defaultRoot, expandHome } from "../core/paths.ts
 import { DEFAULT_FOLDERS, TOOLS, writeConfig, type EnvironmentConfig, type Tool } from "../core/config.ts";
 import { copyFileSync } from "node:fs";
 import { ensureDir, readJson, writeJson, writeText } from "../core/fsx.ts";
-import { installFactory } from "../core/factory.ts";
+import { FACTORY_SETS, installFactory, isFactorySet } from "../core/factory.ts";
 import { buildLibraryIndex } from "../core/libindex.ts";
 import { generateAdapters } from "../core/adapters.ts";
 import { loadPermissions, PRESETS, type Preset } from "../core/permissions.ts";
@@ -20,6 +20,7 @@ export interface InitOptions {
   name?: string;
   email?: string;
   language?: string;
+  factory?: string;
 }
 
 const LIBRARY_DIRS = ["conventions", "dictionary", "commands", "memory", "skills", "agents", "hooks", "connections"];
@@ -43,6 +44,8 @@ export async function init(opts: InitOptions): Promise<string> {
     const name = opts.name ?? (await asker.ask("Your name (for commits)", gitConfig("user.name")));
     const email = opts.email ?? (await asker.ask("Your email (for commits)", gitConfig("user.email")));
     const language = opts.language ?? (await asker.ask("Language agents should answer in", "en"));
+    const factorySet = opts.factory ?? (await asker.ask(`Default skills, agents, hooks and commands (${FACTORY_SETS.join(", ")})`, "all"));
+    if (!isFactorySet(factorySet)) throw new Error(`Unknown factory set "${factorySet}". Choose from: ${FACTORY_SETS.join(", ")}.`);
 
     const config: EnvironmentConfig = {
       nexo: { version: nexoVersion(), updatePolicy: "owner" },
@@ -50,6 +53,7 @@ export async function init(opts: InitOptions): Promise<string> {
       tools: Object.fromEntries(TOOLS.map((t) => [t, toolList.includes(t)])) as Record<Tool, boolean>,
       folders: { ...DEFAULT_FOLDERS },
       system: null,
+      factory: factorySet,
     };
 
     ensureDir(root);
@@ -66,7 +70,7 @@ export async function init(opts: InitOptions): Promise<string> {
     const profile = readJson<Record<string, unknown>>(join(basesDir, "library", "profile.json"));
     writeJson(join(library, "profile.json"), { ...profile, identity: { name, email }, language });
     copyFileSync(join(basesDir, "permissions", `${preset}.json`), join(library, "permissions.json"));
-    const factory = installFactory(library);
+    const factory = installFactory(library, factorySet);
     buildLibraryIndex(library);
 
     writeJson(join(root, config.folders.blueprints, "index.json"), []);
@@ -78,7 +82,7 @@ export async function init(opts: InitOptions): Promise<string> {
 
     return [
       `Nexo environment created at ${root}`,
-      `  AIs: ${toolList.join(", ") || "none"} · permissions: ${preset} · factory items: ${factory.installed.length}`,
+      `  AIs: ${toolList.join(", ") || "none"} · permissions: ${preset} · factory: ${factorySet} (${factory.installed.length} items)`,
       `  Generated: ${adapters.join(", ") || "nothing (no AI needs extra files)"}`,
       "",
       "Next:",

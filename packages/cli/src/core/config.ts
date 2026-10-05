@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { CONFIG_FILE } from "./paths.ts";
 import { readJson, writeJson } from "./fsx.ts";
+import type { FactorySet } from "./factory.ts";
 
 export const TOOLS = ["claude", "codex", "gemini", "opencode"] as const;
 export type Tool = (typeof TOOLS)[number];
@@ -21,6 +22,8 @@ export interface EnvironmentConfig {
   tools: Record<Tool, boolean>;
   folders: { library: string; blueprints: string; projects: string; os: string; state: string };
   system: SystemSummary | null;
+  /** Factory items this environment takes (`nexo init --factory`); missing means "all". */
+  factory?: FactorySet;
 }
 
 export const DEFAULT_FOLDERS: EnvironmentConfig["folders"] = {

@@ -1,18 +1,26 @@
 import { join } from "node:path";
 import { findRoot } from "../core/paths.ts";
 import { folder, readConfig, writeConfig } from "../core/config.ts";
-import { installFactory } from "../core/factory.ts";
+import { FACTORY_SETS, installFactory, isFactorySet } from "../core/factory.ts";
 import { buildLibraryIndex } from "../core/libindex.ts";
 import { generateAdapters } from "../core/adapters.ts";
 import { loadPermissions } from "../core/permissions.ts";
 import { listProjectDirs, refreshAdapters } from "../core/projects.ts";
 import { nexoVersion } from "../core/version.ts";
 
-export function update(opts: { root?: string }): string {
+/**
+ * Refreshes factory items and AI files. `--factory <set>` changes which factory items the
+ * environment takes (e.g. `all` to add the ones skipped at init); nothing is ever removed.
+ */
+export function update(opts: { root?: string; factory?: string }): string {
   const root = findRoot(opts.root);
   const config = readConfig(root);
+  if (opts.factory !== undefined) {
+    if (!isFactorySet(opts.factory)) throw new Error(`Unknown factory set "${opts.factory}". Choose from: ${FACTORY_SETS.join(", ")}.`);
+    config.factory = opts.factory;
+  }
   const library = folder(root, config, "library");
-  const report = installFactory(library);
+  const report = installFactory(library, config.factory ?? "all");
   buildLibraryIndex(library);
   const from = config.nexo.version;
   config.nexo.version = nexoVersion();

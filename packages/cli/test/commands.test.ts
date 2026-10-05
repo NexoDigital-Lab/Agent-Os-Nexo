@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { freshEnv, tempDir } from "./helpers.ts";
 import { init } from "../src/commands/init.ts";
@@ -47,6 +47,30 @@ test("init builds the agreed layout", async () => {
   assert.deepEqual(json(join(root, "library/profile.json")).identity, { name: "Tester", email: "tester@example.com" });
   const index = json(join(root, "library/index.json"));
   assert.ok(index.skills.some((s: { name: string }) => s.name === "nexo-dev"));
+});
+
+test("init --factory core installs only the core workflow; update --factory all adds the rest", async () => {
+  const root = join(tempDir(), "env");
+  await init({ root, yes: true, tools: "claude", factory: "core", name: "T", email: "t@example.com", language: "en" });
+  for (const rel of ["skills/nexo-dev", "skills/nexo-features", "skills/nexo-idea", "skills/nexo-onboard", "conventions/git", "hooks/block-force-push.json", "hooks/scripts/block-force-push.mjs"]) {
+    assert.ok(existsSync(join(root, "library", rel)), `missing ${rel}`);
+  }
+  for (const rel of ["skills/nexo-research", "agents/planner.md", "commands/os-analysis.json", "hooks/session-start-doctor.json"]) {
+    assert.ok(!existsSync(join(root, "library", rel)), `unexpected ${rel}`);
+  }
+  assert.equal(readConfig(root).factory, "core");
+  const out = update({ root, factory: "all" });
+  assert.match(out, /agents\/planner\.md/);
+  assert.ok(existsSync(join(root, "library/skills/nexo-research/SKILL.md")));
+  assert.equal(readConfig(root).factory, "all");
+});
+
+test("init --factory none installs no factory items", async () => {
+  const root = join(tempDir(), "env");
+  await init({ root, yes: true, tools: "claude", factory: "none", name: "T", email: "t@example.com", language: "en" });
+  assert.deepEqual(readdirSync(join(root, "library/skills")), []);
+  assert.ok(!existsSync(join(root, "library/hooks/scripts")));
+  assert.throws(() => update({ root, factory: "some" }), /Unknown factory set/);
 });
 
 test("init refuses an existing environment and unknown options", async () => {

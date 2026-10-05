@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { basesDir } from "./paths.ts";
-import { copyDir, ensureDir, isDir, listDir } from "./fsx.ts";
+import { copyDir, ensureDir, isDir, listDir, readJson } from "./fsx.ts";
 import { ownerOf } from "./owner.ts";
 
 export interface FactoryItem {
@@ -18,7 +18,28 @@ export interface FactoryItem {
 
 const basesLibrary = join(basesDir, "library");
 
-export function factoryItems(): FactoryItem[] {
+/** Which factory items an environment takes: every one, the core workflow only, or none. */
+export const FACTORY_SETS = ["all", "core", "none"] as const;
+export type FactorySet = (typeof FACTORY_SETS)[number];
+
+export function isFactorySet(value: string): value is FactorySet {
+  return (FACTORY_SETS as readonly string[]).includes(value);
+}
+
+/** Items (paths relative to library/) in the `core` set, from nexo_bases/library/sets.json. */
+export function coreItems(): string[] {
+  return readJson<{ core: string[] }>(join(basesLibrary, "sets.json")).core;
+}
+
+export function factoryItems(set: FactorySet = "all"): FactoryItem[] {
+  if (set === "none") return [];
+  const all = allFactoryItems();
+  if (set === "all") return all;
+  const core = new Set(coreItems());
+  return all.filter((item) => core.has(item.rel));
+}
+
+function allFactoryItems(): FactoryItem[] {
   const items: FactoryItem[] = [];
   for (const kind of ["skills", "conventions"] as const) {
     for (const name of listDir(join(basesLibrary, kind))) {
@@ -48,9 +69,10 @@ export interface FactoryReport {
  * Places factory items into <library>. New items are installed; existing items are replaced only
  * while their target still says `owner: nexo` (the update policy). Anything else is the user's.
  */
-export function installFactory(libraryDir: string): FactoryReport {
+export function installFactory(libraryDir: string, set: FactorySet = "all"): FactoryReport {
   const report: FactoryReport = { installed: [], updated: [], skipped: [] };
-  for (const item of factoryItems()) {
+  const items = factoryItems(set);
+  for (const item of items) {
     const dst = join(libraryDir, item.rel);
     const ownerPath = item.isDir ? join(dst, item.ownerFile) : dst;
     if (!existsSync(dst)) {
@@ -70,6 +92,6 @@ export function installFactory(libraryDir: string): FactoryReport {
   }
   // Hook scripts are factory files referenced by factory hooks; keep them current.
   const scripts = join(basesLibrary, "hooks", "scripts");
-  if (isDir(scripts)) copyDir(scripts, join(libraryDir, "hooks", "scripts"), true);
+  if (isDir(scripts) && items.some((item) => item.kind === "hooks")) copyDir(scripts, join(libraryDir, "hooks", "scripts"), true);
   return report;
 }

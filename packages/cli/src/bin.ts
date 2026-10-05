@@ -16,8 +16,8 @@ Usage: nexo <command> [options]
 
   init [path]                       Create an environment (default ~/environments)
         --yes  --tools claude,gemini  --preset strict|normal|relaxed
-        --name <n>  --email <e>  --language <code>
-  update                            Refresh factory items (owner: nexo) and AI files
+        --name <n>  --email <e>  --language <code>  --factory all|core|none
+  update [--factory all|core|none]  Refresh factory items (owner: nexo) and AI files
   doctor [--quick] [--json]         Check the environment; reports, never changes
   analyze                           Record OS and toolchains (summary in the config)
   index                             Rebuild library/index.json
@@ -45,6 +45,7 @@ async function main(argv: string[]): Promise<number> {
       name: { type: "string" },
       email: { type: "string" },
       language: { type: "string" },
+      factory: { type: "string" },
       quick: { type: "boolean" },
       json: { type: "boolean" },
       ws: { type: "string" },

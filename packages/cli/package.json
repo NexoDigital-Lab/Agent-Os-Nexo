@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "nexo_bases"
+    "nexo_bases",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

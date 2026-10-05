@@ -1,7 +1,7 @@
 {
   "name": "agent-os-nexo",
   "private": true,
-  "description": "Nexo: an open-source agent development environment, installed as an npm package.",
+  "description": "Nexo: a source-available agent development environment, installed as an npm package.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "workspaces": [
     "packages/*",

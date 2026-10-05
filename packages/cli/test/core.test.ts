@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { parseFrontmatter } from "../src/core/frontmatter.ts";
 import { compareVersions, nextVersion } from "../src/core/osversions.ts";
 import { claudeBashRule, mergePermissions, toClaudePermissions, validatePermissions } from "../src/core/permissions.ts";
@@ -60,4 +62,12 @@ test("templates and names", () => {
   assert.equal(repoName("git@github.com:Org/My-Repo.git"), "my-repo");
   assert.equal(repoName("https://github.com/org/app/"), "app");
   assert.throws(() => validateName("Bad Name"));
+});
+
+test("every published package carries the repository's LICENSE, unchanged", () => {
+  const repo = join(import.meta.dirname, "..", "..", "..");
+  const license = readFileSync(join(repo, "LICENSE"), "utf8");
+  for (const pkg of ["packages/cli", "apps/os", "apps/desktop"]) {
+    assert.equal(readFileSync(join(repo, pkg, "LICENSE"), "utf8"), license, `${pkg}/LICENSE differs: copy the root LICENSE again`);
+  }
 });

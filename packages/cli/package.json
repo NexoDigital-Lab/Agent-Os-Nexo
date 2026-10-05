@@ -1,0 +1,27 @@
+{
+  "name": "@nexodigital-lab/nexo",
+  "version": "0.1.0",
+  "description": "Nexo CLI: installs and maintains a Nexo agent environment.",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "bin": {
+    "nexo": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "nexo_bases"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.0"
+  }
+}

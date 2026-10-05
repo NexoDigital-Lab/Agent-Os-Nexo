@@ -1,0 +1,9 @@
+{
+  "name": "block-force-push",
+  "description": "Blocks force pushes from agents.",
+  "owner": "nexo",
+  "version": "1.0.0",
+  "event": "pre-tool",
+  "match": "git push*",
+  "run": "scripts/block-force-push.mjs"
+}

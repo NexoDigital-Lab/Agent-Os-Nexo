@@ -1,0 +1,28 @@
+{
+  "$comment": "Preset: normal. allow = do it, ask = ask first, deny = never. Unlisted actions use default.",
+  "default": "ask",
+  "files": {
+    "read": {
+      "allow": ["**"],
+      "deny": ["library/connections/**/*.secret*", "projects/**/secrets/**", "os/data/vault/**"]
+    },
+    "edit": {
+      "allow": ["projects/*/context/**", "projects/*/*/context/**", "library/memory/**", "library/conventions/**", "library/dictionary/**"],
+      "ask": ["projects/**/code/**", "library/skills/**", "library/agents/**", "library/hooks/**", "library/commands/**", "blueprints/**", "os/source/**"],
+      "deny": ["os/data/**", "library/permissions.json", "projects/**/context/permissions.json", ".state/**"]
+    }
+  },
+  "commands": {
+    "allow": ["git status*", "git diff*", "git log*", "git add*", "git commit*", "nexo doctor*", "nexo os versions*", "npm test*", "npm run test*", "npm run build*", "npm run lint*"],
+    "ask": ["git push*", "git checkout*", "git reset*", "git rebase*", "npm install*", "docker *", "nexo analyze*", "nexo update*", "nexo clone*", "nexo new*", "nexo connect*"],
+    "deny": ["git push --force*", "git push -f*", "rm -rf *", "sudo *"]
+  },
+  "connections": {
+    "*": { "read": "allow", "write": "ask", "delete": "deny" }
+  },
+  "os": {
+    "build": "ask",
+    "restart": "deny",
+    "vault": "deny"
+  }
+}

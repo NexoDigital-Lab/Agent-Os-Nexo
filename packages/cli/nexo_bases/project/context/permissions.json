@@ -1,0 +1,6 @@
+{
+  "$comment": "Overrides library/permissions.json for this project. Same shape; empty means no overrides.",
+  "files": {},
+  "commands": {},
+  "connections": {}
+}

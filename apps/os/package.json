@@ -5,6 +5,16 @@
   "description": "agent-os: the local app of a Nexo environment, built from modules.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
+  "files": [
+    "host",
+    "modules",
+    "src",
+    "schema",
+    "scripts",
+    "vite.config.ts",
+    "tsconfig.json",
+    "README.md"
+  ],
   "engines": {
     "node": ">=22.18"
   },

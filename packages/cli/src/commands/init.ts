@@ -89,7 +89,7 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
     const adapters = generateAdapters(root, config, root, loadPermissions(join(library, "permissions.json")));
     const osLine =
       withOs === "yes"
-        ? os("install", undefined, { root, from: opts.from } satisfies OsOptions, run).split("\n")[0]
+        ? (await os("install", undefined, { root, from: opts.from } satisfies OsOptions, run)).split("\n")[0]
         : "agent-os not installed (add it any time with `nexo os install`).";
 
     return [

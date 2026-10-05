@@ -201,19 +201,25 @@ test("connect: MCP servers reach each AI's config; remote ones are only register
 
 test("os: versions, next and pinning", async () => {
   const root = await freshEnv();
-  assert.match(os(undefined, undefined, { root }), /not installed: `nexo os install`/);
-  assert.equal(os("next", undefined, { root }), "1.0.0");
+  assert.match(await os(undefined, undefined, { root }), /not installed: `nexo os install`/);
+  assert.equal(await os("next", undefined, { root }), "1.0.0");
   for (const v of ["1.0.0", "1.0.9"]) execFileSync("mkdir", ["-p", join(root, "os/versions", v)]);
-  assert.equal(os("next", undefined, { root }), "1.1.0");
-  assert.equal(os("versions", undefined, { root }), "  1.0.0\n* 1.0.9");
-  os("use", "1.0.0", { root });
-  assert.equal(os("versions", undefined, { root }), "* 1.0.0\n  1.0.9");
-  os("use", "latest", { root });
-  assert.equal(os("versions", undefined, { root }), "  1.0.0\n* 1.0.9");
-  assert.throws(() => os("use", "3.0.0", { root }), /No build/);
+  assert.equal(await os("next", undefined, { root }), "1.1.0");
+  assert.equal(await os("versions", undefined, { root }), "  1.0.0\n* 1.0.9");
+  await os("use", "1.0.0", { root });
+  assert.equal(await os("versions", undefined, { root }), "* 1.0.0\n  1.0.9");
+  await os("use", "latest", { root });
+  assert.equal(await os("versions", undefined, { root }), "  1.0.0\n* 1.0.9");
+  await assert.rejects(os("use", "3.0.0", { root }), /No build/);
 });
 
 // ── agent-os lifecycle: a fake source and a fake runner (no network, no real npm) ────────────────────────────────
+
+// A server that answers like agent-os (200 + X-Agent-OS on /api/os/info), so start/stop can be tested for real.
+const FAKE_MAIN = `import http from "node:http";
+const port = Number(process.argv[process.argv.indexOf("--port") + 1]);
+http.createServer((_q, s) => { s.setHeader("X-Agent-OS", "1"); s.end("{}"); }).listen(port, "127.0.0.1");
+`;
 
 function fakeOsSource(deps: Record<string, string> = { express: "^5" }): string {
   const src = join(tempDir(), "agent-os");
@@ -222,8 +228,7 @@ function fakeOsSource(deps: Record<string, string> = { express: "^5" }): string 
   mkdirSync(join(src, "host", "server"), { recursive: true });
   writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os", dependencies: deps }));
   writeFileSync(join(src, "scripts", "build.ts"), "// real builds run Vite; the fake runner stands in for it\n");
-  // A server that just stays alive, so start/stop can be tested for real.
-  writeFileSync(join(src, "host", "server", "main.ts"), "setInterval(() => {}, 1000);\n");
+  writeFileSync(join(src, "host", "server", "main.ts"), FAKE_MAIN);
   for (const junk of ["node_modules/x", "dist/web", ".git"]) mkdirSync(join(src, junk), { recursive: true });
   return src;
 }
@@ -234,10 +239,11 @@ function fakeRunner(calls: string[][]): Runner {
     calls.push([cmd, ...args]);
     if (cmd === "npm" && args[0] === "install") mkdirSync(join(cwd, "node_modules"), { recursive: true });
     if (cmd === process.execPath) {
-      const out = args[args.indexOf("--out") + 1]!;
+      const opt = (name: string) => args.find((a) => a.startsWith(`--${name}=`))!.slice(name.length + 3);
+      const out = opt("out");
       mkdirSync(join(out, "host", "server"), { recursive: true });
-      writeFileSync(join(out, "host", "server", "main.ts"), "setInterval(() => {}, 1000);\n");
-      writeFileSync(join(out, "build.json"), JSON.stringify({ version: args[args.indexOf("--version") + 1] }));
+      writeFileSync(join(out, "host", "server", "main.ts"), FAKE_MAIN);
+      writeFileSync(join(out, "build.json"), JSON.stringify({ version: opt("version"), notes: opt("notes") }));
     }
   };
 }
@@ -260,7 +266,7 @@ test("os install copies the source, installs one shared runtime, and builds 1.0.
   const root = await freshEnv("claude");
   const calls: string[][] = [];
   const run = fakeRunner(calls);
-  const out = os("install", undefined, { root, from: fakeOsSource() }, run);
+  const out = await os("install", undefined, { root, from: fakeOsSource() }, run);
   assert.match(out, /built as 1\.0\.0/);
   const osDir = join(root, "os");
   assert.ok(existsSync(join(osDir, "source", "modules", "shell")));
@@ -271,40 +277,42 @@ test("os install copies the source, installs one shared runtime, and builds 1.0.
     assert.ok(lstatSync(join(osDir, dir, "node_modules")).isSymbolicLink(), `${dir}/node_modules is a link`);
     assert.equal(readlinkSync(join(osDir, dir, "node_modules")), join(osDir, "runtime", runtimes[0]!, "node_modules"));
   }
-  assert.throws(() => os("install", undefined, { root }, run), /already installed/);
+  await assert.rejects(os("install", undefined, { root }, run), /already installed/);
 
   // A second build reuses the runtime: npm install ran once.
-  assert.match(os("build", undefined, { root, notes: "tweak" }, run), /Built 1\.0\.1/);
+  assert.match(await os("build", undefined, { root, notes: "tweak" }, run), /Built 1\.0\.1/);
   assert.equal(calls.filter((c) => c[0] === "npm").length, 1);
   assert.ok(!existsSync(join(osDir, "versions", "1.0.1.building")));
-  assert.match(os("status", undefined, { root }), /agent-os 1\.0\.1 \(of 2 build/);
+  assert.match(await os("status", undefined, { root }), /agent-os 1\.0\.1 \(of 2 build/);
 });
 
 test("a failed build leaves no version behind", async () => {
   const root = await freshEnv("claude");
   const ok = fakeRunner([]);
-  os("install", undefined, { root, from: fakeOsSource() }, ok);
+  await os("install", undefined, { root, from: fakeOsSource() }, ok);
   const failing: Runner = (cmd, args, cwd) => {
     if (cmd === process.execPath) throw new Error("vite exploded");
     ok(cmd, args, cwd);
   };
-  assert.throws(() => os("build", undefined, { root }, failing), /vite exploded/);
+  await assert.rejects(os("build", undefined, { root }, failing), /vite exploded/);
   assert.deepEqual(readdirSync(join(root, "os", "versions")), ["1.0.0"]);
 });
 
 test("os start runs the active build in the background and os stop ends it", async () => {
   const root = await freshEnv("claude");
-  os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
-  const started = os("start", undefined, { root, port: "4799" });
+  await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
+  const started = await os("start", undefined, { root, port: "4799" });
   const pid = Number(/pid (\d+)/.exec(started)![1]);
   assert.match(started, /agent-os 1\.0\.0 started .*localhost:4799/);
   assert.doesNotThrow(() => process.kill(pid, 0));
-  assert.throws(() => os("start", undefined, { root }), /already running/);
-  assert.match(os("status", undefined, { root }), /Running \(pid/);
-  assert.equal(os("stop", undefined, { root }), "Stopped: app.");
+  await assert.rejects(os("start", undefined, { root }), /already running/);
+  assert.match(await os("status", undefined, { root }), /Running \(pid/);
+  assert.equal(await os("stop", undefined, { root, preview: true }), "agent-os was not running.", "--preview leaves the app alone");
+  assert.doesNotThrow(() => process.kill(pid, 0));
+  assert.equal(await os("stop", undefined, { root }), "Stopped: app.");
   for (let i = 0; i < 50 && isAlive(pid); i++) await new Promise((r) => setTimeout(r, 20));
   assert.ok(!isAlive(pid), "the process is gone");
-  assert.equal(os("stop", undefined, { root }), "agent-os was not running.");
+  assert.equal(await os("stop", undefined, { root }), "agent-os was not running.");
 });
 
 test("init --os yes installs agent-os; the default leaves it for later", async () => {
@@ -324,3 +332,51 @@ function isAlive(pid: number): boolean {
     return false;
   }
 }
+
+test("a pid file whose pid now belongs to another program is not trusted (nor signaled)", async () => {
+  const root = await freshEnv("claude");
+  mkdirSync(join(root, ".state", "os"), { recursive: true });
+  writeFileSync(join(root, ".state", "os", "app.pid"), String(process.pid)); // this test runner: alive, not agent-os
+  assert.match(await os("status", undefined, { root }), /^agent-os is not installed/);
+  assert.ok(!existsSync(join(root, ".state", "os", "app.pid")), "the stale pid file is cleaned up");
+  writeFileSync(join(root, ".state", "os", "app.pid"), String(process.pid));
+  assert.equal(await os("stop", undefined, { root }), "agent-os was not running.");
+});
+
+test("an interrupted npm install is redone, and a failed install can be resumed", async () => {
+  const root = await freshEnv("claude");
+  const calls: string[][] = [];
+  const ok = fakeRunner(calls);
+  let failBuild = true;
+  const flaky: Runner = (cmd, args, cwd) => {
+    if (cmd === process.execPath && failBuild) throw new Error("vite exploded");
+    ok(cmd, args, cwd);
+  };
+  await assert.rejects(os("install", undefined, { root, from: fakeOsSource() }, flaky), /vite exploded/);
+  assert.match(await os("status", undefined, { root }), /no build yet: `nexo os build`/);
+  // npm got as far as node_modules but never finished: remove the marker to simulate it.
+  const runtime = join(root, "os", "runtime", readdirSync(join(root, "os", "runtime"))[0]!);
+  rmSync(join(runtime, ".ready"));
+  failBuild = false;
+  assert.match(await os("install", undefined, { root }, flaky), /resumed .* built as 1\.0\.0/);
+  assert.equal(calls.filter((c) => c[0] === "npm").length, 2, "npm ran again for the unfinished runtime");
+  assert.ok(existsSync(join(runtime, ".ready")));
+});
+
+test("build notes may start with a dash", async () => {
+  const root = await freshEnv("claude");
+  const run = fakeRunner([]);
+  await os("install", undefined, { root, from: fakeOsSource() }, run);
+  await os("build", undefined, { root, notes: "-fix the sidebar" }, run);
+  assert.equal(json(join(root, "os", "versions", "1.0.1", "build.json")).notes, "-fix the sidebar");
+});
+
+test("os start fails loudly with the log when the server does not come up", async () => {
+  const root = await freshEnv("claude");
+  const src = fakeOsSource();
+  await os("install", undefined, { root, from: src }, fakeRunner([]));
+  writeFileSync(join(root, "os", "versions", "1.0.0", "host", "server", "main.ts"), 'console.error("boom: port taken"); process.exit(1);\n');
+  await assert.rejects(os("start", undefined, { root, port: "4798" }), /exited on port 4798[\s\S]*boom: port taken/);
+  assert.match(await os("status", undefined, { root }), /^agent-os 1\.0\.0/);
+  assert.doesNotMatch(await os("status", undefined, { root }), /Running/);
+});

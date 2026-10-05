@@ -33,7 +33,7 @@ Usage: nexo <command> [options]
   os install [--from <dir>]         Copy agent-os into os/source, install its runtime, build 1.0.0
   os build [--notes <text>]         Build os/source into the next version
   os start|preview [--port <n>]     Run the active build (4780) / the source with hot reload (4781)
-  os stop [--preview]               Stop them
+  os stop [--preview|--all]         Stop the app (default), the preview, or both
 
 Global: --root <path> (or NEXO_ROOT) selects the environment; otherwise the nearest parent with
 environment.config.json is used.`;
@@ -56,6 +56,7 @@ async function main(argv: string[]): Promise<number> {
       notes: { type: "string" },
       port: { type: "string" },
       preview: { type: "boolean" },
+      all: { type: "boolean" },
       quick: { type: "boolean" },
       json: { type: "boolean" },
       ws: { type: "string" },
@@ -95,7 +96,7 @@ async function main(argv: string[]): Promise<number> {
     case "connect":
       return print(connect(rest[0], values));
     case "os":
-      return print(os(rest[0], rest[1], values));
+      return print(await os(rest[0], rest[1], values));
     default:
       throw new Error(`Unknown command "${command}". Run \`nexo --help\`.`);
   }

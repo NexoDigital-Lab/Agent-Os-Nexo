@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { findRoot } from "../core/paths.ts";
 import { folder, readConfig } from "../core/config.ts";
 import { activeVersion, listVersions, nextVersion, pinVersion } from "../core/osversions.ts";
-import { buildVersion, defaultRunner, fetchSource, logFile, PORTS, runningPid, startProcess, stopProcesses, type Runner } from "../core/osruntime.ts";
+import { accessLink, buildVersion, defaultRunner, fetchSource, logFile, openerFor, PORTS, runningPid, runningPort, startProcess, stopProcesses, type Runner } from "../core/osruntime.ts";
 
 export interface OsOptions {
   root?: string;
@@ -16,7 +16,7 @@ export interface OsOptions {
   module?: string;
 }
 
-const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], check [--module <id>].";
+const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], open [--preview], check [--module <id>].";
 
 export async function os(action: string | undefined, arg: string | undefined, opts: OsOptions, run: Runner = defaultRunner): Promise<string> {
   const root = findRoot(opts.root);
@@ -79,10 +79,23 @@ export async function os(action: string | undefined, arg: string | undefined, op
     case "preview": {
       const which = action === "start" ? "app" : "preview";
       const { pid, version } = await startProcess(root, osDir, stateDir, which, port);
-      const url = `http://localhost:${port ?? PORTS[which]}`;
+      const url = accessLink(stateDir, port ?? PORTS[which]);
       return which === "app"
         ? `agent-os ${version} started (pid ${pid}) → ${url}\nLog: ${logFile(stateDir, which)}`
         : `Preview of os/source started (pid ${pid}) → ${url} (reloads on every change)\nLog: ${logFile(stateDir, which)}`;
+    }
+    case "open": {
+      // The running app's (or preview's) access link, opened in the browser: the way in after every restart.
+      const which = opts.preview ? "preview" : "app";
+      if (!runningPid(stateDir, which)) throw new Error(`agent-os ${which === "app" ? "" : "preview "}is not running: \`nexo os ${which === "app" ? "start" : "preview"}\` first.`);
+      const link = accessLink(stateDir, runningPort(stateDir, which));
+      const opener = openerFor();
+      try {
+        run(opener.cmd, opener.args(link), root);
+      } catch {
+        return `Could not open a browser. Open this link yourself:\n${link}`;
+      }
+      return `Opened ${link.replace(/token=\w+/, "token=…")}`;
     }
     case "stop": {
       // Just the app by default: an agent stopping its preview must never take down the agent-os it runs in.

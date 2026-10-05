@@ -32,4 +32,23 @@ async function boot() {
   root.render(<Root />);
 }
 
-boot().catch((e: unknown) => root.render(<BootError message={e instanceof Error ? e.message : String(e)} />));
+/** No access cookie for this run: say how to get in (the link is printed by `nexo os start`, opened by `nexo os open`). */
+function AccessNeeded() {
+  return (
+    <div className="boot-error">
+      <h1>{t("Open agent-os with its access link")}</h1>
+      <p>{t("Each run of agent-os has its own access link, so no other program on this computer can use it.")}</p>
+      <pre>nexo os open</pre>
+      <p className="faint">{t("The link is also printed by `nexo os start`. The desktop app opens it by itself.")}</p>
+    </div>
+  );
+}
+
+boot().catch(async (e: unknown) => {
+  addMessages({ es });
+  // /api/os/info needs no access: it still tells the language to explain things in.
+  const info = await hostApi.info().catch(() => null);
+  const lang = [info?.language, navigator.language.slice(0, 2)].find(isLanguage);
+  if (lang) setLanguage(lang);
+  root.render((e as { access?: boolean }).access ? <AccessNeeded /> : <BootError message={e instanceof Error ? e.message : String(e)} />);
+});

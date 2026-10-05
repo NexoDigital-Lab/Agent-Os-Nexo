@@ -5,6 +5,8 @@ export type { HostInfo, ModuleRow, Prefs };
 /** An API error; `locked` is set when the SSH vault is locked (401 `{ locked: true }`). */
 export class ApiError extends Error {
   locked = false;
+  /** This browser has no access to this run of agent-os (open its access link: `nexo os open`). */
+  access = false;
   status = 0;
 }
 export const isLocked = (e: unknown) => !!(e as ApiError | undefined)?.locked;
@@ -21,6 +23,7 @@ export async function call<T>(method: string, url: string, body?: unknown): Prom
     const err = new ApiError(data.error ?? res.statusText);
     err.status = res.status;
     err.locked = res.status === 401 && data.locked === true;
+    err.access = res.status === 401 && data.access === true;
     throw err;
   }
   return data;

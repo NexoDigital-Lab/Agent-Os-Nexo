@@ -47,11 +47,14 @@ builds anteriores conservan el suyo.
 ```bash
 nexo os start [--port 4780]   # el build activo, en segundo plano; vuelve cuando responde
 nexo os status                # builds instalados, el activo, qué está corriendo y su log
+nexo os open [--preview]      # abrirla en el navegador con el link de acceso de esta ejecución
 nexo os stop                  # la app (sumá --all para detener también la vista previa)
 nexo os use 1.0.3             # fijar un build; `nexo os use latest` vuelve al más nuevo
 ```
 
-El build activo es el que está fijado en `os/current`, o el más nuevo. La app que está corriendo busca un
+Cada ejecución tiene su propio link de acceso (security.md): `start` lo muestra y `open` lo abre, así que después
+de un reinicio el navegador necesita `nexo os open` de nuevo. El build activo es el que está fijado en
+`os/current`, o el más nuevo. La app que está corriendo busca un
 build más nuevo y muestra "Nueva versión detectada: reiniciá para cargarla"; nunca se reinicia sola, y los
 agentes nunca la reinician. Logs y archivos pid: `.state/os/app.log`, `.state/os/preview.log`, `*.pid`.
 

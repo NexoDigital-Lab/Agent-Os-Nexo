@@ -278,6 +278,8 @@ fn main() {
                 }
             };
             let log_path = state_dir.join("os").join("desktop.log");
+            // The server writes this run's access token here at startup (apps/os/host/server/access.ts).
+            let token_file = state_dir.join("os").join(format!("token-{port}"));
             let log_hint = log_path.display().to_string();
 
             if is_listening(port) {
@@ -300,7 +302,9 @@ fn main() {
                 let mut warned = false;
                 loop {
                     if is_listening(port) && is_agent_os(port) {
-                        let url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
+                        let token = fs::read_to_string(&token_file).map(|t| t.trim().to_string()).unwrap_or_default();
+                        let query = if token.is_empty() { String::new() } else { format!("/?token={token}") };
+                        let url = Url::parse(&format!("http://127.0.0.1:{port}{query}")).unwrap();
                         if let Some(win) = handle.get_webview_window("main") {
                             let _ = win.navigate(url);
                         }

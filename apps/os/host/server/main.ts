@@ -8,6 +8,7 @@ import { parseArgs } from "node:util";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { activeModules, discoverModules, readState } from "../../src/core/modules.ts";
 import { loadEnv } from "./env.ts";
+import { issueAccess } from "./access.ts";
 import { guardRequest } from "./http.ts";
 import type { ModuleContext, ModuleServer } from "./module-api.ts";
 import { mountModules } from "./mount.ts";
@@ -30,6 +31,7 @@ const modulesFile = join(env.data, "modules.json");
 const active = activeModules(discovery.modules, readState(modulesFile));
 
 const app = express();
+const token = issueAccess(env.state, port); // this run's access token (access.ts)
 app.use(guardRequest(port)); // before everything, Vite's middleware included
 app.use(express.json({ limit: "2mb" }));
 const api = express.Router();
@@ -78,7 +80,7 @@ if (dev) {
 }
 
 server.listen(port, HOST, () => {
-  console.log(`agent-os ${version} → http://localhost:${port} (environment: ${env.root})`);
+  console.log(`agent-os ${version} → http://localhost:${port}/?token=${token} (environment: ${env.root})`);
 });
 // Open WebSockets (terminals, sessions) would keep close() waiting; the process owns nothing that needs draining.
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => process.exit(0));

@@ -134,6 +134,31 @@ export function buildVersion(osDir: string, notes = "", run: Runner = defaultRun
 // ── processes ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 const pidFile = (stateDir: string, p: OsProcess) => join(stateDir, "os", `${p}.pid`);
+const portFile = (stateDir: string, p: OsProcess) => join(stateDir, "os", `${p}.port`);
+
+/** The port a running process was started on (its default when unknown). */
+export function runningPort(stateDir: string, p: OsProcess): number {
+  const file = portFile(stateDir, p);
+  const port = existsSync(file) ? Number(readText(file).trim()) : NaN;
+  return Number.isInteger(port) && port > 0 ? port : PORTS[p];
+}
+
+/**
+ * The address to open: with this run's access token (the server writes .state/os/token-<port> at startup, see
+ * apps/os/host/server/access.ts), or the bare address when the server predates tokens.
+ */
+export function accessLink(stateDir: string, port: number): string {
+  const file = join(stateDir, "os", `token-${port}`);
+  const token = existsSync(file) ? readText(file).trim() : "";
+  return `http://localhost:${port}/${token ? `?token=${token}` : ""}`;
+}
+
+/** The command that opens a link in the user's browser on this system. */
+export function openerFor(platform: NodeJS.Platform = process.platform): { cmd: string; args: (url: string) => string[] } {
+  if (platform === "darwin") return { cmd: "open", args: (u) => [u] };
+  if (platform === "win32") return { cmd: "cmd", args: (u) => ["/c", "start", "", u] };
+  return { cmd: "xdg-open", args: (u) => [u] };
+}
 export const logFile = (stateDir: string, p: OsProcess) => join(stateDir, "os", `${p}.log`);
 
 /** The command line of a live process we may signal, or null (gone, or another user's). */
@@ -216,6 +241,7 @@ export async function startProcess(
   let exited = false;
   child.once("exit", () => (exited = true));
   writeText(pidFile(stateDir, p), String(pid));
+  writeText(portFile(stateDir, p), String(port));
   for (const until = Date.now() + timeoutMs; Date.now() < until && !exited; await sleep(250)) {
     if (await answers(port)) return { pid, version };
   }
@@ -239,6 +265,7 @@ export function stopProcesses(stateDir: string, which: OsProcess[]): OsProcess[]
       }
     }
     rmSync(pidFile(stateDir, p), { force: true });
+    rmSync(portFile(stateDir, p), { force: true });
     stopped.push(p);
   }
   return stopped;

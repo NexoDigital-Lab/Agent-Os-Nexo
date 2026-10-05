@@ -51,7 +51,8 @@ export function hostRoutes(opts: { env: Env; appDir: string; version: string; de
       dev,
       newer: dev ? null : newerBuild(env.os, version),
       environment: env.root,
-      language: profile.language ?? null,
+      // The language chosen in Settings first: info is what an access-less page can read to explain itself.
+      language: readJson<{ language?: string }>(prefsFile, {}).language ?? profile.language ?? null,
       user: profile.identity?.name ?? null,
     };
   }));

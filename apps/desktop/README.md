@@ -32,7 +32,8 @@ npm run dev            # debug build, runs it
 
 The server log goes to `.state/os/desktop.log` in the environment (the previous run's is kept as
 `desktop.log.1`). The window only loads the port if it answers `GET /api/os/info` with
-`X-Agent-OS: 1`, so another program on the port is never shown.
+`X-Agent-OS: 1`, so another program on the port is never shown, and it enters with the run's access token
+(`.state/os/token-<port>`).
 
 The web UI talks to the shell through two permissions: native notifications (a tab finished or needs
 you) and `set_page_zoom` (Ctrl +/−/0; on Linux it also makes WebKitGTK re-lay out the page).

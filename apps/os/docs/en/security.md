@@ -19,7 +19,14 @@ servers without the user's approval).
     keeps its own Host);
   - anything that changes state must come from agent-os's own page or a client without an `Origin`
     (curl, the CLI) — a website the user visits cannot POST to the API.
-- **WebSockets** (terminals, language servers, the SSH console) check `sameOrigin` before upgrading.
+- **An access token per run** (`host/server/access.ts`): at startup the server writes a random token to
+  `.state/os/token-<port>` (0600). The browser enters once with `?token=…` (`nexo os open`, or the link
+  `nexo os start` prints; the desktop app does it by itself), which becomes an HttpOnly, SameSite=Strict
+  cookie. Every `/api` call except the health check `/api/os/info`, and every WebSocket, needs it: no other
+  program on the machine can drive agent-os, and agents can't read the token (the guard keeps them out of
+  `.state/os`).
+- **WebSockets** (terminals, language servers, the SSH console) check `sameOrigin` — origin, host and the
+  access token — before upgrading.
 - Every response carries `X-Content-Type-Options: nosniff` (user files are never sniffed into HTML) and
   `X-Agent-OS: 1`, which the CLI and the desktop app check before trusting a port.
 - **One broken module never stops the others** (`host/server/mount.ts`).
@@ -71,11 +78,8 @@ The full contract is `modules/ssh/CONTRACT.md`. In short:
 
 ## Known limits
 
-- **Any local program can use the API.** The origin checks stop other websites, not programs on the
-  machine: a request without an `Origin` header (curl, a script) is accepted, because that is how the CLI
-  and the desktop app talk to the server. Agents are kept away from it by the guard above, which reads
-  what a tool call says; an agent the user allowed to run arbitrary programs could still reach it by
-  disguising the call. A per-run API token the browser receives and agents can't read is the planned fix.
+- **The token is as safe as `.state/os`.** Programs running as the user can read the token file; agents
+  are kept out of it by the guard, which reads what a tool call says.
 - **The http module keeps its environments in clear text** in `os/data/http/`. Agents are kept away from
   `os/data`, but other programs running as the user can read it.
 

@@ -19,7 +19,14 @@ sin la aprobación del usuario).
     127.0.0.1 conserva su propio Host);
   - todo lo que cambia estado tiene que venir de la propia página de agent-os o de un cliente sin `Origin`
     (curl, el CLI): un sitio que el usuario visita no puede hacer POST a la API.
-- **Los WebSockets** (terminales, servidores de lenguaje, la consola SSH) chequean `sameOrigin` antes del upgrade.
+- **Un token de acceso por ejecución** (`host/server/access.ts`): al arrancar, el servidor escribe un token al
+  azar en `.state/os/token-<puerto>` (0600). El navegador entra una vez con `?token=…` (`nexo os open`, o el
+  link que muestra `nexo os start`; la app de escritorio lo hace sola), que se convierte en una cookie HttpOnly y
+  SameSite=Strict. Toda llamada a `/api` salvo el chequeo de salud `/api/os/info`, y todo WebSocket, la necesitan:
+  ningún otro programa de la máquina puede manejar agent-os, y los agentes no pueden leer el token (la guardia
+  los mantiene fuera de `.state/os`).
+- **Los WebSockets** (terminales, servidores de lenguaje, la consola SSH) chequean `sameOrigin` —origen, host y
+  token de acceso— antes del upgrade.
 - Cada respuesta lleva `X-Content-Type-Options: nosniff` (los archivos del usuario nunca se interpretan como
   HTML) y `X-Agent-OS: 1`, que el CLI y la app de escritorio chequean antes de confiar en un puerto.
 - **Un módulo roto nunca detiene a los demás** (`host/server/mount.ts`).
@@ -74,12 +81,8 @@ El contrato completo está en `modules/ssh/CONTRACT.md`. En resumen:
 
 ## Límites conocidos
 
-- **Cualquier programa local puede usar la API.** Los chequeos de origen frenan a otros sitios web, no a
-  programas de la máquina: un pedido sin header `Origin` (curl, un script) se acepta, porque así hablan con
-  el servidor el CLI y la app de escritorio. A los agentes los frena la guardia de arriba, que lee lo que
-  dice una llamada; un agente al que el usuario dejó correr cualquier programa igual podría llegar
-  disfrazando la llamada. El arreglo previsto es un token de API por ejecución que recibe el navegador y
-  que los agentes no pueden leer.
+- **El token es tan seguro como `.state/os`.** Los programas que corren como el usuario pueden leer el archivo
+  del token; a los agentes los mantiene afuera la guardia, que lee lo que dice cada llamada.
 - **El módulo http guarda sus entornos en texto plano** en `os/data/http/`. Los agentes no llegan a
   `os/data`, pero otros programas que corren como el usuario pueden leerlo.
 

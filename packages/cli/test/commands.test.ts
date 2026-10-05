@@ -391,3 +391,19 @@ test("os check runs the source's module checker and fails with its findings", as
   writeFileSync(script, 'console.log(`M3 modules/x/web/x.css:1 — hardcoded color ${process.argv.slice(2).join(" ")}`); process.exit(1);\n');
   await assert.rejects(os("check", undefined, { root, module: "x" }), /M3 modules\/x\/web\/x\.css:1 — hardcoded color --module=x/);
 });
+
+test("os open opens the running app with its access link", async () => {
+  const root = await freshEnv("claude");
+  await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
+  await assert.rejects(os("open", undefined, { root }, fakeRunner([])), /not running/);
+  await os("start", undefined, { root, port: "4797" });
+  try {
+    writeFileSync(join(root, ".state", "os", "token-4797"), "abc123\n"); // what the real server writes at startup
+    const calls: string[][] = [];
+    const out = await os("open", undefined, { root }, (cmd, args) => void calls.push([cmd, ...args]));
+    assert.match(out, /^Opened http:\/\/localhost:4797\/\?token=…$/, "the token is not printed back");
+    assert.ok(calls[0]!.at(-1) === "http://localhost:4797/?token=abc123", JSON.stringify(calls));
+  } finally {
+    await os("stop", undefined, { root });
+  }
+});

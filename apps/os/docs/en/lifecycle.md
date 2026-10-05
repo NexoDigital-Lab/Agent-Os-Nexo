@@ -46,11 +46,13 @@ releases. A source whose dependencies changed gets a new runtime; older builds k
 ```bash
 nexo os start [--port 4780]   # the active build, in the background; returns when it answers
 nexo os status                # installed builds, the active one, what is running and its log
+nexo os open [--preview]      # open it in the browser with this run's access link
 nexo os stop                  # the app (add --all to stop the preview too)
 nexo os use 1.0.3             # pin a build; `nexo os use latest` goes back to the newest
 ```
 
-The active build is the pin in `os/current`, or the newest. The running app checks for a newer build and
+Each run has its own access link (security.md): `start` prints it and `open` opens it, so after a restart the
+browser needs `nexo os open` again. The active build is the pin in `os/current`, or the newest. The running app checks for a newer build and
 shows "New version detected — restart to load it"; it never restarts itself, and agents never restart it.
 Logs and pid files: `.state/os/app.log`, `.state/os/preview.log`, `*.pid`.
 

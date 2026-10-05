@@ -6,6 +6,7 @@ import { delimiter, dirname, join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { promisify } from "node:util";
 import type { NextFunction, Request, Response } from "express";
+import { accessCookie, hasAccess, OPEN_PATHS, validToken } from "./access.ts";
 
 export const run = promisify(execFile);
 
@@ -89,9 +90,12 @@ export async function trash(abs: string, label = abs): Promise<void> {
 const ownOrigins = (port: number) => [`http://localhost:${port}`, `http://127.0.0.1:${port}`];
 const ownHosts = (port: number) => [`localhost:${port}`, `127.0.0.1:${port}`];
 
-/** WebSocket upgrades only from agent-os's own page: another site must never get a shell or a language server. */
+/**
+ * WebSocket upgrades only from agent-os's own page, with this run's access token: another site must never get a
+ * shell or a language server, and neither must another program on the machine.
+ */
 export function sameOrigin(req: IncomingMessage, port: number): boolean {
-  return ownOrigins(port).includes(String(req.headers.origin)) && ownHosts(port).includes(String(req.headers.host));
+  return ownOrigins(port).includes(String(req.headers.origin)) && ownHosts(port).includes(String(req.headers.host)) && hasAccess(req, port);
 }
 
 /**
@@ -115,6 +119,29 @@ export function guardRequest(port: number) {
     // launcher tell this server apart from any other program that happens to hold its port.
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Agent-OS", "1");
+    // The access link (?token=…) becomes a cookie, and the address bar loses the token.
+    const url = new URL(req.url ?? "/", "http://agent-os");
+    const offered = url.searchParams.get("token");
+    if (offered !== null) {
+      if (!validToken(port, offered)) {
+        res.statusCode = 403;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end("This access link is from an earlier run of agent-os. Open the current one with `nexo os open`.");
+        return;
+      }
+      url.searchParams.delete("token");
+      res.statusCode = 302;
+      res.setHeader("Set-Cookie", accessCookie(port, offered));
+      res.setHeader("Location", `${url.pathname}${url.search}`);
+      res.end();
+      return;
+    }
+    if (url.pathname.startsWith("/api/") && !OPEN_PATHS.has(url.pathname) && !hasAccess(req, port)) {
+      res.statusCode = 401;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "agent-os needs its access link: run `nexo os open`", access: true }));
+      return;
+    }
     next();
   };
 }

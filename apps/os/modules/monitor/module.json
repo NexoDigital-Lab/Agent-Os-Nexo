@@ -1,0 +1,9 @@
+{
+  "name": "monitor",
+  "version": "1.0.0",
+  "description": "Token use and estimated cost of every AI session, and the plan's usage limits in the rail",
+  "owner": "nexo",
+  "dependsOn": ["shell", "sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Monitor", "icon": "activity", "order": 70 }
+}

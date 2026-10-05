@@ -193,7 +193,14 @@ export async function validate(tabId: string, cwd: string) {
     .split("\n")
     .filter(Boolean)
     .slice(0, 12)
-    .map((f) => `--- ${f} (new)\n${readText(cwd, f).content.slice(0, 6000)}`)
+    .map((f) => {
+      // A new image, binary or large file must not fail the whole check: say what it is instead of its content.
+      try {
+        return `--- ${f} (new)\n${readText(cwd, f).content.slice(0, 6000)}`;
+      } catch (e) { // readText refuses binaries and files over its size limit
+        return `--- ${f} (new, not shown: ${(e as Error).message})`;
+      }
+    })
     .join("\n\n");
 
   const prompt = `You are the tutor. The user wrote the code of their practice and pressed "Check". Review it against the plan.

@@ -82,3 +82,5 @@ server.listen(port, HOST, () => {
 });
 // Open WebSockets (terminals, sessions) would keep close() waiting; the process owns nothing that needs draining.
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => process.exit(0));
+// Last line of defense: a promise some module forgot to handle is logged, not allowed to end every session.
+process.on("unhandledRejection", (error) => console.error("[agent-os] unhandled rejection:", error));

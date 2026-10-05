@@ -46,17 +46,37 @@ export async function send(req: { method: string; url: string; headers: [string,
       redirect: "follow",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    const buf = Buffer.from(await res.arrayBuffer());
+    // Read at most MAX_BODY (+1 byte to know there was more), then let the rest go: a huge download must never
+    // be held in memory whole.
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let truncated = false;
+    if (res.body) {
+      const reader = res.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > MAX_BODY) {
+          chunks.push(Buffer.from(value.subarray(0, value.byteLength - (size - MAX_BODY))));
+          truncated = true;
+          await reader.cancel();
+          break;
+        }
+        chunks.push(Buffer.from(value));
+      }
+    }
+    const buf = Buffer.concat(chunks);
     const ms = Math.round(performance.now() - started);
-    const text = buf.subarray(0, MAX_BODY).toString("utf8");
+    const text = buf.toString("utf8");
     return {
       ok: true as const,
       status: res.status,
       statusText: res.statusText,
       ms,
-      size: buf.length,
+      size: truncated ? Number(res.headers.get("content-length")) || size : buf.length,
       headers: [...res.headers.entries()],
-      body: buf.length > MAX_BODY ? text + "\n… (response truncated to 2 MB)" : text,
+      body: truncated ? text + "\n… (response truncated to 2 MB)" : text,
     };
   } catch (err) {
     // Network-level failures (refused, DNS, timeout) are a normal outcome here, not a server error.

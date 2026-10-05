@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initProjects, listProjects, projectDir, projectIds, projectPath, worktreeNames, worktreePath } from "../server/projects.ts";
-import { listFeatures, nextFeatureId, parseFeature, readFeature, setFeatureField, writeFeature } from "../server/features.ts";
+import { featuresDir, listFeatures, nextFeatureId, parseFeature, readFeature, setFeatureField, writeFeature } from "../server/features.ts";
 import type { Env } from "../../../host/server/env.ts";
 
 const root = mkdtempSync(join(tmpdir(), "agent-os-projects-"));
@@ -82,4 +82,22 @@ test("old feature files: fix becomes bug, title falls back to the heading", () =
   assert.equal(f.type, "bug");
   assert.equal(f.title, "Broken menu");
   assert.equal(f.id, "0003");
+});
+
+test("setFeatureField edits the frontmatter only, and refuses multi-line values", () => {
+  const dir = mkdtempSync(join(tmpdir(), "feat-field-"));
+  try {
+    const slug = writeFeature(dir, { title: "Field", type: "feature", size: "S" });
+    const file = join(featuresDir(dir), `${slug}.md`);
+    // The user's text in the body starts with "priority:", like a field would.
+    writeFileSync(file, readFileSync(file, "utf8").replace("_To be completed._", "priority: speed over polish"));
+    setFeatureField(dir, slug, "priority", "P0");
+    const text = readFileSync(file, "utf8");
+    assert.match(text, /^priority: P0$/m);
+    assert.match(text, /^priority: speed over polish$/m, "the body line is untouched");
+    assert.throws(() => setFeatureField(dir, slug, "status", "done\nowner: someone"), /one line/);
+    assert.doesNotMatch(readFileSync(file, "utf8"), /owner:/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

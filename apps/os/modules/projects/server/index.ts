@@ -43,6 +43,13 @@ const register: ModuleServer = (ctx) => {
     const f = req.body as NewFeature;
     if (!f?.title?.trim()) throw httpError(400, "A feature needs a title");
     if (!FEATURE_TYPES.includes(f.type) || !FEATURE_SIZES.includes(f.size)) throw httpError(400, "Invalid type or size");
+    if (f.priority !== undefined && !FEATURE_PRIORITIES.includes(f.priority)) throw httpError(400, "Invalid priority");
+    if (f.status !== undefined && !FEATURE_STATUSES.includes(f.status)) throw httpError(400, "Invalid status");
+    if (f.title.length > 200) throw httpError(400, "The title is longer than 200 characters");
+    for (const k of ["criteria", "files"] as const) {
+      const v = f[k];
+      if (v !== undefined && (!Array.isArray(v) || v.length > 50 || !v.every((x) => typeof x === "string" && x.length <= 500))) throw httpError(400, `${k} must be a list of short texts`);
+    }
     return { slug: writeFeature(dirOf(id(req.params.id)), f) };
   }));
   api.patch("/projects/:id/features/:slug", h((req) => {

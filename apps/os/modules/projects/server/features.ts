@@ -115,8 +115,8 @@ id: "${id}"
 title: ${f.title.replace(/\n/g, " ")}
 type: ${f.type}
 size: ${f.size}
-priority: ${f.priority ?? "P2"}
-status: ${f.status ?? "todo"}
+priority: ${FEATURE_PRIORITIES.includes(f.priority as never) ? f.priority : "P2"}
+status: ${FEATURE_STATUSES.includes(f.status as never) ? f.status : "todo"}
 link:
 created: ${new Date().toLocaleDateString("sv-SE")}
 ---
@@ -141,7 +141,11 @@ ${f.assumptions?.trim() || ""}
 export function setFeatureField(projectDir: string, slug: string, key: "status" | "size" | "type" | "priority", value: string): void {
   const text = readFeature(projectDir, slug);
   if (text === null) throw new Error(`No feature ${slug}`);
+  if (/[\r\n]/.test(value)) throw new Error("A field value is one line");
+  // Only inside the frontmatter: a body line that starts with "priority:" is the user's text, not the field.
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
+  if (!fm) throw new Error(`Feature ${slug} has no frontmatter`);
   const re = new RegExp(`^(${key}:).*$`, "m");
-  const next = re.test(text) ? text.replace(re, `$1 ${value}`) : text.replace(/^---\r?\n/, `---\n${key}: ${value}\n`);
-  writeFileSync(join(featuresDir(projectDir), `${slug}.md`), next);
+  const block = re.test(fm[1]!) ? fm[1]!.replace(re, `$1 ${value}`) : `${fm[1]}\n${key}: ${value}`;
+  writeFileSync(join(featuresDir(projectDir), `${slug}.md`), `---\n${block}\n---\n${text.slice(fm[0].length)}`);
 }

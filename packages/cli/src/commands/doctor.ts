@@ -1,0 +1,129 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { findRoot } from "../core/paths.ts";
+import { enabledTools, folder, readConfig, type EnvironmentConfig } from "../core/config.ts";
+import { parseFrontmatter } from "../core/frontmatter.ts";
+import { isDir, listDir, readJson, readText } from "../core/fsx.ts";
+import { loadPermissions, validatePermissions } from "../core/permissions.ts";
+import { listProjectDirs } from "../core/projects.ts";
+
+export type Level = "ok" | "warn" | "error";
+export interface Finding {
+  level: Level;
+  area: string;
+  message: string;
+}
+
+const STALE_DAYS = 7;
+const MODEL_RANK: Record<string, number> = { haiku: 1, sonnet: 2, opus: 3 };
+
+function lines(text: string): number {
+  return text.replace(/\n$/, "").split("\n").length;
+}
+
+function checkFrontmatter(findings: Finding[], area: string, file: string, required: string[], maxLines?: number): Record<string, unknown> {
+  if (!existsSync(file)) {
+    findings.push({ level: "error", area, message: `missing ${file}` });
+    return {};
+  }
+  const text = readText(file);
+  const { data, hasFrontmatter } = parseFrontmatter(text);
+  if (!hasFrontmatter) findings.push({ level: "error", area, message: "no frontmatter" });
+  for (const key of required) {
+    if (!data[key]) findings.push({ level: "error", area, message: `frontmatter is missing "${key}"` });
+  }
+  if (maxLines && lines(text) > maxLines) {
+    findings.push({ level: "warn", area, message: `${lines(text)} lines (max ${maxLines}); move detail to references/` });
+  }
+  return data;
+}
+
+export function staleAnalysis(config: EnvironmentConfig, now = new Date()): string | null {
+  const last = config.system?.lastAnalysis;
+  if (!last) return "the OS has never been analyzed — run `nexo analyze`";
+  const days = (now.getTime() - new Date(last).getTime()) / 86_400_000;
+  return days > STALE_DAYS ? `the OS analysis is ${Math.floor(days)} days old — run \`nexo analyze\`` : null;
+}
+
+export function diagnose(root: string, quick = false): Finding[] {
+  const findings: Finding[] = [];
+  let config: EnvironmentConfig;
+  try {
+    config = readConfig(root);
+  } catch (error) {
+    return [{ level: "error", area: "config", message: `unreadable: ${(error as Error).message}` }];
+  }
+
+  for (const [key, rel] of Object.entries(config.folders)) {
+    if (!isDir(join(root, rel))) findings.push({ level: "error", area: "folders", message: `${key} folder missing: ${rel}/` });
+  }
+  const agents = join(root, "AGENTS.md");
+  if (!existsSync(agents)) findings.push({ level: "error", area: "AGENTS.md", message: "missing at the root" });
+  else if (lines(readText(agents)) > 120) {
+    findings.push({ level: "warn", area: "AGENTS.md", message: `${lines(readText(agents))} lines (max 120)` });
+  }
+  for (const tool of enabledTools(config)) {
+    if (tool === "claude" && !existsSync(join(root, ".claude", "CLAUDE.md"))) {
+      findings.push({ level: "error", area: "claude", message: "missing .claude/CLAUDE.md — run `nexo update`" });
+    }
+    if (tool === "gemini" && !existsSync(join(root, ".gemini", "settings.json"))) {
+      findings.push({ level: "error", area: "gemini", message: "missing .gemini/settings.json — run `nexo update`" });
+    }
+  }
+  const stale = staleAnalysis(config);
+  if (stale) findings.push({ level: "warn", area: "analysis", message: stale });
+  if (quick) return findings;
+
+  const library = folder(root, config, "library");
+  if (!existsSync(join(library, "index.json"))) {
+    findings.push({ level: "warn", area: "library", message: "index.json missing — run `nexo index`" });
+  }
+  for (const name of listDir(join(library, "skills"))) {
+    const data = checkFrontmatter(findings, `skill ${name}`, join(library, "skills", name, "SKILL.md"), ["name", "description", "owner", "version"], 200);
+    if (data.name && data.name !== name) {
+      findings.push({ level: "warn", area: `skill ${name}`, message: `name "${String(data.name)}" differs from its folder` });
+    }
+  }
+  const profilePath = join(library, "profile.json");
+  const profile = existsSync(profilePath)
+    ? readJson<{ models?: { subagentCeiling?: string } }>(profilePath)
+    : {};
+  const ceiling = profile.models?.subagentCeiling ?? "sonnet";
+  for (const file of listDir(join(library, "agents")).filter((f) => f.endsWith(".md"))) {
+    const data = checkFrontmatter(findings, `agent ${file}`, join(library, "agents", file), ["name", "description", "owner", "model"]);
+    const model = String(data.model ?? "");
+    if (model && (MODEL_RANK[model] ?? 99) > (MODEL_RANK[ceiling] ?? 2)) {
+      findings.push({ level: "warn", area: `agent ${file}`, message: `model "${model}" is above the ceiling "${ceiling}" in profile.json` });
+    }
+  }
+  for (const file of listDir(join(library, "hooks")).filter((f) => f.endsWith(".json"))) {
+    const hook = readJson<Record<string, unknown>>(join(library, "hooks", file));
+    for (const key of ["event", "match", "run", "description"]) {
+      if (!hook[key]) findings.push({ level: "error", area: `hook ${file}`, message: `missing "${key}"` });
+    }
+  }
+  for (const problem of validatePermissions(loadPermissions(join(library, "permissions.json")))) {
+    findings.push({ level: "error", area: "permissions.json", message: problem });
+  }
+  for (const dir of listProjectDirs(root, config)) {
+    const rel = dir.slice(root.length + 1);
+    if (!dir.endsWith("-ws") && !isDir(join(dir, "code"))) {
+      findings.push({ level: "warn", area: rel, message: "no code/ folder" });
+    }
+    for (const problem of validatePermissions(loadPermissions(join(dir, "context", "permissions.json")))) {
+      findings.push({ level: "error", area: `${rel}/context/permissions.json`, message: problem });
+    }
+  }
+  return findings;
+}
+
+export function doctor(opts: { root?: string; quick?: boolean; json?: boolean }): { output: string; failed: boolean } {
+  const root = findRoot(opts.root);
+  const findings = diagnose(root, opts.quick);
+  const failed = findings.some((f) => f.level === "error");
+  if (opts.json) return { output: JSON.stringify(findings, null, 2), failed };
+  if (!findings.length) return { output: "Nexo environment looks good.", failed };
+  const icon: Record<Level, string> = { ok: "ok", warn: "warn", error: "ERROR" };
+  const output = findings.map((f) => `[${icon[f.level]}] ${f.area}: ${f.message}`).join("\n");
+  return { output: `${output}\n\nnexo doctor only reports; nothing was changed.`, failed };
+}

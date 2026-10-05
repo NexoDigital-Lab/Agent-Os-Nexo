@@ -1,0 +1,25 @@
+.dk { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.dk-main { flex: 1; min-height: 0; }
+.dk-err { display: flex; gap: 12px; align-items: baseline; margin-bottom: 16px; }
+.dk-section { margin-bottom: 28px; }
+.dk-pull { display: flex; gap: 8px; align-items: center; }
+.dk-pull .field { width: 300px; padding: 5px 10px; font-size: 12.5px; }
+.dk-rows { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.dk-row { display: grid; align-items: center; gap: 12px; padding: 7px 12px; font-size: 12.5px; border-bottom: 1px solid var(--line); }
+.dk-row:last-child { border-bottom: 0; }
+.dk-ctr { grid-template-columns: minmax(150px, 1.4fr) minmax(100px, 1fr) 76px minmax(90px, 1fr) minmax(90px, 1fr) 168px; }
+.dk-img { grid-template-columns: minmax(180px, 2fr) 90px 130px 70px 168px; }
+.dk-name { display: flex; align-items: center; gap: 8px; min-width: 0; font: 12.5px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dk-trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dk-actions { display: flex; gap: 2px; justify-content: flex-end; align-items: center; width: 168px; flex: none; }
+.dk-name .pill { flex: none; }
+.dk-name > .mono { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dk-drawer { flex: none; height: 40%; min-height: 180px; max-height: 60%; border-top: 1px solid var(--line-2); }
+.dk-logs { position: relative; }
+.dk-logs pre { margin: 0; padding: 8px 12px; height: 100%; overflow: auto; font-size: 12px; color: var(--text-2); white-space: pre-wrap; word-break: break-all; }
+.dk-logs-refresh { position: absolute; top: 4px; right: 12px; z-index: 1; }
+.dk-envbar { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--bg-2); font-size: 12.5px; }
+.dk-envbar-err { flex: 1 0 100%; }
+.dk-note { font-size: 12px; }
+.dk-reopen { flex: none; display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 16px; border: 0; border-top: 1px solid var(--line-2); background: var(--bg-2); color: var(--text-2); font: 500 12.5px var(--sans); cursor: pointer; text-align: left; }
+.dk-reopen:hover { background: var(--panel); color: var(--text); }

@@ -1,0 +1,9 @@
+{
+  "name": "docker",
+  "version": "1.0.0",
+  "description": "Docker containers, images, logs and shells, and a mirror dev container per project",
+  "owner": "nexo",
+  "dependsOn": ["shell", "projects", "sessions", "editor/terminal"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Docker", "icon": "container", "order": 55 }
+}

@@ -34,22 +34,26 @@ environments/
 │   ├── profile.json          identity and preferences
 │   └── permissions.json      global allow / ask / deny
 ├── blueprints/<name>/        README.md, steps.md, files/, verify.md
-├── os/
+├── os/                       agent-os (optional: `nexo init --os yes` or `nexo os install`)
 │   ├── source/               the user's editable copy of agent-os
-│   ├── versions/<x.y.z>/     builds; the newest is loaded at start
-│   └── data/                 notes, features, vault — versions never touch it
+│   ├── versions/<x.y.z>/     builds; the newest (or the pin in `current`) is loaded at start
+│   ├── runtime/<hash>/       dependencies shared by every build with the same set
+│   └── data/                 prefs, notes, the SSH vault, modules.json — versions never touch it
 ├── projects/
 │   ├── <name>/               single repo or monorepo
 │   │   ├── AGENTS.md         project rules (next to code, never inside it)
 │   │   ├── code/             the clone, untouched by work conventions
-│   │   ├── context/          everything for the AI: business logic, specs, features, docs graph,
+│   │   ├── context/          everything for the AI: business logic, specs, features (features/),
+│   │   │                     the defined architecture (architecture/), docs graph,
 │   │   │                     permissions.json (overrides the global one)
+│   │   ├── worktrees/<name>/ extra checkouts of code/ for parallel work
 │   │   └── secrets/
 │   └── <name>-ws/            project with several parts (repos)
 │       ├── AGENTS.md
 │       ├── context/          shared across parts
 │       └── <part>/{AGENTS.md, code/, context/, secrets/}
-└── .state/                   generated and disposable: logs, indexes, analysis detail, cache
+└── .state/                   generated and disposable: logs, indexes, analysis detail, cache;
+                              .state/os/ holds agent-os's pid files, logs and per-module caches
 ```
 
 ## Principles
@@ -68,10 +72,11 @@ environments/
 
 ## agent-os
 
-agent-os is a local app built from modules (see `apps/os/README.md`). Each user has a personal
-version history starting at `1.0.0`: a requested change is previewed in the browser, built only on
-approval, and loaded on the next restart (the app detects the new build and asks to restart; agents
-never close it). Patch +1 per approved build, every 10 rolls the minor (`1.0.9` → `1.1.0`). The
+agent-os is a local app built from modules (see `apps/os/README.md`), distributed as its own npm
+package (`@nexodigital-lab/agent-os`) that `nexo os install` copies into `os/source`. Each user has a
+personal version history starting at `1.0.0`: a requested change is previewed in the browser
+(`nexo os preview`), built only on approval (`nexo os build`), and loaded on the next restart (the
+app detects the new build and asks to restart; agents never close it). Patch +1 per approved build, every 10 rolls the minor (`1.0.9` → `1.1.0`). The
 major version is reserved for Nexo releases. Personal changes stay local; a compare tool lets an
 agent merge new base features into a personal version.
 

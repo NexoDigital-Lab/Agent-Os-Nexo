@@ -3,9 +3,8 @@
 The local app of a Nexo environment: projects, AI sessions as tabs, an IDE, notes and features,
 Docker, SSH and more. It is built entirely from **modules**.
 
-> Status: environment only. The module system core (discovery, dependencies, enable/disable, build
-> versions) is in place; the existing agent-os features are being migrated as modules (see the map
-> below).
+Every feature of the previous agent-os now lives in a module; the app runs as one Node process on
+`localhost` (4780, or 4781 for the preview of `os/source`).
 
 ## Modules
 
@@ -46,47 +45,78 @@ Rules:
 - Documentation and business rules of a module live in the project's `context/` (for agent-os
   itself: `os/` in the environment), not next to the code.
 
+## How modules talk to each other
+
+A module never edits another one: it plugs into extension points the other module declares.
+
+- **Web slots** (`slot<T>(name)` in `host/web/src/registry.ts`, types next to the owner in
+  `web/slots.ts`):
+  - shell: `settings.sections`, `rail.footer`, `shell.banners`, `shell.overlays`.
+  - sessions: `tab.views` (Editor, Terminal, Git, Architecture), `tab.side`, `tab.sideReplace`
+    (the SSH console), `tab.overlay` (the Architect), `chat.events` (renders `{ kind: "module" }`
+    events such as SSH plans), `composer.actions`, `tab.badges`.
+  - editor/terminal: `terminal.bar` (docker's dev container controls).
+- **Session contributions** (`contributeToSessions` in `modules/sessions/server/contributions.ts`):
+  prompt notes, environment variables, in-process MCP servers, auto-allowed tools, hooks, and
+  `onMessage` / `onTurnEnd` / `onClose`. Per-module data that must survive restarts goes in the
+  tab's `meta` (`setTabMeta`): `meta.ssh`, `meta.archOff`.
+- **Project hooks** (`addProjectHooks` in `modules/projects/server/hooks.ts`): facts and steps when a
+  project is deleted (docker offers to remove its dev container).
+- **UI text**: English is the key; each module ships `web/messages.ts` with Spanish. All modules share
+  one dictionary, so a word that needs different translations takes a context (`t("All::containers")`),
+  and `test/messages.test.ts` fails on clashes.
+
+## Modules today
+
+| Module | What it does | Submodules |
+|---|---|---|
+| shell (core) | App frame: rail, views, Settings, notices and banners | — |
+| themes (core) | Palettes (Nexo by default, 8 in total) and bundled fonts | — |
+| modules (core) | Turn modules on and off, respecting dependencies | — |
+| versions (core) | Personal builds: list, choose the one to load, newer-build notice | — |
+| projects (core) | Projects: list, create, clone, delete, worktrees and their features | — |
+| sessions | AI session tabs: chat, agents, review of changes, recents, search, skills | — |
+| home | Start page: projects, recent sessions, goals, inbox, today's log | — |
+| editor | Files, Monaco, search, panel with Problems and Run, settings, plugins | terminal, lsp, scm, practice, setup |
+| notes | Free notes per project turned into features; board from `context/features` | — |
+| docker | Containers, images, logs, shells; a mirror dev container per project | — |
+| ssh | Encrypted vault, a console per tab, gated agent tools (share switch + one approved plan) | — |
+| architecture | The project's architecture (doc + folder plan) in `context/architecture/`, the Architect | — |
+| http | HTTP client with collections, environments, curl/Postman import | — |
+| monitor | Token use and cost per session, plan usage in the rail | — |
+| extensions | VS Code extensions per project and their editor equivalents | — |
+| visual-bugs | Screenshots of what looks wrong, for an agent to fix | — |
+
+Each module's `module.json` lists its dependencies; `nexo os` and the Modules view respect them.
+
 ## Versions
 
 Each user has a personal version history starting at `1.0.0`, kept in the environment:
 
 ```
 os/
-├── source/      the user's editable copy
-├── versions/    builds: 1.0.0, 1.0.1, …
-├── current      optional pin (`nexo os use <x.y.z>`); otherwise the newest build loads
-└── data/        notes, features, vault, modules.json — builds never touch it
+├── source/              the user's editable copy (node_modules → runtime/<hash>)
+├── versions/<x.y.z>/    builds: dist/web + the server code + build.json (node_modules → runtime/<hash>)
+├── runtime/<hash>/      dependencies, installed once per dependency set and shared by every build
+├── current              optional pin (`nexo os use <x.y.z>`); otherwise the newest build loads
+└── data/                notes, prefs, vault, modules.json — builds never touch it
+.state/os/               pid files and logs of the running app and preview
 ```
 
-1. The user asks for a change; the agent edits `os/source/` and shows a **browser preview**.
-2. Only after approval, a new build goes to `os/versions/<next>` (`nexo os next`): patch +1 per
-   build, `x.y.9` → `x.(y+1).0`. The major version is reserved for Nexo releases.
-3. The running app notices the newer build (`newerBuild`) and shows "New version detected — restart
-   to load it". Neither the agent nor the app restarts itself.
-4. Any earlier build can be loaded again.
+| Command | What it does |
+|---|---|
+| `nexo os install [--from <dir>]` | Copy agent-os into `os/source` (from npm, or a local checkout), install its runtime, build `1.0.0`. Also offered by `nexo init --os yes`. |
+| `nexo os preview` | Run `os/source` with hot reload on 4781, to look at a change before building it |
+| `nexo os build [--notes <text>]` | Build `os/source` into the next version (`scripts/build.ts`); a failed build leaves nothing |
+| `nexo os start` / `stop` | Run the active build on 4780 in the background / stop it (and the preview) |
+| `nexo os use <x.y.z\|latest>` | Pin a build, or go back to the newest |
+| `nexo os status` / `versions` | What is installed and running |
 
-New Nexo releases update the base; a compare tool lets an agent merge chosen base features into the
-user's personal version (e.g. personal `1.0.5` + new base features → `1.0.6`). Personal changes are
-never uploaded; contributing means cloning this repo and opening a PR.
+1. The user asks for a change; the agent edits `os/source/` and shows it with `nexo os preview`.
+2. Only after approval, `nexo os build`: patch +1 per build, `x.y.9` → `x.(y+1).0`. The major
+   version is reserved for Nexo releases.
+3. The running app notices the newer build and shows "New version detected — restart to load it".
+   Neither the agent nor the app restarts itself.
+4. Any earlier build can be loaded again with `nexo os use`.
 
-## Migration map
-
-The previous agent-os is being migrated module by module, without losing features:
-
-| Module | What it does | Submodules |
-|---|---|---|
-| shell (core) | Rail, tab bar, projects sidebar, usage meter | — |
-| home | Project cards, goals, inbox, daily log | — |
-| projects | Create, clone, delete, setup wizard and recipes, dev environment | setup, devenv |
-| sessions | AI session tabs, chat, agents panel, recents, search, images, skill picker | chat, agents, history, search, uploads, skills |
-| editor | Full IDE | files, monaco, lsp, terminal, problems, run, scm, search, settings, practice, review |
-| notes | Notes, feature board, proposals | board, proposals |
-| docker | Containers, images, logs, mirror dev containers | — |
-| ssh | Encrypted vault and shared console; agents never use it on their own | vault, policy |
-| http | HTTP client with collections | — |
-| architecture | Architecture assistant | — |
-| monitor | Token usage and limits | — |
-| extensions | Editor extensions | — |
-| visual-bugs | Visual bug gallery | — |
-| versions | Version manager, preview, restart notice, compare and merge | preview, notifier, compare |
-| modules | Module manager: enable/disable with dependency checks | — |
+Personal changes are never uploaded; contributing means cloning this repo and opening a PR.

@@ -56,6 +56,22 @@ browser needs `nexo os open` again. The active build is the pin in `os/current`,
 shows "New version detected — restart to load it"; it never restarts itself, and agents never restart it.
 Logs and pid files: `.state/os/app.log`, `.state/os/preview.log`, `*.pid`.
 
+## Update to a new Nexo release
+
+`os/source` is a git repository: branch `base` holds Nexo's releases exactly as shipped, `main` holds your
+version (each build is a commit tagged `v<x.y.z>`).
+
+```bash
+nexo os update [--from <checkout>/apps/os]   # the new release goes on base and is merged into main
+nexo os update --continue                    # after resolving conflicts (no markers left)
+nexo os update --abort                       # give up: your version stays as it was
+```
+
+Your pending changes are committed first, so nothing is lost. Where you and Nexo changed the same lines the
+merge stops and lists the files; resolve them by hand or ask an agent (it keeps your change and takes
+Nexo's where they don't clash), then `--continue`, `nexo os check`, `nexo os preview` and `nexo os build`.
+A source installed before updates existed has no history: install it again to start one.
+
 ## Desktop window
 
 `apps/desktop` in the repository builds a Tauri app that runs the same active build in its own window

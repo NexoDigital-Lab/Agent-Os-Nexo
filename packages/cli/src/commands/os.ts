@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { findRoot } from "../core/paths.ts";
 import { folder, readConfig } from "../core/config.ts";
 import { activeVersion, listVersions, nextVersion, pinVersion } from "../core/osversions.ts";
-import { accessLink, buildVersion, defaultRunner, fetchSource, logFile, openerFor, PORTS, runningPid, runningPort, startProcess, stopProcesses, type Runner } from "../core/osruntime.ts";
+import { abortUpdate, continueUpdate, updateSource } from "../core/osupdate.ts";
+import { accessLink, buildVersion, defaultRunner, fetchSource, logFile, withRelease, openerFor, PORTS, runningPid, runningPort, startProcess, stopProcesses, type Runner } from "../core/osruntime.ts";
 
 export interface OsOptions {
   root?: string;
@@ -14,9 +15,11 @@ export interface OsOptions {
   preview?: boolean;
   all?: boolean;
   module?: string;
+  continue?: boolean;
+  abort?: boolean;
 }
 
-const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], open [--preview], check [--module <id>].";
+const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], open [--preview], check [--module <id>], update [--from <dir>|--continue|--abort].";
 
 export async function os(action: string | undefined, arg: string | undefined, opts: OsOptions, run: Runner = defaultRunner): Promise<string> {
   const root = findRoot(opts.root);
@@ -101,6 +104,27 @@ export async function os(action: string | undefined, arg: string | undefined, op
       // Just the app by default: an agent stopping its preview must never take down the agent-os it runs in.
       const stopped = stopProcesses(stateDir, opts.all ? ["app", "preview"] : opts.preview ? ["preview"] : ["app"]);
       return stopped.length ? `Stopped: ${stopped.join(", ")}.` : "agent-os was not running.";
+    }
+    case "update": {
+      // A new Nexo release merged into the user's version (osupdate.ts): their changes stay, conflicts are shown.
+      if (opts.continue) {
+        continueUpdate(source);
+        return "Update finished. Check it with `nexo os check`, look at it with `nexo os preview`, then `nexo os build`.";
+      }
+      if (opts.abort) {
+        abortUpdate(source);
+        return "Update abandoned: os/source is back to how it was.";
+      }
+      const r = withRelease(opts.from, run, (dir) => updateSource(source, dir));
+      if (r.conflicts.length) {
+        return [
+          `Merging agent-os ${r.to} into your version (${r.from}) left conflicts in:`,
+          ...r.conflicts.map((f) => `  ${f}`),
+          "Resolve them in os/source (or ask an agent: it keeps your change and takes Nexo's where they don't clash),",
+          "then `nexo os update --continue` — or `nexo os update --abort` to leave your version as it was.",
+        ].join("\n");
+      }
+      return `Your version now has agent-os ${r.to} (was ${r.from}), your changes kept. Check it with \`nexo os check\`, look at it with \`nexo os preview\`, then \`nexo os build\`.`;
     }
     case "check": {
       // The mechanical module rules (os/source/docs/en/module-rules.md), run by the source's own checker.

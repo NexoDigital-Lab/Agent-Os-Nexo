@@ -58,6 +58,22 @@ de un reinicio el navegador necesita `nexo os open` de nuevo. El build activo es
 build más nuevo y muestra "Nueva versión detectada: reiniciá para cargarla"; nunca se reinicia sola, y los
 agentes nunca la reinician. Logs y archivos pid: `.state/os/app.log`, `.state/os/preview.log`, `*.pid`.
 
+## Actualizar a una nueva versión de Nexo
+
+`os/source` es un repositorio git: la rama `base` tiene las versiones de Nexo tal como salen, `main` tiene tu
+versión (cada build es un commit con el tag `v<x.y.z>`).
+
+```bash
+nexo os update [--from <checkout>/apps/os]   # la versión nueva va a base y se mergea en main
+nexo os update --continue                    # después de resolver los conflictos (sin marcas)
+nexo os update --abort                       # abandonar: tu versión queda como estaba
+```
+
+Tus cambios pendientes se commitean antes, así que no se pierde nada. Donde vos y Nexo cambiaron las mismas
+líneas, el merge se frena y lista los archivos; resolvelos a mano o pedíselo a un agente (conserva tu cambio y
+toma el de Nexo donde no chocan), y después `--continue`, `nexo os check`, `nexo os preview` y `nexo os build`.
+Un source instalado antes de que existieran las actualizaciones no tiene historial: instalalo de nuevo para empezarlo.
+
 ## Ventana de escritorio
 
 `apps/desktop` en el repositorio compila una app Tauri que corre el mismo build activo en su propia ventana

@@ -9,6 +9,7 @@ import { join, relative } from "node:path";
 import { ensureDir, readJson, readText, writeJson, writeText } from "./fsx.ts";
 import { tryRun } from "./exec.ts";
 import { activeVersion, listVersions, nextVersion } from "./osversions.ts";
+import { commitChanges, initSourceRepo, tagBuild } from "./osupdate.ts";
 
 export const OS_PACKAGE = "@nexodigital-lab/agent-os";
 export const PORTS = { app: 4780, preview: 4781 } as const;
@@ -83,30 +84,39 @@ function isLink(p: string): boolean {
 }
 
 /** Copies the agent-os package into os/source: from a local folder, or from npm (`npm pack` + tar). */
-export function fetchSource(osDir: string, from: string | undefined, run: Runner = defaultRunner): string {
-  const source = join(osDir, "source");
-  if (existsSync(source) && readdirSync(source).length) {
-    throw new Error(`${source} already holds agent-os (your personal copy). Remove it first to install again.`);
-  }
-  if (from) {
-    copySource(from, source);
-    return `copied from ${from}`;
-  }
+/**
+ * A release of agent-os, ready in a folder: `from` itself (a checkout), or downloaded from npm (`npm pack` + tar)
+ * into a temporary folder. `use` gets the folder; the download is removed afterwards.
+ */
+export function withRelease<T>(from: string | undefined, run: Runner, use: (dir: string, label: string) => T): T {
+  if (from) return use(from, `from ${from}`);
   const tmp = mkdtempSync(join(tmpdir(), "nexo-os-"));
   try {
     try {
       run("npm", ["pack", OS_PACKAGE, "--pack-destination", tmp, "--silent"], tmp);
     } catch {
-      throw new Error(`Could not download ${OS_PACKAGE} from npm. Until it is published, install from a checkout: nexo os install --from <Agent-Os-Nexo>/apps/os`);
+      throw new Error(`Could not download ${OS_PACKAGE} from npm. Until it is published, use a checkout: --from <Agent-Os-Nexo>/apps/os`);
     }
     const tgz = readdirSync(tmp).find((f) => f.endsWith(".tgz"));
     if (!tgz) throw new Error(`npm pack did not download ${OS_PACKAGE}.`);
     run("tar", ["-xzf", tgz], tmp);
-    copySource(join(tmp, "package"), source);
-    return `downloaded ${tgz.replace(/\.tgz$/, "")}`;
+    return use(join(tmp, "package"), `downloaded ${tgz.replace(/\.tgz$/, "")}`);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+/** Copies the agent-os package into os/source and starts its history (osupdate.ts). */
+export function fetchSource(osDir: string, from: string | undefined, run: Runner = defaultRunner): string {
+  const source = join(osDir, "source");
+  if (existsSync(source) && readdirSync(source).length) {
+    throw new Error(`${source} already holds agent-os (your personal copy). Remove it first to install again.`);
+  }
+  return withRelease(from, run, (dir, label) => {
+    copySource(dir, source);
+    initSourceRepo(source);
+    return label;
+  });
 }
 
 /** Builds os/source into os/versions/<next> (written to a temp folder first, so a failed build leaves nothing). */
@@ -116,6 +126,9 @@ export function buildVersion(osDir: string, notes = "", run: Runner = defaultRun
   const runtime = ensureRuntime(osDir, source, run);
   linkRuntime(source, runtime.dir);
   const version = nextVersion(listVersions(osDir).at(-1) ?? null);
+  // The source as built is a commit of the user's branch, so every version can be told apart and updated later.
+  initSourceRepo(source);
+  commitChanges(source, `agent-os ${version}${notes ? `: ${notes}` : ""}`);
   const final = join(osDir, "versions", version);
   const tmp = `${final}.building`;
   rmSync(tmp, { recursive: true, force: true });
@@ -124,6 +137,7 @@ export function buildVersion(osDir: string, notes = "", run: Runner = defaultRun
     run(process.execPath, [join(source, "scripts", "build.ts"), `--out=${tmp}`, `--version=${version}`, `--notes=${notes}`, `--runtime=${runtime.hash}`], source);
     linkRuntime(tmp, runtime.dir);
     renameSync(tmp, final);
+    tagBuild(source, version);
   } catch (e) {
     rmSync(tmp, { recursive: true, force: true });
     throw e;

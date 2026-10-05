@@ -407,3 +407,65 @@ test("os open opens the running app with its access link", async () => {
     await os("stop", undefined, { root });
   }
 });
+
+// ── updates: a new release merged into the user's version ────────────────────────────────────────────────────
+
+function release(version: string, files: Record<string, string>): string {
+  const src = fakeOsSource();
+  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os", version, dependencies: { express: "^5" } }));
+  for (const [rel, text] of Object.entries(files)) {
+    mkdirSync(join(src, rel, ".."), { recursive: true });
+    writeFileSync(join(src, rel), text);
+  }
+  return src;
+}
+const gitOut = (dir: string, ...args: string[]) => execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+
+test("install starts the history and every build is a commit with its tag", async () => {
+  const root = await freshEnv("claude");
+  const run = fakeRunner([]);
+  await os("install", undefined, { root, from: release("1.0.0", { "modules/shell/a.ts": "a1\n" }) }, run);
+  const source = join(root, "os", "source");
+  assert.equal(gitOut(source, "branch", "--show-current"), "main");
+  assert.match(gitOut(source, "log", "--format=%s", "base"), /agent-os 1\.0\.0 \(Nexo release\)/);
+  assert.equal(gitOut(source, "check-ignore", "node_modules"), "node_modules", "the runtime link is never committed");
+  writeFileSync(join(source, "modules/shell/a.ts"), "a1 mine\n");
+  await os("build", undefined, { root, notes: "my tweak" }, run);
+  assert.match(gitOut(source, "log", "-1", "--format=%s"), /agent-os 1\.0\.1: my tweak/);
+  assert.equal(gitOut(source, "tag", "--points-at", "HEAD"), "v1.0.1");
+});
+
+test("update merges a new release and keeps the user's changes", async () => {
+  const root = await freshEnv("claude");
+  const run = fakeRunner([]);
+  await os("install", undefined, { root, from: release("1.0.0", { "modules/shell/a.ts": "a1\n", "modules/shell/b.ts": "b1\n" }) }, run);
+  const source = join(root, "os", "source");
+  writeFileSync(join(source, "modules/shell/b.ts"), "b1 mine\n"); // the user's change, not even built yet
+  const out = await os("update", undefined, { root, from: release("1.1.0", { "modules/shell/a.ts": "a2\n", "modules/shell/b.ts": "b1\n", "modules/new/c.ts": "c\n" }) }, run);
+  assert.match(out, /now has agent-os 1\.1\.0 \(was 1\.0\.0\), your changes kept/);
+  assert.equal(readFileSync(join(source, "modules/shell/a.ts"), "utf8"), "a2\n", "Nexo's change arrives");
+  assert.equal(readFileSync(join(source, "modules/shell/b.ts"), "utf8"), "b1 mine\n", "the user's change stays");
+  assert.ok(existsSync(join(source, "modules/new/c.ts")), "new files arrive");
+  assert.equal(gitOut(source, "status", "--porcelain"), "");
+});
+
+test("update stops on a real conflict; --continue needs it resolved, --abort undoes it", async () => {
+  const root = await freshEnv("claude");
+  const run = fakeRunner([]);
+  await os("install", undefined, { root, from: release("1.0.0", { "modules/shell/a.ts": "line\n" }) }, run);
+  const source = join(root, "os", "source");
+  writeFileSync(join(source, "modules/shell/a.ts"), "line, mine\n");
+  const v2 = release("1.1.0", { "modules/shell/a.ts": "line, Nexo's\n" });
+  const out = await os("update", undefined, { root, from: v2 }, run);
+  assert.match(out, /left conflicts in:\n {2}modules\/shell\/a\.ts/);
+  await assert.rejects(os("update", undefined, { root, from: v2 }, run), /already waiting/);
+  await assert.rejects(os("update", undefined, { root, continue: true }, run), /markers are still in: modules\/shell\/a\.ts/);
+  await os("update", undefined, { root, abort: true }, run);
+  assert.equal(readFileSync(join(source, "modules/shell/a.ts"), "utf8"), "line, mine\n", "abort restores the user's version");
+
+  await os("update", undefined, { root, from: v2 }, run);
+  writeFileSync(join(source, "modules/shell/a.ts"), "line, both\n"); // resolved
+  assert.match(await os("update", undefined, { root, continue: true }, run), /Update finished/);
+  assert.equal(gitOut(source, "status", "--porcelain"), "");
+  assert.match(gitOut(source, "log", "-1", "--format=%s"), /Update to agent-os 1\.1\.0/);
+});

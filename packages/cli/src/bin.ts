@@ -36,6 +36,7 @@ Usage: nexo <command> [options]
   os stop [--preview|--all]         Stop the app (default), the preview, or both
   os open [--preview]               Open the running app in the browser with its access link
   os check [--module <id>]          Check os/source against the module rules
+  os update [--from <dir>]          Merge a new Nexo release into your version (--continue, --abort)
 
 Global: --root <path> (or NEXO_ROOT) selects the environment; otherwise the nearest parent with
 environment.config.json is used.`;
@@ -60,6 +61,8 @@ async function main(argv: string[]): Promise<number> {
       preview: { type: "boolean" },
       all: { type: "boolean" },
       module: { type: "string" },
+      continue: { type: "boolean" },
+      abort: { type: "boolean" },
       quick: { type: "boolean" },
       json: { type: "boolean" },
       ws: { type: "string" },

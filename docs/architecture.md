@@ -77,8 +77,9 @@ package (`@nexodigital-lab/agent-os`) that `nexo os install` copies into `os/sou
 personal version history starting at `1.0.0`: a requested change is previewed in the browser
 (`nexo os preview`), built only on approval (`nexo os build`), and loaded on the next restart (the
 app detects the new build and asks to restart; agents never close it). Patch +1 per approved build, every 10 rolls the minor (`1.0.9` → `1.1.0`). The
-major version is reserved for Nexo releases. Personal changes stay local; a compare tool lets an
-agent merge new base features into a personal version.
+major version is reserved for Nexo releases. Personal changes stay local; `os/source` is a git repository whose `base` branch holds
+Nexo's releases, and `nexo os update` merges a new one into the user's version, keeping their changes
+and stopping on real conflicts.
 
 ## Factory methodologies
 

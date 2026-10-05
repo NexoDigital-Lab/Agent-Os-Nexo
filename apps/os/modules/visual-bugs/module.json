@@ -1,0 +1,9 @@
+{
+  "name": "visual-bugs",
+  "version": "1.0.0",
+  "description": "A gallery of screenshots of what looks wrong in agent-os, for an agent to read and fix",
+  "owner": "nexo",
+  "dependsOn": ["shell"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Visual bugs", "icon": "bug", "order": 90 }
+}

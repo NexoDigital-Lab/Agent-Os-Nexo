@@ -5,7 +5,7 @@ import "./styles/base.css";
 import { addMessages, isLanguage, setLanguage, t } from "./i18n";
 import { hostApi } from "./lib/http";
 import { loadModules } from "./registry";
-import { hostMessages } from "./messages";
+import { es } from "./messages";
 
 const root = createRoot(document.getElementById("root")!);
 
@@ -19,7 +19,7 @@ function BootError({ message }: { message: string }) {
 }
 
 async function boot() {
-  addMessages(hostMessages);
+  addMessages({ es });
   const [info, rows, prefs] = await Promise.all([hostApi.info(), hostApi.modules(), hostApi.prefs()]);
   const browser = navigator.language.slice(0, 2);
   const lang = [prefs.language, info.language, browser].find(isLanguage) ?? "en";

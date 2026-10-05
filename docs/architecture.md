@@ -90,3 +90,7 @@ and stopping on real conflicts.
 | `nexo-idea` | Turn an idea into an options document, without deciding |
 | `nexo-research` | Research a topic with sources |
 | `nexo-debug` | Root cause first, then fix and a proving test |
+| `nexo-quick` | The light lane: ≤3 files, no risk signal, verified, no plan or panel |
+| `nexo-budget` | Size a nexo-dev run (risk signals, review set, model routing) and learn from it |
+| `nexo-infra` | How a project runs and builds, in `context/infra.md` |
+| `nexo-module-review` | Review an agent-os module against its rules |

@@ -1,8 +1,7 @@
 // HTTP client (Thunder Client style): collections + environments in os/data/http/store.json (never versioned, so tokens are safe),
 // and requests sent from the server so the browser's CORS rules never get in the way.
-import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { httpError, readJson } from "../../../host/server/http.ts";
+import { httpError, readJson, writeJson } from "../../../host/server/http.ts";
 
 let FILE = "";
 
@@ -25,7 +24,7 @@ export const readStore = (): HttpStore => readJson(FILE, EMPTY);
 export function writeStore(s: HttpStore) {
   if (!Array.isArray(s?.collections) || !Array.isArray(s?.envs))
     throw httpError(400, "Invalid format");
-  writeFileSync(FILE, JSON.stringify(s, null, 2));
+  writeJson(FILE, s);
 }
 
 /** Sends one already-resolved request (variables substituted by the client). */

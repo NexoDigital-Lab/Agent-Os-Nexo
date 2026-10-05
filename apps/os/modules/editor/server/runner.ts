@@ -1,9 +1,9 @@
 // ▶ Run and Environment: the commands a project runs with (detected from its manifests + your own, saved in the
 // project's context/run.json), and which toolchains it needs vs what this machine has.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { Env } from "../../../host/server/env.ts";
-import { loginShell, readJson } from "../../../host/server/http.ts";
+import { loginShell, readJson, writeJson } from "../../../host/server/http.ts";
 import { projectDir } from "../../projects/server/projects.ts";
 import { detectStacks } from "../../projects/server/stacks.ts";
 
@@ -55,7 +55,7 @@ export function saveRunConfigs(p: string, commands: unknown) {
     .filter((c) => c.cmd)
     .map((c) => ({ label: c.label || c.cmd, cmd: c.cmd }));
   mkdirSync(path.dirname(runFile(p)), { recursive: true });
-  writeFileSync(runFile(p), JSON.stringify({ commands: clean }, null, 2) + "\n");
+  writeJson(runFile(p), { commands: clean });
   return clean;
 }
 

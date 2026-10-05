@@ -3,6 +3,7 @@
 // (.state/os/home, regenerable history). No database.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJson } from "../../../host/server/http.ts";
 
 export interface HomeDirs {
   data: string;
@@ -44,7 +45,7 @@ export function logSession(entry: TurnLog): void {
   const ledger = join(logs(), `${today()}-costs.json`);
   const rows = existsSync(ledger) ? (JSON.parse(readFileSync(ledger, "utf8")) as unknown[]) : [];
   rows.push({ at: new Date().toISOString(), ...entry, prompt: task });
-  writeFileSync(ledger, JSON.stringify(rows, null, 2));
+  writeJson(ledger, rows);
 }
 
 export function todayCost(): number {

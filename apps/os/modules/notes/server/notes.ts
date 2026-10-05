@@ -1,10 +1,9 @@
 // The notepad: free notes per project (an existing one, or a name for a project that doesn't exist yet), kept in
 // os/data/notes. An AI reads them and proposes features; accepted ones become context/features/ files, or wait
 // here as drafts until their project exists.
-import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { httpError, readJson } from "../../../host/server/http.ts";
+import { httpError, readJson, writeJson } from "../../../host/server/http.ts";
 import { listFeatures, writeFeature, type Feature } from "../../projects/server/features.ts";
 import { projectDir, projectPath } from "../../projects/server/projects.ts";
 import { userLanguage } from "../../sessions/server/skills.ts";
@@ -44,7 +43,7 @@ export interface Proposal {
 export type Draft = Omit<Proposal, "why"> & { id: string; project: string; createdAt: string };
 
 const read = <T>(file: string): T[] => readJson<T[]>(file, []);
-const write = (file: string, rows: unknown[]) => writeFileSync(file, JSON.stringify(rows, null, 2));
+const write = (file: string, rows: unknown[]) => writeJson(file, rows);
 const now = () => new Date().toISOString();
 const newId = () => crypto.randomUUID().slice(0, 8);
 

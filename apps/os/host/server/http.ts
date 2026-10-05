@@ -1,8 +1,8 @@
 // Helpers every module's server code shares: errors, JSON files, the route wrapper, request guards.
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { promisify } from "node:util";
 import type { NextFunction, Request, Response } from "express";
@@ -15,14 +15,42 @@ export function httpError(status: number, message: string, extra: Record<string,
 }
 
 /** Parsed JSON file, or `fallback` when it's missing or invalid. Objects are merged over the fallback. */
+/**
+ * A JSON file, or `fallback` when it is missing. A file that exists but does not parse is copied aside
+ * (`<file>.corrupt-<time>`) before the fallback is returned, so the next save cannot silently replace what it held.
+ */
 export function readJson<T>(file: string, fallback: T): T {
+  let text: string;
   try {
-    const v = JSON.parse(readFileSync(file, "utf8"));
-    return fallback && typeof fallback === "object" && !Array.isArray(fallback) ? { ...fallback, ...v } : v;
+    text = readFileSync(file, "utf8");
   } catch {
     return fallback;
   }
+  try {
+    const v = JSON.parse(text);
+    return fallback && typeof fallback === "object" && !Array.isArray(fallback) ? { ...fallback, ...v } : v;
+  } catch (error) {
+    const aside = `${file}.corrupt-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    try {
+      copyFileSync(file, aside);
+      console.error(`[data] ${file} is not valid JSON (${(error as Error).message}); kept a copy in ${aside}`);
+    } catch {
+      // nothing more to do: the fallback still lets the app run
+    }
+    return fallback;
+  }
 }
+
+/** Writes a file atomically (temporary file + rename): a crash never leaves it half-written (rule R4). */
+export function writeAtomic(file: string, text: string): void {
+  mkdirSync(dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmp, text);
+  renameSync(tmp, file);
+}
+
+/** `value` as pretty JSON, written atomically. */
+export const writeJson = (file: string, value: unknown): void => writeAtomic(file, `${JSON.stringify(value, null, 2)}\n`);
 
 type Handler = (req: Request, res: Response) => unknown;
 

@@ -1,8 +1,8 @@
 // Practice: the AI plans and reviews, the user writes the code. The AI only gets read tools here.
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { httpError, readJson, run } from "../../../../../host/server/http.ts";
+import { httpError, readJson, run, writeJson } from "../../../../../host/server/http.ts";
 import { MODEL, READ_ONLY, structured } from "../../../../sessions/server/claude.ts";
 import { userLanguage } from "../../../../sessions/server/skills.ts";
 import { readText } from "../../../server/files.ts";
@@ -125,7 +125,7 @@ const file = (tabId: string) => path.join(DIR, `${tabId}.json`);
 export const readPractice = (tabId: string) => readJson<{ plan: Plan | null; review: Review | null }>(file(tabId), { plan: null, review: null });
 
 function save(tabId: string, data: { plan: Plan | null; review: Review | null }) {
-  writeFileSync(file(tabId), JSON.stringify(data, null, 2));
+  writeJson(file(tabId), data);
 }
 
 export async function makePlan(tabId: string, cwd: string, projectDir: string, task: string) {

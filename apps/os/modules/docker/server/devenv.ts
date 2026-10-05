@@ -4,7 +4,7 @@
 // the repository, nothing installed on the host, and error paths that still open in the editor.
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { httpError, run, userBinPath } from "../../../host/server/http.ts";
+import { httpError, run, userBinPath, writeJson } from "../../../host/server/http.ts";
 import { dockerRun } from "./docker.ts";
 
 /** projects/ (mounted read-only) and where the shims live (.state/os/docker/shims). Set once at register. */
@@ -126,7 +126,7 @@ function writeDevcontainer(project: string, repo: string, cfg: DevEnvConfig, ima
     forwardPorts: cfg.ports,
     customizations: { "agent-os": { lang: cfg.lang, version: cfg.version, shims: SHIMS[cfg.lang] } },
   };
-  writeFileSync(file, JSON.stringify(doc, null, 2) + "\n");
+  writeJson(file, doc);
   return true;
 }
 
@@ -230,7 +230,7 @@ async function doCreate(project: string, repo: string, cfg: DevEnvConfig): Promi
     throw e;
   }
   writeShims(project, lang as Lang);
-  writeFileSync(configFile(project), JSON.stringify({ lang, version: cfg.version, ports, image, createdAt: new Date().toISOString() }, null, 2) + "\n");
+  writeJson(configFile(project), { lang, version: cfg.version, ports, image, createdAt: new Date().toISOString() });
   const devcontainerWritten = writeDevcontainer(project, repo, { lang: lang as Lang, version: cfg.version, ports }, image);
   return { ...(await status(project, repo)), devcontainerWritten };
 }

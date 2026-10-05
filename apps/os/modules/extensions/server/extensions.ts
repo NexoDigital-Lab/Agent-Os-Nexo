@@ -1,11 +1,11 @@
 // Extensions per project: one catalog of VS Code extensions (installable with `code`), some with an equivalent
 // that runs inside agent-os's own editor. General ones apply to every project (library/extensions.json); each
 // project's list lives in its context/extensions.json and is mirrored to code/.vscode/extensions.json on request.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Env } from "../../../host/server/env.ts";
-import { httpError, readJson, run } from "../../../host/server/http.ts";
+import { httpError, readJson, run, writeJson } from "../../../host/server/http.ts";
 import { projectDir, projectIds, projectPath } from "../../projects/server/projects.ts";
 import { detectStacks, type Stack } from "../../projects/server/stacks.ts";
 import { installed } from "../../projects/server/vscode.ts";
@@ -74,14 +74,14 @@ function writeVscode(p: string, data: ProjectFile): string | null {
   }
   const ids = wantedVscode(data);
   mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify({ ...base, recommendations: ids }, null, 2) + "\n");
+  writeJson(file, { ...base, recommendations: ids });
   return null;
 }
 
 /** Only context/extensions.json: the repo's .vscode changes only when you press Sync. */
 function saveProject(p: string, data: ProjectFile) {
   mkdirSync(path.dirname(projFile(p)), { recursive: true });
-  writeFileSync(projFile(p), JSON.stringify(data, null, 2) + "\n");
+  writeJson(projFile(p), data);
 }
 
 // ---------- views ----------
@@ -156,7 +156,7 @@ export async function saveProjectExtensions(p: string, body: { extensions?: unkn
 /** Only library/extensions.json: each repo's .vscode shows as out of sync until you sync that project. */
 export function saveGeneral(general: unknown) {
   const ids = [...new Set((Array.isArray(general) ? general : []).map(String).filter((id) => VSCODE_ID.test(id)))];
-  writeFileSync(GENERAL_FILE, JSON.stringify({ general: ids }, null, 2) + "\n");
+  writeJson(GENERAL_FILE, { general: ids });
   return { general: ids };
 }
 
@@ -234,7 +234,7 @@ Rules:
     .map((r) => ({ id: byId.get(r.id.toLowerCase())?.id ?? r.id, name: String(r.name).slice(0, 80), why: String(r.why).slice(0, 300) }));
   const data = readProject(p);
   mkdirSync(path.dirname(projFile(p)), { recursive: true });
-  writeFileSync(projFile(p), JSON.stringify({ ...data, ai, aiAt: new Date().toISOString(), aiCost: cost }, null, 2) + "\n");
+  writeJson(projFile(p), { ...data, ai, aiAt: new Date().toISOString(), aiCost: cost });
   return { ...(await projectView(p)), summary: out.summary, cost };
 }
 

@@ -1,12 +1,12 @@
 // The skills a tab can load: the environment's library/skills (factory and yours) plus the user's own
 // ~/.claude/skills. Which ones are off or pinned lives in library/profile.json, so agents in the terminal
 // honor the same choice (the environment's AGENTS.md tells them to).
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Env } from "../../../host/server/env.ts";
-import { readJson } from "../../../host/server/http.ts";
+import { readJson, writeJson } from "../../../host/server/http.ts";
 
 export interface Skill {
   name: string;
@@ -40,7 +40,7 @@ export function readPrefs(): SkillPrefs {
 
 export function writePrefs(prefs: SkillPrefs): void {
   const profile = readJson<Record<string, unknown>>(profileFile(), {});
-  writeFileSync(profileFile(), `${JSON.stringify({ ...profile, skills: prefs }, null, 2)}\n`);
+  writeJson(profileFile(), { ...profile, skills: prefs });
 }
 
 /** The language agents answer in (library/profile.json). */

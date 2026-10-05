@@ -1,12 +1,12 @@
 // The host's own API (/api/os/*): what the web needs before any module loads — which modules are active,
 // the running version (and whether a newer build is waiting), and the user's preferences.
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import express from "express";
 import { readState, setEnabled, writeState, type Discovery } from "../../src/core/modules.ts";
 import { newerBuild } from "../../src/core/versions.ts";
 import type { Env } from "./env.ts";
-import { h, httpError, readJson } from "./http.ts";
+import { h, httpError, readJson, writeJson } from "./http.ts";
 
 export interface HostInfo {
   version: string;
@@ -94,7 +94,7 @@ export function hostRoutes(opts: { env: Env; appDir: string; version: string; de
     if (!patch || typeof patch !== "object" || Array.isArray(patch)) throw httpError(400, "Expected an object");
     const next = { ...readJson<Prefs>(prefsFile, {}), ...patch };
     mkdirSync(dirname(prefsFile), { recursive: true });
-    writeFileSync(prefsFile, `${JSON.stringify(next, null, 2)}\n`);
+    writeJson(prefsFile, next);
     return next;
   }));
 

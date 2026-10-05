@@ -10,9 +10,8 @@ import {
   type Query,
   type SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { httpError } from "../../../host/server/http.ts";
+import { httpError, readJson, writeJson } from "../../../host/server/http.ts";
 import { contributions, mergedHooks, safely, type TabContext, type TurnInfo } from "./contributions.ts";
 import { lastTask, translate, type Ev } from "./sdkEvents.ts";
 import { createWorkServer, deriveStatus, trackWaiting, WORK_NOTE, WORK_TOOL_PREFIX, type AgentStatus, type TurnEnd, type WorkStatus } from "./status.ts";
@@ -86,7 +85,7 @@ const ctxOf = (s: Session): TabContext => ({ id: s.id, title: s.title, project: 
 
 function persist() {
   const tabs: SavedTab[] = [...sessions.values()].map((s) => ({ ...ctxOf(s), sdkSessionId: s.sdkSessionId, cost: s.cost, forkNext: s.forkNext, work: s.work }));
-  writeFileSync(TABS_FILE, JSON.stringify(tabs, null, 2));
+  writeJson(TABS_FILE, tabs);
 }
 
 const fresh = () => ({ events: [] as Ev[], clients: new Set<Response>(), running: false, pending: new Map(), cost: 0, afterRun: [] as string[], ...runtime() });
@@ -94,8 +93,9 @@ const fresh = () => ({ events: [] as Ev[], clients: new Set<Response>(), running
 /** Tabs survive a server restart: metadata + SDK session id, so the next send resumes the conversation. */
 export function restoreTabs(tabsFile: string): void {
   TABS_FILE = tabsFile;
-  if (!existsSync(TABS_FILE)) return;
-  for (const t of JSON.parse(readFileSync(TABS_FILE, "utf8")) as SavedTab[]) {
+  // A damaged tabs.json is kept aside by readJson and the app starts with no tabs, instead of not starting at all.
+  const saved = readJson<SavedTab[]>(TABS_FILE, []);
+  for (const t of Array.isArray(saved) ? saved : []) {
     const file = t.sdkSessionId ? findTranscript(t.sdkSessionId) : null;
     const events: Ev[] = file
       ? [...(transcriptEvents(file) as Ev[]), { kind: "note", text: "agent-os restarted. This is the saved history; the next message continues the conversation." }]

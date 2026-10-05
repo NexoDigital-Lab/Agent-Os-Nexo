@@ -1,0 +1,370 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Paletas de agent-os</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the page chrome is Nexo's own dark identity; one big live mockup of agent-os on top,
+   palette cards with measured contrast below. Single dark look on purpose (Nexo is dark-only). */
+:root {
+  color-scheme: dark;
+  --page-bg: #0a0a0f;
+  --page-card: #12121f;
+  --page-line: #24203a;
+  --page-fg: #f0f0ff;
+  --page-fg-2: #babac2;
+  --page-fg-3: #9a9ab0;
+  --page-accent: #c084fc;
+  --page-cyan: #00f5ff;
+  --page-ok: #4ade80;
+  --page-bad: #ff2d78;
+  --page-warn: #fbbf24;
+  --grad: linear-gradient(135deg, #00f5ff, #a855f7, #ff2d78);
+  --display: "Outfit", "Inter", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 15px/1.6 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; display: grid; gap: 40px; }
+header { display: grid; gap: 12px; max-width: 70ch; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--page-accent); }
+h1 { font: 800 clamp(30px, 5vw, 46px)/1.1 var(--display); margin: 0; text-wrap: balance; }
+h1 span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2 { font: 700 22px/1.2 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; color: var(--page-fg-2); }
+.lead { font-size: 16.5px; }
+
+/* palette switcher */
+.switch { display: flex; flex-wrap: wrap; gap: 8px; }
+.switch button { font: 500 13.5px var(--body); color: var(--page-fg-2); background: var(--page-card); border: 1px solid var(--page-line); border-radius: 999px; padding: 7px 14px 7px 9px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.switch button:hover { color: var(--page-fg); border-color: #3a2f5c; }
+.switch button[aria-pressed="true"] { color: var(--page-fg); border-color: var(--page-accent); box-shadow: 0 0 0 1px var(--page-accent) inset; }
+.switch .dots { display: inline-flex; }
+.switch .dots i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--page-bg); margin-left: -4px; }
+.switch .dots i:first-child { margin-left: 0; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--page-cyan); outline-offset: 2px; }
+
+/* ---------- agent-os mockup: every color comes from the palette vars set on .app ---------- */
+.stage { display: grid; gap: 14px; }
+.stage-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; }
+.app { --r: 8px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: grid; grid-template-columns: 52px 210px minmax(0, 1fr); min-height: 520px; font: 13.5px/1.5 var(--body); transition: background .25s, color .25s; }
+.rail { background: var(--bg2); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; }
+.logo { width: 30px; height: 30px; border-radius: 9px; background: var(--brand); display: grid; place-items: center; font: 800 13px var(--display); color: var(--ink); margin-bottom: 8px; }
+.rail b { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: var(--text3); position: relative; }
+.rail b.on { background: var(--accent-dim); color: var(--accentText); }
+.rail b svg { width: 18px; height: 18px; }
+.rail .badge { position: absolute; top: 2px; right: 2px; min-width: 15px; height: 15px; border-radius: 8px; background: var(--bad); color: var(--bg); font: 700 10px/15px var(--body); text-align: center; }
+.rail .cost { margin-top: auto; font: 500 10.5px/1.3 var(--mono); color: var(--text3); text-align: center; }
+.rail .cost strong { display: block; color: var(--text); }
+.side { background: var(--bg2); border-right: 1px solid var(--line); padding: 14px 10px; display: grid; align-content: start; gap: 4px; min-width: 0; }
+.side h4 { margin: 0 6px 6px; font: 600 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--text3); }
+.proj { padding: 7px 8px; border-radius: var(--r); display: grid; gap: 2px; }
+.proj.on { background: var(--panel2); }
+.proj .n { display: flex; justify-content: space-between; gap: 6px; font-weight: 600; }
+.proj .m { font: 11.5px var(--mono); color: var(--text3); }
+.proj .m em { font-style: normal; color: var(--violet); }
+.feat { margin-left: 14px; padding: 3px 8px; border-left: 1px solid var(--line); color: var(--text2); font-size: 12.5px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; box-shadow: 0 0 0 3px var(--ok-dim); }
+.main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+.tabs { display: flex; gap: 2px; padding: 8px 10px 0; background: var(--bg2); border-bottom: 1px solid var(--line); overflow: hidden; }
+.tab { padding: 7px 12px; border-radius: 8px 8px 0 0; color: var(--text2); white-space: nowrap; display: inline-flex; gap: 7px; align-items: center; font-size: 12.5px; }
+.tab.on { background: var(--bg); color: var(--text); box-shadow: inset 0 2px 0 var(--accent); }
+.pill { font: 600 10.5px/1 var(--body); padding: 4px 7px; border-radius: 999px; }
+.pill.ok { background: var(--ok-dim); color: var(--ok); }
+.pill.bad { background: var(--bad-dim); color: var(--bad); }
+.pill.info { background: var(--info-dim); color: var(--info); }
+.pill.acc { background: var(--accent-dim); color: var(--accentText); }
+.body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); min-height: 0; }
+.chat { padding: 16px; display: grid; align-content: start; gap: 12px; border-right: 1px solid var(--line); min-width: 0; }
+.msg-u { justify-self: end; max-width: 85%; background: var(--panel2); border: 1px solid var(--line2); padding: 9px 12px; border-radius: 12px 12px 4px 12px; }
+.msg-a { display: grid; gap: 8px; }
+.msg-a p { color: var(--text); margin: 0; }
+.tool { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; font: 12px/1.5 var(--mono); color: var(--text2); display: grid; gap: 2px; }
+.tool b { color: var(--info); font-weight: 500; }
+.tool span { color: var(--text3); }
+.ask { background: var(--panel); border: 1px solid var(--accent); border-radius: var(--r); padding: 10px; display: grid; gap: 8px; }
+.ask p { margin: 0; color: var(--text); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: 600 12.5px var(--body); border-radius: 7px; padding: 6px 12px; border: 1px solid var(--line2); background: var(--panel2); color: var(--text); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+.btn.dng { color: var(--bad); border-color: var(--bad-dim); background: transparent; }
+.composer { margin-top: 4px; border: 1px solid var(--line2); background: var(--panel); border-radius: 10px; padding: 9px 11px; color: var(--text3); display: flex; justify-content: space-between; gap: 8px; }
+.composer kbd { font: 11px var(--mono); color: var(--text2); border: 1px solid var(--line2); border-radius: 4px; padding: 1px 5px; }
+.right { display: grid; grid-template-rows: auto auto 1fr; min-width: 0; }
+.subtabs { display: flex; gap: 14px; padding: 10px 14px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--text3); }
+.subtabs span { padding-bottom: 8px; }
+.subtabs span.on { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.code { font: 12px/1.75 var(--mono); padding: 10px 0; overflow-x: auto; }
+.code div { padding: 0 14px; white-space: pre; }
+.code .add { background: var(--add); }
+.code .del { background: var(--del); }
+.code .ln { color: var(--text3); display: inline-block; width: 2.4em; user-select: none; }
+.k { color: var(--kw); } .s { color: var(--str); } .f { color: var(--fn); } .nm { color: var(--num); } .c { color: var(--com); font-style: italic; }
+.term { background: var(--bg); border-top: 1px solid var(--line); font: 12px/1.7 var(--mono); padding: 10px 14px; color: var(--text2); align-self: end; }
+.term .p { color: var(--accentText); }
+.term .okt { color: var(--ok); } .term .badt { color: var(--bad); }
+
+/* ---------- palette cards ---------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.card { background: var(--page-card); border: 1px solid var(--page-line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; align-content: start; }
+.card.sel { border-color: #4b3a78; }
+.card-head { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.card h3 { margin: 0; font: 700 18px/1.2 var(--display); }
+.card .tag { font: 600 10.5px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--page-cyan); }
+.card .desc { font-size: 13.5px; }
+.sw { display: grid; grid-template-columns: repeat(8, 1fr); border-radius: 9px; overflow: hidden; height: 42px; border: 1px solid var(--page-line); }
+.sw i { display: block; }
+.mini { border-radius: 9px; padding: 12px; display: grid; gap: 6px; font-size: 13px; border: 1px solid; }
+.mini .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+td { padding: 5px 0; border-top: 1px solid var(--page-line); color: var(--page-fg-2); }
+td:nth-child(2) { text-align: right; font-family: var(--mono); color: var(--page-fg); padding-right: 8px; }
+td:last-child { text-align: right; width: 48px; }
+.g { font: 700 10.5px/1 var(--body); padding: 3px 6px; border-radius: 5px; }
+.g.aaa { background: rgba(74, 222, 128, .14); color: var(--page-ok); }
+.g.aa { background: rgba(0, 245, 255, .1); color: var(--page-cyan); }
+.g.lg { background: rgba(251, 191, 36, .12); color: var(--page-warn); }
+.g.no { background: rgba(255, 45, 120, .12); color: var(--page-bad); }
+.pick { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--page-fg); cursor: pointer; }
+.pick input { width: 17px; height: 17px; accent-color: #a855f7; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.act { font: 600 13px var(--body); border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--page-line); background: var(--page-card); color: var(--page-fg); }
+.act.pri { background: #a855f7; border-color: #a855f7; color: #0a0a0f; }
+
+.foot { display: grid; gap: 14px; background: var(--page-card); border: 1px solid var(--page-line); border-radius: 14px; padding: 20px; }
+.foot textarea { width: 100%; min-height: 64px; background: var(--page-bg); color: var(--page-fg); border: 1px solid var(--page-line); border-radius: 8px; font: 12.5px/1.5 var(--mono); padding: 10px; resize: vertical; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--page-fg-3); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 48px minmax(0, 1fr); }
+  .side { display: none; }
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .chat { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 480px) {
+  .wrap { padding-inline: 16px; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .tab:nth-child(n+3) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .app { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">agent-os · módulo de temas</div>
+    <h1>Paletas para <span>agent-os</span></h1>
+    <p class="lead">La paleta por defecto sale de la web de Nexo Digital: fondo casi negro, violeta como acento y el degradé cyan → violeta → magenta como firma. Las otras opciones respetan esa misma estructura. Cada usuario elige la suya desde la configuración del os.</p>
+  </header>
+
+  <section class="stage" aria-labelledby="prev-title">
+    <div class="stage-head">
+      <div style="display:grid;gap:4px">
+        <h2 id="prev-title">Vista previa en vivo</h2>
+        <p>Un mockup de agent-os con la paleta elegida: chat, pedido de permiso, diff, terminal y estados.</p>
+      </div>
+    </div>
+    <div class="switch" id="switch" role="group" aria-label="Elegir paleta para la vista previa"></div>
+
+    <div class="app" id="app">
+      <nav class="rail" aria-hidden="true">
+        <div class="logo">N</div>
+        <b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5V21H3z"/></svg></b>
+        <b class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg><span class="badge">2</span></b>
+        <b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5"/></svg></b>
+        <b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/></svg></b>
+        <b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></b>
+        <div class="cost">hoy<strong>$2.41</strong></div>
+      </nav>
+      <aside class="side" aria-hidden="true">
+        <h4>Proyectos</h4>
+        <div class="proj on"><div class="n">shop <span class="dot"></span></div><div class="m"><em>feature/auth</em> · 3 cambios</div></div>
+        <div class="feat">login-capacitor</div>
+        <div class="feat">refresh-tokens</div>
+        <div class="proj"><div class="n">crm-ws</div><div class="m"><em>main</em> · api, web</div></div>
+        <div class="proj"><div class="n">portfolio</div><div class="m"><em>main</em> · limpio</div></div>
+      </aside>
+      <div class="main">
+        <div class="tabs" aria-hidden="true">
+          <div class="tab on">refresh-tokens <span class="pill acc">trabajando</span></div>
+          <div class="tab">login-capacitor <span class="pill bad">te necesita</span></div>
+          <div class="tab">review PR #42 <span class="pill ok">listo</span></div>
+        </div>
+        <div class="body">
+          <div class="chat">
+            <div class="msg-u">Agregá refresh tokens al login y cubrilo con tests.</div>
+            <div class="msg-a">
+              <p>Leo el módulo de auth y el contexto del proyecto antes de tocar nada.</p>
+              <div class="tool"><div><b>Read</b> code/apps/api/src/auth/auth.service.ts</div><span>182 líneas</span></div>
+              <div class="tool"><div><b>Edit</b> code/apps/api/src/auth/auth.service.ts</div><span>+14 −2</span></div>
+            </div>
+            <div class="ask">
+              <p>Quiere correr <code style="font-family:var(--mono);color:var(--accentText)">npm test -- auth</code></p>
+              <div class="btns"><span class="btn pri">Permitir</span><span class="btn">Siempre en este proyecto</span><span class="btn dng">Rechazar</span></div>
+            </div>
+            <div class="composer"><span>Escribí una indicación…</span><kbd>Ctrl ↵</kbd></div>
+          </div>
+          <div class="right">
+            <div class="subtabs"><span class="on">Cambios</span><span>Commits</span><span>Agentes</span><span>Features</span></div>
+            <div class="code" aria-label="Ejemplo de diff con resaltado de sintaxis">
+<div><span class="ln">41</span><span class="k">async</span> <span class="f">refresh</span>(token: <span class="k">string</span>) {</div>
+<div class="del"><span class="ln">42</span>  <span class="k">const</span> ttl = <span class="nm">900</span>;</div>
+<div class="add"><span class="ln">42</span>  <span class="k">const</span> ttl = <span class="k">this</span>.config.<span class="f">get</span>(<span class="s">'JWT_TTL'</span>);</div>
+<div class="add"><span class="ln">43</span>  <span class="c">// rotate on every use</span></div>
+<div><span class="ln">44</span>  <span class="k">return</span> <span class="k">this</span>.<span class="f">sign</span>({ sub, ttl });</div>
+<div><span class="ln">45</span>}</div>
+            </div>
+            <div class="term"><span class="p">❯</span> npm test -- auth<br><span class="okt">✓</span> 12 passed <span class="badt">✗</span> 1 failed · 1.8s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:16px" aria-labelledby="pal-title">
+    <div style="display:grid;gap:6px;max-width:70ch">
+      <h2 id="pal-title">Opciones</h2>
+      <p>Marcá las que querés que vengan con el os. El contraste está medido con la fórmula de WCAG 2.1 sobre los colores reales de cada paleta.</p>
+      <div class="legend"><span><i class="g aaa">AAA</i> ≥ 7</span><span><i class="g aa">AA</i> ≥ 4.5</span><span><i class="g lg">AA grande</i> ≥ 3, solo títulos e íconos</span><span><i class="g no">No</i> &lt; 3</span></div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section class="foot" aria-labelledby="sel-title">
+    <h2 id="sel-title">Tu selección</h2>
+    <p>Copiá este texto y pegámelo en el chat; con eso armo el módulo de temas.</p>
+    <textarea id="out" readonly aria-label="Paletas seleccionadas"></textarea>
+    <div class="actions"><button class="act pri" id="copy" type="button">Copiar selección</button></div>
+  </section>
+</div>
+
+<script>
+const P = [
+  { id: "nexo", name: "Nexo", tag: "Por defecto", desc: "La identidad de la web de Nexo: violeta, cyan y magenta sobre un fondo casi negro con un toque azulado.",
+    c: { bg:"#0a0a0f", bg2:"#0f0f1a", panel:"#12121f", panel2:"#1a1a2e", line:"#24203a", line2:"#352d55", text:"#f0f0ff", text2:"#babac2", text3:"#9a9ab0",
+      accent:"#a855f7", ink:"#0a0a0f", accentText:"#c084fc", info:"#00f5ff", ok:"#4ade80", bad:"#ff2d78", violet:"#818cf8", add:"#0d2a1c", del:"#2e0e1d",
+      kw:"#c084fc", fn:"#00f5ff", str:"#86efac", num:"#ff7aa8", com:"#8a8aa3", brand:"linear-gradient(135deg,#00f5ff,#a855f7,#ff2d78)" } },
+  { id: "ambar", name: "Ámbar", tag: "agent-os v1", desc: "La paleta cálida que usa hoy agent-os: grafito tibio con acento ámbar. Sirve para quien prefiera la versión anterior.",
+    c: { bg:"#0e0d0c", bg2:"#151412", panel:"#1a1917", panel2:"#211f1c", line:"#2c2a26", line2:"#3a3732", text:"#ece6dc", text2:"#b3aca1", text3:"#958f85",
+      accent:"#f0a53a", ink:"#1a1206", accentText:"#f0a53a", info:"#7fb4e8", ok:"#7fc98f", bad:"#ec7a6a", violet:"#b79cf0", add:"#16301d", del:"#3a1c19",
+      kw:"#f0a53a", fn:"#7fb4e8", str:"#7fc98f", num:"#e8a0c8", com:"#8a847a", brand:"linear-gradient(135deg,#f0a53a,#ec7a6a)" } },
+  { id: "noche", name: "Noche", tag: "agent-os escritorio", desc: "La paleta de la pantalla de carga de la app de escritorio, basada en Tokyo Night: azul y rosa sobre azul noche. Es la más cercana a Nexo sin ser la misma.",
+    c: { bg:"#111318", bg2:"#16161e", panel:"#1a1b26", panel2:"#24283b", line:"#292e42", line2:"#3b4261", text:"#c9ced8", text2:"#a9b1d6", text3:"#8b93be",
+      accent:"#7aa2f7", ink:"#111318", accentText:"#7aa2f7", info:"#7dcfff", ok:"#9ece6a", bad:"#f7768e", violet:"#bb9af7", add:"#1d2b1f", del:"#33202a",
+      kw:"#bb9af7", fn:"#7aa2f7", str:"#9ece6a", num:"#ff9e64", com:"#7a83b0", brand:"linear-gradient(135deg,#7aa2f7,#bb9af7,#f7768e)" } },
+  { id: "aurora", name: "Aurora", tag: "Verde agua", desc: "Turquesa como acento y el violeta de Nexo como secundario, sobre un fondo verde muy oscuro. Más calma para sesiones largas.",
+    c: { bg:"#07100f", bg2:"#0b1716", panel:"#0f1d1c", panel2:"#152826", line:"#1f3532", line2:"#2c4a46", text:"#e8f6f3", text2:"#a9c4bf", text3:"#86a39e",
+      accent:"#2dd4bf", ink:"#04201c", accentText:"#5eead4", info:"#a78bfa", ok:"#86efac", bad:"#fb7185", violet:"#c4b5fd", add:"#0f2e22", del:"#33141b",
+      kw:"#5eead4", fn:"#a78bfa", str:"#bef264", num:"#fda4af", com:"#7d9a95", brand:"linear-gradient(135deg,#2dd4bf,#00f5ff,#a855f7)" } },
+  { id: "oceano", name: "Océano", tag: "Cyan primero", desc: "La misma familia que Nexo, pero con el cyan como acento y el violeta como secundario. Fondo azul marino.",
+    c: { bg:"#070b14", bg2:"#0b1220", panel:"#0f1828", panel2:"#152135", line:"#1f2d45", line2:"#2c3e5c", text:"#eaf2ff", text2:"#b0bfd6", text3:"#8c9bb4",
+      accent:"#22d3ee", ink:"#041a20", accentText:"#67e8f9", info:"#a5b4fc", ok:"#4ade80", bad:"#f87171", violet:"#c084fc", add:"#0c2a24", del:"#33151c",
+      kw:"#67e8f9", fn:"#c084fc", str:"#86efac", num:"#fda4af", com:"#7f8eaa", brand:"linear-gradient(135deg,#22d3ee,#6366f1,#a855f7)" } },
+  { id: "synth", name: "Synthwave", tag: "Magenta", desc: "El magenta de Nexo pasa a ser el acento, con cyan para la información. Es la opción más intensa.",
+    c: { bg:"#0d0710", bg2:"#140a18", panel:"#1a0f1f", panel2:"#24142b", line:"#33203b", line2:"#47304f", text:"#fbeefc", text2:"#cdb3d2", text3:"#a98daf",
+      accent:"#ff4f9a", ink:"#1a0610", accentText:"#ff8ab8", info:"#22d3ee", ok:"#a3e635", bad:"#ff7a59", violet:"#c084fc", add:"#16290f", del:"#3a1220",
+      kw:"#ff8ab8", fn:"#22d3ee", str:"#bef264", num:"#fdba74", com:"#9a7fa0", brand:"linear-gradient(135deg,#ff2d78,#ff7a59,#fbbf24)" } },
+  { id: "claro", name: "Nexo Claro", tag: "Modo claro", desc: "La versión clara de Nexo para trabajar de día o con mucha luz. Usa un violeta más profundo para que contraste sobre blanco.",
+    c: { bg:"#f6f5fb", bg2:"#eeecf7", panel:"#ffffff", panel2:"#f3f1fa", line:"#e2def0", line2:"#cbc4e0", text:"#15121f", text2:"#4b4560", text3:"#635d78",
+      accent:"#7c3aed", ink:"#ffffff", accentText:"#6d28d9", info:"#0e7490", ok:"#15803d", bad:"#be123c", violet:"#4f46e5", add:"#dcfce7", del:"#ffe4e6",
+      kw:"#7c3aed", fn:"#0e7490", str:"#15803d", num:"#be185d", com:"#6b6580", brand:"linear-gradient(135deg,#0891b2,#7c3aed,#db2777)" } },
+  { id: "hc", name: "Alto contraste", tag: "Accesibilidad", desc: "Negro puro con texto blanco y acentos claros. Todo el texto pasa AAA, pensada para baja visión o pantallas con mucho brillo.",
+    c: { bg:"#000000", bg2:"#050508", panel:"#0a0a10", panel2:"#14141c", line:"#3a3a4a", line2:"#5a5a70", text:"#ffffff", text2:"#e0e0ea", text3:"#c4c4d4",
+      accent:"#d8b4fe", ink:"#000000", accentText:"#e9d5ff", info:"#67e8f9", ok:"#86efac", bad:"#ff8fab", violet:"#a5b4fc", add:"#0f3320", del:"#3d0f1c",
+      kw:"#e9d5ff", fn:"#67e8f9", str:"#86efac", num:"#ffb3c7", com:"#c4c4d4", brand:"linear-gradient(135deg,#67e8f9,#d8b4fe,#ff8fab)" } },
+];
+
+// WCAG 2.1 contrast
+const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255); };
+const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const grade = (r) => r >= 7 ? ["aaa", "AAA"] : r >= 4.5 ? ["aa", "AA"] : r >= 3 ? ["lg", "AA grande"] : ["no", "No"];
+const PAIRS = [
+  ["Texto sobre fondo", "text", "bg"], ["Secundario sobre panel", "text2", "panel"], ["Tenue sobre panel", "text3", "panel2"],
+  ["Acento como texto", "accentText", "panel"], ["Botón principal", "ink", "accent"], ["Éxito", "ok", "panel"],
+  ["Error", "bad", "panel"], ["Info", "info", "panel"], ["Comentario en código", "com", "bg"],
+];
+const dim = (hex, a) => hex + a;
+
+function apply(el, c) {
+  const vars = { ...c, "accent-dim": dim(c.accent, "24"), "ok-dim": dim(c.ok, "22"), "bad-dim": dim(c.bad, "22"), "info-dim": dim(c.info, "1f") };
+  for (const [k, v] of Object.entries(vars)) el.style.setProperty("--" + k, v);
+}
+
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+let chosen = new Set(P.map((p) => p.id));
+try { const saved = JSON.parse(store.get("paletas-sel") || "null"); if (Array.isArray(saved)) chosen = new Set(["nexo", ...saved]); } catch {}
+
+const app = document.getElementById("app");
+const sw = document.getElementById("switch");
+function preview(id) {
+  const p = P.find((x) => x.id === id);
+  apply(app, p.c);
+  for (const b of sw.children) b.setAttribute("aria-pressed", String(b.dataset.id === id));
+  store.set("paletas-prev", id);
+}
+for (const p of P) {
+  const b = document.createElement("button");
+  b.type = "button"; b.dataset.id = p.id;
+  b.innerHTML = `<span class="dots"><i style="background:${p.c.bg}"></i><i style="background:${p.c.accent}"></i><i style="background:${p.c.info}"></i></span>${p.name}`;
+  b.addEventListener("click", () => preview(p.id));
+  sw.append(b);
+}
+
+const grid = document.getElementById("grid");
+for (const p of P) {
+  const c = p.c;
+  const rows = PAIRS.map(([label, f, b]) => {
+    const r = ratio(c[f], c[b]); const [cls, txt] = grade(r);
+    return `<tr><td>${label}</td><td>${r.toFixed(1)}:1</td><td><span class="g ${cls}">${txt}</span></td></tr>`;
+  }).join("");
+  const card = document.createElement("article");
+  card.className = "card"; card.dataset.id = p.id;
+  const fixed = p.id === "nexo";
+  card.innerHTML = `
+    <div class="card-head"><div style="display:grid;gap:6px"><span class="tag">${p.tag}</span><h3>${p.name}</h3></div>
+      <button class="act" type="button" data-prev="${p.id}">Ver arriba</button></div>
+    <p class="desc">${p.desc}</p>
+    <div class="sw" aria-label="Colores de ${p.name}">${["bg","panel2","line2","text","accent","info","ok","bad"].map((k) => `<i style="background:${c[k]}" title="${k} ${c[k]}"></i>`).join("")}</div>
+    <div class="mini" style="background:${c.panel};color:${c.text};border-color:${c.line}">
+      <div class="row"><strong>refresh-tokens</strong><span style="color:${c.text3};font:12px var(--mono)">hace 3 min</span></div>
+      <div style="color:${c.text2}">12 tests pasaron, 1 falló en <span style="color:${c.accentText}">auth.service.ts:42</span></div>
+      <div class="row">
+        <span class="g" style="background:${c.accent};color:${c.ink}">Permitir</span>
+        <span class="g" style="background:${c.ok}22;color:${c.ok}">listo</span>
+        <span class="g" style="background:${c.bad}22;color:${c.bad}">te necesita</span>
+        <span class="g" style="background:${c.info}1f;color:${c.info}">info</span>
+      </div>
+    </div>
+    <table><tbody>${rows}</tbody></table>
+    <label class="pick"><input type="checkbox" id="pick-${p.id}" ${chosen.has(p.id) ? "checked" : ""} ${fixed ? "disabled" : ""}> ${fixed ? "Incluida siempre (por defecto)" : "Sumar como opción"}</label>`;
+  grid.append(card);
+}
+grid.addEventListener("click", (e) => { const id = e.target.closest("[data-prev]")?.dataset.prev; if (id) { preview(id); app.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" }); } });
+
+const out = document.getElementById("out");
+function sync() {
+  for (const card of grid.children) card.classList.toggle("sel", chosen.has(card.dataset.id));
+  const names = P.filter((p) => chosen.has(p.id)).map((p) => p.id === "nexo" ? `${p.name} (por defecto)` : p.name);
+  out.value = `Paletas para agent-os: ${names.join(", ")}.`;
+  store.set("paletas-sel", JSON.stringify([...chosen].filter((x) => x !== "nexo")));
+}
+grid.addEventListener("change", (e) => {
+  const id = e.target.id?.replace("pick-", "");
+  if (!id) return;
+  e.target.checked ? chosen.add(id) : chosen.delete(id);
+  sync();
+});
+document.getElementById("copy").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  try { await navigator.clipboard.writeText(out.value); btn.textContent = "Copiado"; }
+  catch { out.focus(); out.select(); btn.textContent = "Seleccionado: Ctrl+C"; }
+  setTimeout(() => (btn.textContent = "Copiar selección"), 1800);
+});
+
+preview(P.some((p) => p.id === store.get("paletas-prev")) ? store.get("paletas-prev") : "nexo");
+sync();
+</script>
+
+</body></html>

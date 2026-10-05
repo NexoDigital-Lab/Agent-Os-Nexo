@@ -2,26 +2,12 @@
 // They land in os/data/visual-bugs/, where an agent reads them when asked to fix visual bugs.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
-import { locale } from "@os/i18n";
 import { ConfirmDelete } from "@os/lib/ConfirmDelete";
-import { call } from "@os/lib/http";
 import { prepareImage } from "@os/lib/images";
-import type { VisualBug } from "../server/bugs.ts";
-import { t } from "@os/i18n";
+import { locale, t } from "@os/i18n";
+import { visualBugsApi as api, type VisualBug } from "./api";
 
 const fmt = (iso: string) => new Date(iso).toLocaleString(locale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-
-const api = {
-  visualBugs: () => call<VisualBug[]>("GET", "/api/visual-bugs"),
-  addVisualBug: async (blob: Blob) => {
-    const res = await fetch("/api/visual-bugs", { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? res.statusText);
-    return data as VisualBug;
-  },
-  noteVisualBug: (name: string, note: string) => call("PATCH", `/api/visual-bugs/${name}`, { note }),
-  deleteVisualBug: (name: string) => call("DELETE", `/api/visual-bugs/${name}`),
-};
 
 export function VisualBugs() {
   const [bugs, setBugs] = useState<VisualBug[]>([]);

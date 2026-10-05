@@ -1,0 +1,9 @@
+{
+  "name": "ssh",
+  "version": "1.0.0",
+  "description": "Saved SSH accesses in an encrypted vault, a console per session tab, and gated agent tools to work on servers",
+  "owner": "nexo",
+  "dependsOn": ["shell", "projects", "sessions", "editor/terminal"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "SSH", "icon": "key-round", "order": 58 }
+}

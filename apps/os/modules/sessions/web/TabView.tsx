@@ -71,7 +71,7 @@ export function TabView({ tab, skills, openFeature, initialView }: { tab: Tab; s
       {view !== "chat" && Active ? (
         <Active {...props} />
       ) : (
-        <div className={`tabview${Side ? " ssh" : ""}`}>
+        <div className={`tabview${replace ? ` ${replace.id}` : ""}`}>
           <section className="chat">
             <ChatLog tab={tab} stream={stream} />
             <Composer tab={tab} skills={skills} running={stream.running} prompt={prompt} setPrompt={setPrompt} view={props} />

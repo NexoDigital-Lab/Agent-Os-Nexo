@@ -1,0 +1,46 @@
+.ssh-h { font: 600 15px var(--sans); margin: 0; }
+.ssh-unlock { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+.ssh-unlock.compact { max-width: none; padding: 16px; }
+.ssh-hosts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ssh-warn { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 8px 10px; border-radius: var(--r); border: 1px solid var(--accent); background: var(--accent-dim); color: var(--text); font-size: 13px; }
+.ssh-warn svg { flex: none; margin-top: 2px; color: var(--accent-text); }
+.ssh-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 16px; color: var(--text-2); }
+.ssh-empty svg { color: var(--text-3); }
+.ssh-locked-note { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.ssh-hint { margin: 0; font-size: 12.5px; color: var(--info); }
+.ssh-host { display: grid; grid-template-columns: minmax(160px, 1.4fr) minmax(120px, 1fr) auto; align-items: center; gap: 14px; padding: 10px 14px; }
+.ssh-host-main { min-width: 0; }
+.ssh-host-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ssh-host-addr { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ssh-host-pills { display: flex; gap: 6px; }
+.ssh-host-actions { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.ssh-host-actions .btn.ghost { color: var(--text-2); }
+@media (max-width: 760px) { .ssh-host { grid-template-columns: minmax(0, 1fr); } .ssh-host-actions { justify-content: flex-start; flex-wrap: wrap; } }
+.modal.ssh-form { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; }
+.ssh-row { display: flex; gap: 10px; }
+.ssh-row .field { width: 100%; }
+.ssh-grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ssh-port { width: 90px; display: flex; flex-direction: column; gap: 4px; }
+.ssh-key { resize: vertical; font-size: 12px; white-space: pre; }
+.ssh-saved { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ssh-side { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 8px; padding: 8px 10px 10px; }
+.ssh-side-head { display: flex; align-items: center; gap: 8px; }
+.ssh-side-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ssh-switch { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 0; background: none; cursor: pointer; text-align: left; border-radius: var(--r); }
+.ssh-switch:disabled { opacity: 0.5; cursor: default; }
+.ssh-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ssh-share-state { margin-left: auto; font-size: 12px; color: var(--text-3); }
+.ssh-share.on .ssh-share-state { color: var(--accent-text); font-weight: 600; }
+.ssh-share-note { margin: 0; font-size: 12.5px; color: var(--accent-text); }
+.ssh-term { flex: 1; min-height: 160px; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--bg); padding: 4px; }
+.ssh-plan-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ssh-plan-summary { margin: 6px 0; }
+.ssh-plan-steps { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.ssh-plan-steps pre { margin: 2px 0; }
+.ssh-plan-steps .faint { font-size: 12.5px; }
+@media (max-width: 1100px) {
+  .tabview.ssh { grid-template-rows: auto minmax(320px, 1fr); }
+  .tabview.ssh .chat { max-height: 35vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .tabview.ssh .side { min-height: 320px; }
+  .tabview.ssh .ssh-term { min-height: 240px; }
+}

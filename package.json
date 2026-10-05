@@ -1,0 +1,19 @@
+{
+  "name": "agent-os-nexo",
+  "private": true,
+  "description": "Nexo: an open-source agent development environment, installed as an npm package.",
+  "license": "GPL-3.0-only",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check": "npm run typecheck && npm test"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

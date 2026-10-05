@@ -12,7 +12,7 @@ Factory defaults. To change them, copy this folder's content into your own file,
 
 ## Commits
 
-- English, imperative mood, describing the actual change: `Add ticket sync to Notion`, not
+- English, imperative mood, describing the actual change: `Add feature sync to Notion`, not
   `changes` or `fix stuff`.
 - Subject ≤ 72 characters; a body explains *why* when it is not obvious.
 - One logical change per commit.
@@ -22,7 +22,7 @@ Factory defaults. To change them, copy this folder's content into your own file,
 
 ## Branches
 
-- One branch per ticket: `feat/<ticket-id>-<slug>`, `fix/<ticket-id>-<slug>`, `chore/<slug>`.
+- One branch per feature: `feat/<feature-id>-<slug>`, `fix/<feature-id>-<slug>`, `chore/<slug>`.
 - Work on the project's main branch only when the user says so.
 
 ## Push and pull requests

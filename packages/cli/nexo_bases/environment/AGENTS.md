@@ -53,7 +53,7 @@ commit, read `library/conventions/git/` — not every convention.
   One fact per file, listed in `library/memory/index.json`. Update instead of duplicating.
 - `library/conventions/` and `library/dictionary/` — when something is confirmed repeatedly, record
   it there.
-- `projects/<name>/context/` — specs, decisions, tickets and state of that project.
+- `projects/<name>/context/` — specs, decisions, features and state of that project.
 
 **Ask first** before creating or changing skills, agents, hooks or commands.
 
@@ -61,8 +61,8 @@ commit, read `library/conventions/git/` — not every convention.
 
 | Skill | Use it to |
 |---|---|
-| `nexo-ticket` (alias `CT`) | Turn a request into a ticket in `context/tickets/` |
-| `nexo-dev` | Work a ticket (fix or feature) end to end |
+| `nexo-features` (alias `CT`) | Turn a request into a feature in `context/features/` |
+| `nexo-dev` | Build a feature or fix a bug end to end |
 | `nexo-idea` | Turn an idea into an options document, without deciding |
 | `nexo-research` | Research a topic with sources |
 | `nexo-debug` | Find a root cause before fixing |

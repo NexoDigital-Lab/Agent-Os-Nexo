@@ -37,12 +37,12 @@ environments/
 ├── os/
 │   ├── source/               the user's editable copy of agent-os
 │   ├── versions/<x.y.z>/     builds; the newest is loaded at start
-│   └── data/                 notes, tickets, vault — versions never touch it
+│   └── data/                 notes, features, vault — versions never touch it
 ├── projects/
 │   ├── <name>/               single repo or monorepo
 │   │   ├── AGENTS.md         project rules (next to code, never inside it)
 │   │   ├── code/             the clone, untouched by work conventions
-│   │   ├── context/          everything for the AI: business logic, specs, tickets, docs graph,
+│   │   ├── context/          everything for the AI: business logic, specs, features, docs graph,
 │   │   │                     permissions.json (overrides the global one)
 │   │   └── secrets/
 │   └── <name>-ws/            project with several parts (repos)
@@ -79,8 +79,8 @@ agent merge new base features into a personal version.
 
 | Command | Purpose |
 |---|---|
-| `nexo-ticket` (alias `CT`) | Create a ticket in `context/tickets/`, optionally synced to a connection |
-| `nexo-dev` | Work a ticket (fix or feature): sized S/M/L, plan gate, result gate, work-mode dial |
+| `nexo-features` (alias `CT`) | Create a feature in `context/features/`, optionally synced to a connection |
+| `nexo-dev` | Build a feature or fix a bug: sized S/M/L, plan gate, result gate, work-mode dial |
 | `nexo-idea` | Turn an idea into an options document, without deciding |
 | `nexo-research` | Research a topic with sources |
 | `nexo-debug` | Root cause first, then fix and a proving test |

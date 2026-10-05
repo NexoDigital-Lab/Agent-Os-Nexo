@@ -1,21 +1,21 @@
 ---
 name: nexo-dev
-description: Work a ticket end to end — fix or feature — with a plan gate, verification and a local commit. Use when the user says "nexo-dev <ticket>", "build this", "fix this ticket", or points at a file in context/tickets/.
+description: Build a feature or fix a bug end to end, with a plan gate, verification and a local commit. Use when the user says "nexo-dev <feature>", "build this", "fix this bug", or points at a file in context/features/.
 owner: nexo
 version: 1.0.0
 ---
 
 # nexo-dev
 
-The standard way to turn a ticket into verified, committed code. Scales with the ticket size.
+The standard way to turn a feature into verified, committed code. Scales with the feature size.
 
 ## Input
 
-A ticket (`context/tickets/<id>-*.md`) or a request. No ticket yet → run `nexo-ticket` first.
+A feature (`context/features/<id>-*.md`) or a request. No feature yet → run `nexo-features` first.
 
 ## 0. Mode and size
 
-- **Size**: take it from the ticket (S/M/L, see `nexo-ticket`). Propose a different size if the
+- **Size**: take it from the feature (S/M/L, see `nexo-features`). Propose a different size if the
   code says otherwise; the user can always change it.
 - **Work mode** — ask once per session if unknown:
 
@@ -30,7 +30,7 @@ In every mode you may handle environment work (dependencies, containers, config)
 
 ## 1. Context
 
-Read the project `AGENTS.md`, `context/README.md`, the ticket, and only the conventions the task
+Read the project `AGENTS.md`, `context/README.md`, the feature, and only the conventions the task
 needs (`library/index.json` first). Check `blueprints/index.json` for a matching blueprint.
 
 ## 2. Plan — GATE 1
@@ -63,7 +63,7 @@ approval.
 
 1. Commit following `library/conventions/git/` (identity from `profile.json`). Do not push unless
    the user asks and permissions allow it.
-2. Update the ticket: `status: done`, plus a short "What was done" section.
+2. Update the feature: `status: done`, plus a short "What was done" section.
 3. Record decisions or new knowledge in `context/` (and `library/memory/` if it holds across
    projects).
 4. If something was hard to set up and is reusable, **ask** whether to save it with

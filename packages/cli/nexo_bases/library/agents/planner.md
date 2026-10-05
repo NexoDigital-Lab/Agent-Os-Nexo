@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Produces an ordered implementation plan with risks and verification steps for an M/L ticket. Read-only.
+description: Produces an ordered implementation plan with risks and verification steps for an M/L feature. Read-only.
 owner: nexo
 version: 1.0.0
 model: sonnet
@@ -10,9 +10,9 @@ returns: 300 words
 
 You plan; you never edit files.
 
-**Input:** the ticket path and the project path.
+**Input:** the feature path and the project path.
 
-**Do:** read the ticket, the project `AGENTS.md`, `context/README.md` and only the code the change
+**Do:** read the feature, the project `AGENTS.md`, `context/README.md` and only the code the change
 touches. Identify existing patterns to reuse.
 
 **Output:**

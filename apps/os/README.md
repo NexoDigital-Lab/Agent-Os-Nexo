@@ -1,6 +1,6 @@
 # agent-os
 
-The local app of a Nexo environment: projects, AI sessions as tabs, an IDE, notes and tickets,
+The local app of a Nexo environment: projects, AI sessions as tabs, an IDE, notes and features,
 Docker, SSH and more. It is built entirely from **modules**.
 
 > Status: environment only. The module system core (discovery, dependencies, enable/disable, build
@@ -55,7 +55,7 @@ os/
 ├── source/      the user's editable copy
 ├── versions/    builds: 1.0.0, 1.0.1, …
 ├── current      optional pin (`nexo os use <x.y.z>`); otherwise the newest build loads
-└── data/        notes, tickets, vault, modules.json — builds never touch it
+└── data/        notes, features, vault, modules.json — builds never touch it
 ```
 
 1. The user asks for a change; the agent edits `os/source/` and shows a **browser preview**.
@@ -80,7 +80,7 @@ The previous agent-os is being migrated module by module, without losing feature
 | projects | Create, clone, delete, setup wizard and recipes, dev environment | setup, devenv |
 | sessions | AI session tabs, chat, agents panel, recents, search, images, skill picker | chat, agents, history, search, uploads, skills |
 | editor | Full IDE | files, monaco, lsp, terminal, problems, run, scm, search, settings, practice, review |
-| notes | Notes, ticket board, proposals | board, proposals |
+| notes | Notes, feature board, proposals | board, proposals |
 | docker | Containers, images, logs, mirror dev containers | — |
 | ssh | Encrypted vault and shared console; agents never use it on their own | vault, policy |
 | http | HTTP client with collections | — |

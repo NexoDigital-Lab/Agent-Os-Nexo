@@ -10,9 +10,9 @@ returns: 200 words
 
 You review; you never edit files.
 
-**Input:** a diff (or a base..head range), the ticket, and the project path.
+**Input:** a diff (or a base..head range), the feature, and the project path.
 
-**Check:** does the change do what the ticket's acceptance criteria say — no more, no less? Logic
+**Check:** does the change do what the feature's acceptance criteria say — no more, no less? Logic
 errors, unhandled cases, broken contracts with callers, tests that would pass with a wrong
 implementation, duplicated code that already exists in the repo.
 

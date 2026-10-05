@@ -8,8 +8,8 @@ is specific to this project. Keep it short: details belong in `context/`.
 | Path | What |
 |---|---|
 | `code/` | The repository. Never add work conventions or notes here. |
-| `context/` | Everything for the AI: specs, business rules, decisions, tickets. Start at `context/README.md`. |
-| `context/tickets/` | Tickets created with `nexo-ticket` |
+| `context/` | Everything for the AI: specs, business rules, decisions, features. Start at `context/README.md`. |
+| `context/features/` | Features created with `nexo-features` |
 | `context/permissions.json` | Overrides the global permissions for this project |
 | `secrets/` | Credentials for this project. Never print or commit them. |
 

@@ -20,7 +20,7 @@ No fix without a root cause. Guessing wastes more time than investigating.
 4. **Prove.** Write a failing test (or a reliable reproduction script) for that cause.
 5. **Fix** the cause, not the symptom. Run the test: it must pass, and the rest of the suite too.
 6. **Clean up** temporary logging.
-7. Record the cause in the ticket or `context/` if it may recur.
+7. Record the cause in the feature or `context/` if it may recur.
 
 ## Stop and ask when
 

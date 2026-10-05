@@ -4,7 +4,7 @@ Everything an AI needs to work on this project, kept outside `code/`. Not versio
 
 | Path | What |
 |---|---|
-| `tickets/` | One file per ticket (`nexo-ticket`) |
+| `features/` | One file per feature (`nexo-features`) |
 | `specs/` | Feature and technical specs |
 | `decisions/` | Decisions with their reasons |
 | `memory/` | Facts about this project the agent learned |

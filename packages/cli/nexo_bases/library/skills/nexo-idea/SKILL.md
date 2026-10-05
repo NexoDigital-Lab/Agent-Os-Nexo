@@ -7,7 +7,7 @@ version: 1.0.0
 
 # nexo-idea
 
-New ideas get **options**, not a decision. The user decides later; `nexo-ticket` turns the chosen
+New ideas get **options**, not a decision. The user decides later; `nexo-features` turns the chosen
 option into work.
 
 ## Steps
@@ -41,4 +41,4 @@ What · When to pick it · Cost · Risks · Leaves out
 ## Does not
 
 - Pick an option or start implementing.
-- Write tickets — that is `nexo-ticket`, after the user chooses.
+- Write features — that is `nexo-features`, after the user chooses.

@@ -1,0 +1,9 @@
+{
+  "name": "extensions",
+  "version": "1.0.0",
+  "description": "VS Code extensions per project, with recommendations by stack or by AI, and their agent-os editor equivalents",
+  "owner": "nexo",
+  "dependsOn": ["shell", "projects", "sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Extensions", "icon": "puzzle", "order": 60 }
+}

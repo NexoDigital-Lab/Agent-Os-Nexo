@@ -39,10 +39,11 @@ Factory content (default skills such as `nexo-dev`, hooks, commands, permission 
 | `nexo update` | Refresh factory items (`owner: nexo`) |
 | `nexo doctor` | Check structure and formats; recommends what to fix, never fixes on its own |
 | `nexo analyze` | Analyze the OS and toolchains; summary into the config, detail into `.state/` |
+| `nexo index` | Rebuild `library/index.json` |
 | `nexo clone <repo> [--ws <name>]` | Clone a repo into `projects/` with its context ready |
 | `nexo new <name> [--ws <name>]` | Same, for a new empty project |
 | `nexo connect <service>` | Add a connection (MCP) and regenerate each AI's config |
-| `nexo os versions` / `nexo os use <x.y.z>` | List / switch agent-os versions |
+| `nexo os [versions\|next\|use <x.y.z>]` | agent-os builds: list, next version number, switch |
 
 ## Repository layout
 

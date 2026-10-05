@@ -32,6 +32,11 @@ R9 en [module-rules.md](module-rules.md).
 - **Las lecturas se quedan en el proyecto.** Un hook PreToolUse (`confineHook`,
   `modules/sessions/server/claude.ts`) deja que el agente de una sesión lea solo dentro de sus carpetas de
   trabajo, no `~/.ssh`, secretos ni otros proyectos.
+- **agent-os mismo está fuera de alcance.** Un segundo hook PreToolUse (`modules/sessions/server/guard.ts`)
+  rechaza las llamadas a herramientas que llegan a la API de agent-os (sus puertos en loopback) o a sus datos
+  privados (`os/data`, `.state/os`, con las rutas resueltas desde la carpeta del agente). Como la guardia de
+  ssh, lee lo que dice la llamada: frena el camino directo, no una ofuscación decidida de un agente al que el
+  usuario dejó correr cualquier cosa.
 - **Los permisos** salen del entorno (`library/permissions.json`, que cada proyecto puede sobrescribir); las
   herramientas que se protegen solas (ssh) son las únicas permitidas automáticamente.
 - **El texto que recibe un agente** desde una consola o el índice de sesiones pasa por `redact`

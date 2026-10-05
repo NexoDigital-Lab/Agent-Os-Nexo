@@ -31,6 +31,10 @@ in [module-rules.md](module-rules.md).
 
 - **Reads stay in the project.** A PreToolUse hook (`confineHook`, `modules/sessions/server/claude.ts`)
   lets a session's agent read only inside its working folders, not `~/.ssh`, secrets or other projects.
+- **agent-os itself is off limits.** A second PreToolUse hook (`modules/sessions/server/guard.ts`) refuses
+  tool calls that reach agent-os's own API (its ports on loopback) or its private data (`os/data`,
+  `.state/os`, paths resolved against the agent's folder). Like the ssh guard it reads what a call says:
+  it stops the direct path, not a determined obfuscation by an agent the user allowed to run anything.
 - **Permissions** come from the environment (`library/permissions.json`, overridable per project);
   tools that gate themselves (ssh) are the only ones auto-allowed.
 - **Text an agent receives** from a console or the session index goes through `redact`

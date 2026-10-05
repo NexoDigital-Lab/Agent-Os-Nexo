@@ -8,6 +8,9 @@ import type { ModuleServer } from "../../../host/server/module-api.ts";
 import { addProjectHooks } from "../../projects/server/hooks.ts";
 import { projectDiff, projectDir, projectOfPath, projectPath, worktreePath } from "../../projects/server/projects.ts";
 import * as agent from "./agent.ts";
+import { parseSendBody } from "./sendBody.ts";
+import { contributeToSessions } from "./contributions.ts";
+import { osGuard } from "./guard.ts";
 import { listSkills, readPrefs, recommendSkills, writePrefs, initSkills } from "./skills.ts";
 import { sessionIndex, setSearchDb } from "./sessionsearch.ts";
 import { deleteUpload, IMAGE_TYPES, saveUpload, setUploadsDir, uploadPath } from "./uploads.ts";
@@ -37,6 +40,10 @@ const register: ModuleServer = (ctx) => {
   setSearchDb(join(ctx.stateDir, "search.db"));
   initSkills(ctx.env);
   agent.restoreTabs(agent.tabsFileName(ctx.dataDir));
+  // Every agent session: no reaching agent-os's own API or private data (guard.ts).
+  contributeToSessions({
+    hooks: { PreToolUse: [osGuard({ ports: [...new Set([ctx.port, 4780, 4781, 47470])], dirs: [ctx.env.data, ctx.env.state] })] },
+  });
 
   addProjectHooks({
     deleteFacts: (p) => {
@@ -69,8 +76,7 @@ const register: ModuleServer = (ctx) => {
   api.post("/tabs/:id/seen", h((req) => (agent.markSeen(String(req.params.id)), ok)));
   api.get("/tabs/:id/stream", h((req, res) => agent.subscribe(String(req.params.id), res)));
   api.post("/tabs/:id/send", h((req) => {
-    const { prompt, skills, images, mode, model, workMode } = req.body;
-    agent.send(String(req.params.id), { prompt: String(prompt), workMode, skills: skills ?? [], images: images ?? [], mode: mode ?? "default", model });
+    agent.send(String(req.params.id), parseSendBody(req.body));
     return ok;
   }));
   api.post("/tabs/:id/permission", h((req) => ({ ok: agent.answerPermission(String(req.params.id), String(req.body.permId), !!req.body.allow, !!req.body.always) })));

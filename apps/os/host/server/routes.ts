@@ -32,13 +32,15 @@ export interface ModuleRow {
   /** Running now (enabled, with all its dependencies, when the server started). */
   active: boolean;
   nav: { label: string; icon?: string; order?: number } | null;
+  /** Why it is not running although enabled: its server failed to load (or a dependency's did). */
+  error: string | null;
 }
 
 /** Free-form UI preferences (theme, language…), shared by every build. */
 export type Prefs = Record<string, unknown>;
 
-export function hostRoutes(opts: { env: Env; appDir: string; version: string; dev: boolean; discovery: Discovery; active: string[]; modulesFile: string }) {
-  const { env, version, dev, discovery, active, modulesFile } = opts;
+export function hostRoutes(opts: { env: Env; appDir: string; version: string; dev: boolean; discovery: Discovery; active: string[]; modulesFile: string; failed: ReadonlyMap<string, string> }) {
+  const { env, version, dev, discovery, active, modulesFile, failed } = opts;
   const prefsFile = join(env.data, "prefs.json");
   const r = express.Router();
 
@@ -70,6 +72,7 @@ export function hostRoutes(opts: { env: Env; appDir: string; version: string; de
       enabled: !disabled.has(m.id),
       active: active.includes(m.id),
       nav: m.manifest.nav ?? null,
+      error: failed.get(m.id) ?? null,
     }));
   }));
 

@@ -10,6 +10,7 @@ import { activeModules, discoverModules, readState } from "../../src/core/module
 import { loadEnv } from "./env.ts";
 import { guardRequest } from "./http.ts";
 import type { ModuleContext, ModuleServer } from "./module-api.ts";
+import { mountModules } from "./mount.ts";
 import { hostRoutes, readVersion } from "./routes.ts";
 
 const HOST = "127.0.0.1"; // localhost only: this server runs AI agents with the user's permissions
@@ -35,28 +36,21 @@ const api = express.Router();
 app.use("/api", api);
 const server = createServer(app);
 
-api.use(hostRoutes({ env, appDir, version, dev, discovery, active, modulesFile }));
+const failed = new Map<string, string>(); // id → why its server did not load
+api.use(hostRoutes({ env, appDir, version, dev, discovery, active, modulesFile, failed }));
 
-for (const id of active) {
-  const mod = discovery.modules.find((m) => m.id === id);
-  const entry = mod?.manifest.entry?.server;
-  if (!mod || !entry) continue;
-  const ctx: ModuleContext = {
-    id,
-    env,
-    api,
-    dataDir: join(env.data, id),
-    stateDir: join(env.state, id),
-    server,
-    port,
-    dev,
-    version,
-  };
-  mkdirSync(ctx.dataDir, { recursive: true });
-  mkdirSync(ctx.stateDir, { recursive: true });
-  const register = (await import(pathToFileURL(join(mod.dir, entry)).href)).default as ModuleServer;
-  await register(ctx);
-}
+await mountModules({
+  modules: discovery.modules,
+  active,
+  failed,
+  context: (mod): ModuleContext => {
+    const ctx = { id: mod.id, env, api, dataDir: join(env.data, mod.id), stateDir: join(env.state, mod.id), server, port, dev, version };
+    mkdirSync(ctx.dataDir, { recursive: true });
+    mkdirSync(ctx.stateDir, { recursive: true });
+    return ctx;
+  },
+  load: async (mod, entry) => (await import(pathToFileURL(join(mod.dir, entry)).href)).default as ModuleServer,
+});
 
 api.use((_req: Request, res: Response) => {
   res.status(404).json({ error: "Unknown API route" });

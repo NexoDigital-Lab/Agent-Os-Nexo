@@ -38,6 +38,7 @@ export function ModuleManager() {
               <td>
                 <b>{m.parent ? `↳ ${m.name}` : m.name}</b>
                 <div className="faint">{t(m.description)}</div>
+                {m.error && <div className="errline" role="alert">{t("Did not load: {error}", { error: m.error })}</div>}
               </td>
               <td className="num">{m.version}</td>
               <td className="faint mono">{m.dependsOn.join(", ") || "—"}</td>

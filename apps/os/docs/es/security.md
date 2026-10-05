@@ -72,6 +72,17 @@ El contrato completo está en `modules/ssh/CONTRACT.md`. En resumen:
 - La app de escritorio solo carga su puerto si `/api/os/info` responde con `X-Agent-OS: 1`, y sus permisos
   nativos (notificaciones, zoom) están limitados a `http://127.0.0.1:47470`.
 
+## Límites conocidos
+
+- **Cualquier programa local puede usar la API.** Los chequeos de origen frenan a otros sitios web, no a
+  programas de la máquina: un pedido sin header `Origin` (curl, un script) se acepta, porque así hablan con
+  el servidor el CLI y la app de escritorio. A los agentes los frena la guardia de arriba, que lee lo que
+  dice una llamada; un agente al que el usuario dejó correr cualquier programa igual podría llegar
+  disfrazando la llamada. El arreglo previsto es un token de API por ejecución que recibe el navegador y
+  que los agentes no pueden leer.
+- **El módulo http guarda sus entornos en texto plano** en `os/data/http/`. Los agentes no llegan a
+  `os/data`, pero otros programas que corren como el usuario pueden leerlo.
+
 ## Reportar un problema
 
 Reportá los problemas de seguridad en privado por *Security → Report a vulnerability* del repositorio en

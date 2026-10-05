@@ -69,6 +69,16 @@ The full contract is `modules/ssh/CONTRACT.md`. In short:
 - The desktop app only loads its port if `/api/os/info` answers with `X-Agent-OS: 1`, and its native
   permissions (notifications, zoom) are scoped to `http://127.0.0.1:47470`.
 
+## Known limits
+
+- **Any local program can use the API.** The origin checks stop other websites, not programs on the
+  machine: a request without an `Origin` header (curl, a script) is accepted, because that is how the CLI
+  and the desktop app talk to the server. Agents are kept away from it by the guard above, which reads
+  what a tool call says; an agent the user allowed to run arbitrary programs could still reach it by
+  disguising the call. A per-run API token the browser receives and agents can't read is the planned fix.
+- **The http module keeps its environments in clear text** in `os/data/http/`. Agents are kept away from
+  `os/data`, but other programs running as the user can read it.
+
 ## Reporting a problem
 
 Report security problems privately through the repository's GitHub *Security → Report a vulnerability*

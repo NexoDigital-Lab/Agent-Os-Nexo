@@ -10,6 +10,7 @@ import { ResponseView } from "./parts/ResponseView";
 import { CurlImport } from "./parts/CurlImport";
 import { EnvEditor } from "./parts/EnvEditor";
 import { t } from "@os/i18n";
+import { askText } from "@os/lib/dialog";
 
 const blankReq = (): HttpRequest => ({ id: uid(), name: t("New request"), method: "GET", url: "{{baseUrl}}/", headers: [], body: "" });
 
@@ -49,8 +50,8 @@ export function Http() {
   const patchColl = (id: string, fn: (c: Collection) => Collection) => update((s) => ({ ...s, collections: s.collections.map((c) => (c.id === id ? fn(c) : c)) }));
   const patchReq = (p: Partial<HttpRequest>) => sel && patchColl(sel.c, (c) => ({ ...c, requests: c.requests.map((r) => (r.id === sel.r ? { ...r, ...p } : r)) }));
 
-  function addCollection(c?: Collection) {
-    const col = c ?? { id: uid(), name: prompt(t("Collection name"), t("My API")) || "", requests: [] };
+  async function addCollection(c?: Collection) {
+    const col = c ?? { id: uid(), name: (await askText(t("Collection name"), t("My API"))) || "", requests: [] };
     if (!col.name) return;
     update((s) => ({ ...s, collections: [...s.collections, col] }));
     if (col.requests[0]) setSel({ c: col.id, r: col.requests[0].id });

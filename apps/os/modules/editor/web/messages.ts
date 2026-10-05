@@ -1,5 +1,7 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "Reload": "Recargar",
+  "Close anyway": "Cerrar igual",
   "Click to dismiss": "Clic para cerrar",
   "Copy path": "Copiar ruta",
   "Rename": "Renombrar",

@@ -46,7 +46,7 @@ itself; the environment that Nexo installs has its own template at
 
 ## agent-os modules
 
-Any change to a module follows `apps/os/docs/en/module-rules.md` (M1–M5 checked by
+Any change to a module follows `apps/os/docs/en/module-rules.md` (M1–M6 checked by
 `node apps/os/scripts/check-modules.ts`, R1–R12 in review). Reviewing a module or a contribution —
 yours, a contributor's, or when someone asks — follows `apps/os/docs/en/review.md`: machine checks first,
 then findings by rule, severity and file:line, each with its fix. A change to a module updates its entry

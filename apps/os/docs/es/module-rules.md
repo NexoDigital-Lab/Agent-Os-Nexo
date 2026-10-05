@@ -23,6 +23,12 @@ Gravedad, usada en todo informe de revisión:
 | **major** | Un bug o un hueco que va a doler | entrada sin validar, falta un estado de error, control inaccesible, lógica sin test |
 | **minor** | Calidad | nombres, comentarios, un token que se podía reusar, redacción de docs |
 
+### M6 — Nada de diálogos del navegador
+Nada de `alert()`, `prompt()` ni `confirm()` en el código web de un módulo. Bloquean la página, no se pueden
+estilizar ni traducir, y el webview de la app de escritorio puede no mostrarlos.
+**Arreglo:** `askText` / `askConfirm` de `@os/lib/dialog` (devuelven una promesa), o `ConfirmButton` /
+`ConfirmDelete` para una acción que necesita un segundo clic.
+
 ---
 
 ## Reglas M (las chequea la máquina)

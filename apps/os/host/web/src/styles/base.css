@@ -150,7 +150,7 @@ input.field:focus, textarea.field:focus, select.field:focus { border-color: var(
 .toggle.on::after { left: 17px; background: var(--accent-ink); }
 .home { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; }
 .home textarea.field { font: 13px/1.6 var(--mono); min-height: 260px; resize: vertical; }
-.modal-bg { position: fixed; inset: 0; background: #0009; display: grid; place-items: center; z-index: 10; backdrop-filter: blur(3px); }
+.modal-bg { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 10; backdrop-filter: blur(3px); }
 .modal { width: min(460px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line-2); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 .modal h3 { margin: 0; }
 .spin { width: 12px; height: 12px; border: 2px solid var(--line-2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }

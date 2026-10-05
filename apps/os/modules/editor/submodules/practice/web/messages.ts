@@ -1,5 +1,6 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "Save": "Guardar",
   "Approach": "Enfoque",
   "Almost": "Casi",
   "Another practice": "Otra práctica",

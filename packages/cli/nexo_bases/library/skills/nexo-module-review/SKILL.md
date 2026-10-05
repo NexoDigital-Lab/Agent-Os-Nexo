@@ -9,7 +9,7 @@ version: 1.0.0
 
 The rules live with the code: `docs/en/module-rules.md` (Spanish: `docs/es/module-rules.md`) in the
 agent-os source — `os/source/docs/` in an environment, `apps/os/docs/` in the Nexo repository. The full
-method is `docs/en/review.md`. Read both before the first review in a session; cite rules by ID (M1–M5,
+method is `docs/en/review.md`. Read both before the first review in a session; cite rules by ID (M1–M6,
 R1–R12).
 
 ## Steps

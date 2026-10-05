@@ -1,6 +1,7 @@
 // The app frame: rail on the left, the chosen view on the right, banners above it and notices below.
 import { useEffect, useState } from "react";
 import { t } from "@os/i18n";
+import { DialogHost } from "@os/lib/dialog";
 import { readStr, writeStr } from "@os/lib/storage";
 import { slot, views as allViews } from "@os/registry";
 import { onNavigate, onNotice } from "./nav";
@@ -35,6 +36,7 @@ export function App() {
         {active ? <active.component /> : <div className="empty">{t("No views are active. Turn modules on in Settings.")}</div>}
       </main>
       {overlays.map((o) => <o.component key={o.id} />)}
+      <DialogHost />
       {notice && (
         <div className="toast" role="status" onClick={() => setNotice("")}>
           {notice}

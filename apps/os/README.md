@@ -23,7 +23,7 @@ All of it is in [`docs/`](docs/README.md), in English and Spanish, and inside th
 ```bash
 npm install                       # once, at the repository root
 npm run dev -w apps/os            # this source with hot reload (needs NEXO_ROOT or an environment above)
-node scripts/check-modules.ts     # module rules M1–M5 (docs/en/module-rules.md)
+node scripts/check-modules.ts     # module rules M1–M6 (docs/en/module-rules.md)
 npm run docs                      # regenerate docs/README.md after changing a document
 npm run check                     # at the root: typecheck + every test (rules and docs included)
 ```

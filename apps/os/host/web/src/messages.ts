@@ -1,5 +1,7 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "OK": "OK",
+  "Cancel": "Cancelar",
   "Click again to confirm. It cancels itself in 4 seconds.": "Hacé clic de nuevo para confirmar. Se cancela sola en 4 segundos.",
   "Click again to confirm.": "Clic de nuevo para confirmar.",
   "Could not process the image": "No pude procesar la imagen",

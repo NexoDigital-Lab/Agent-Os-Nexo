@@ -13,6 +13,7 @@ import { NewTabModal } from "./tabs/NewTabModal";
 import { ProjectsSidebar } from "./tabs/ProjectsSidebar";
 import { closeTab, focusTab, openTab, refreshTabs, setActive, useTabs } from "./tabs/store";
 import { TabBar } from "./tabs/TabBar";
+import { askText } from "@os/lib/dialog";
 
 /** Resumes a past session in a tab (or jumps to the tab that already has it). */
 export async function resumeSession(h: HistoryItem): Promise<void> {
@@ -89,7 +90,7 @@ export function Workspace() {
           active={tab?.id ?? null}
           onSelect={setActive}
           onRename={async (x) => {
-            const title = window.prompt(t("Tab name"), x.title);
+            const title = await askText(t("Tab name"), x.title);
             if (title) await sessionsApi.renameTab(x.id, title).then(refreshTabs);
           }}
           onClose={(id) => void closeTab(id)}

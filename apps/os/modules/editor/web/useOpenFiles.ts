@@ -8,6 +8,7 @@ import { isUnder, remapPath } from "./fileTree";
 import type { OpenFile } from "./EditorArea";
 import type { LspClient } from "../submodules/lsp/web/lsp";
 import { t } from "@os/i18n";
+import { askConfirm } from "@os/lib/dialog";
 
 
 
@@ -47,9 +48,9 @@ export function useOpenFiles({ tab, editorRef, lspClient, autosave, onSaved, onD
     if (active && match(active)) setActive(rest[rest.length - 1]?.path ?? null);
   }
 
-  function close(path: string) {
+  async function close(path: string) {
     const f = open.find((o) => o.path === path);
-    if (f && f.content !== f.saved && !confirm(t("{file} has unsaved changes. Close it anyway?", { file: path }))) return;
+    if (f && f.content !== f.saved && !(await askConfirm(t("{file} has unsaved changes. Close it anyway?", { file: path }), t("Close anyway"), true))) return;
     drop((p) => p === path);
   }
 
@@ -95,7 +96,7 @@ export function useOpenFiles({ tab, editorRef, lspClient, autosave, onSaved, onD
   async function reloadFromDisk(paths: string[]) {
     for (const p of paths) {
       const o = open.find((x) => x.path === p);
-      if (!o || (o.content !== o.saved && !confirm(t("{file} had unsaved changes; the replacement is already on disk. Reload it from disk?", { file: p })))) continue;
+      if (!o || (o.content !== o.saved && !(await askConfirm(t("{file} had unsaved changes; the replacement is already on disk. Reload it from disk?", { file: p }), t("Reload"))))) continue;
       const r = await api.readFile(tab.id, p);
       modelOf(p)?.setValue(r.content);
       setOpen((prev) => prev.map((x) => (x.path === p ? { ...x, content: r.content, saved: r.content } : x)));

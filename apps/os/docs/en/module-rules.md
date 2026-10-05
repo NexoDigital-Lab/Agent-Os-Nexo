@@ -63,6 +63,12 @@ All dictionaries share one namespace. If two modules translate the same key diff
 wrong on screen. **Fix:** give the less general use a context: `t("All::containers")` shows "All" in
 English and looks up `"All::containers"` in Spanish. Contexts are a trailing `::lowercase-word`.
 
+### M6 — No browser dialogs
+No `alert()`, `prompt()` or `confirm()` in a module's web code. They block the page, can't be styled or
+translated, and the desktop app's webview may not show them.
+**Fix:** `askText` / `askConfirm` from `@os/lib/dialog` (a promise), or `ConfirmButton` / `ConfirmDelete`
+for an action that needs a second click.
+
 ---
 
 ## R rules (checked in review)

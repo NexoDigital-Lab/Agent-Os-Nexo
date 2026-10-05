@@ -130,6 +130,15 @@ export function checkModules(appDir: string, only?: string): Finding[] {
       }
     }
 
+    // M6 — no browser dialogs: they block the page, can't be translated or styled, and the desktop webview may not
+    // show them. Use @os/lib/dialog (askText, askConfirm) or ConfirmButton / ConfirmDelete.
+    for (const file of filesOf(join(mod.dir, "web"), CODE)) {
+      const text = readFileSync(file, "utf8");
+      for (const hit of text.matchAll(/(?<![\w.])(?:window\.)?(alert|prompt|confirm)\(/g)) {
+        add("M6", file, `${hit[1]}() — use @os/lib/dialog or ConfirmButton instead`, lineOf(text, hit.index!));
+      }
+    }
+
     // M4 — UI text is translated: every literal t("…") has Spanish in a dictionary the module can see
     const webCode = code.filter((f) => f.includes(`${sep}web${sep}`));
     if (webCode.length) {

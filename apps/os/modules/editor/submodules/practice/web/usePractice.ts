@@ -5,6 +5,7 @@ import { editorApi as api, type Plan, type Review, type Step, type Tab } from ".
 import { useStepZones } from "./useStepZones";
 import type { monaco } from "../../../web/monaco";
 import { t } from "@os/i18n";
+import { askConfirm } from "@os/lib/dialog";
 
 export function usePractice({ tab, editorRef, active, openFile, saveDirty, dirtyCount, onPlanned, onError }: {
   tab: Tab;
@@ -55,7 +56,7 @@ export function usePractice({ tab, editorRef, active, openFile, saveDirty, dirty
   }
 
   async function validate() {
-    if (dirtyCount && confirm(t("{n} file(s) are unsaved. Save them before checking?", { n: dirtyCount }))) await saveDirty();
+    if (dirtyCount && (await askConfirm(t("{n} file(s) are unsaved. Save them before checking?", { n: dirtyCount }), t("Save")))) await saveDirty();
     setBusy("validate");
     try {
       setReview(await api.practiceValidate(tab.id));

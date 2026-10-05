@@ -6,6 +6,7 @@ import type { Collection, HttpRequest, HttpStore } from "../api";
 import { toggled } from "@os/lib/ui";
 import { t } from "@os/i18n";
 import { ConfirmButton } from "@os/lib/ConfirmButton";
+import { askText } from "@os/lib/dialog";
 
 function download(name: string, data: unknown) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
@@ -57,7 +58,7 @@ export function CollectionsSidebar({ store, update, patchColl, sel, setSel, addR
               <span className="row-actions" onClick={(e) => e.stopPropagation()}>
                 <button title={t("New request")} aria-label={t("New request")} onClick={() => (setClosed((x) => { const n = new Set(x); n.delete(c.id); return n; }), addRequest(blankReq(), c.id))}><Plus size={14} /></button>
                 <button title={t("Export (Postman v2.1; Thunder Client imports it)")} aria-label={t("Export")} onClick={() => download(`${c.name}.postman_collection.json`, toPostman(c))}><Upload size={14} /></button>
-                <button title={t("Rename")} aria-label={t("Rename")} onClick={() => { const n = prompt(t("Name"), c.name); if (n) patchColl(c.id, (x) => ({ ...x, name: n })); }}><Pencil size={14} /></button>
+                <button title={t("Rename")} aria-label={t("Rename")} onClick={async () => { const n = await askText(t("Name"), c.name); if (n) patchColl(c.id, (x) => ({ ...x, name: n })); }}><Pencil size={14} /></button>
                 <ConfirmButton className="" title={t("Delete collection")} confirmText={t("Delete the collection \"{name}\" and its {n} requests?", { name: c.name, n: c.requests.length })} onConfirm={() => {
                   update((s) => ({ ...s, collections: s.collections.filter((x) => x.id !== c.id) }));
                   if (sel?.c === c.id) setSel(null);

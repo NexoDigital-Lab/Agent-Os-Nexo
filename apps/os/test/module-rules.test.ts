@@ -36,6 +36,7 @@ test("the checker catches every rule on a module that breaks them all", () => {
   write("modules/bad/module.json", JSON.stringify({ name: "bad", version: "1.0.0", description: "x", dependsOn: ["base"], entry: { server: "server/index.ts", web: "web/index.tsx" } }));
   write("modules/bad/web/index.tsx", 'import { thing } from "../../other/web/thing";\nimport { t } from "@os/i18n";\nexport const label = t("Save") + t("Never translated") + thing;\nexport default {};\n');
   write("modules/bad/web/bad.css", ".x { color: #ff0000; background: var(--bg); }\n");
+  write("modules/bad/web/ask.ts", 'export const sure = () => window.confirm("Sure?");\n');
   write("modules/bad/web/messages.ts", 'export const es: Record<string, string> = {\n  "Open": "Abrí",\n};\n');
 
   const findings = checkModules(fixture);
@@ -47,6 +48,7 @@ test("the checker catches every rule on a module that breaks them all", () => {
   hit("M4", /t\("Never translated"\) has no Spanish/);
   hit("M4", /does not register messages/);
   hit("M5", /"Open" is "(Abrí|Abrir)" here/);
+  hit("M6", /confirm\(\) — use @os\/lib\/dialog/);
   assert.ok(!findings.some((f) => /t\("Save"\)/.test(f.message)), "host translations count for every module");
   assert.ok(!findings.some((f) => f.module === "base" && f.rule !== "M5"), "a clean module has no findings");
 });

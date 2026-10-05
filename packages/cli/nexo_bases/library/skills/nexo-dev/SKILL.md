@@ -2,7 +2,7 @@
 name: nexo-dev
 description: Build a feature or fix a bug end to end, with a plan gate, verification and a local commit. Use when the user says "nexo-dev <feature>", "build this", "fix this bug", or points at a file in context/features/.
 owner: nexo
-version: 1.1.0
+version: 1.2.0
 ---
 
 # nexo-dev
@@ -32,7 +32,7 @@ In every mode you may handle environment work (dependencies, containers, config)
 ## 1. Context
 
 Read the project `AGENTS.md`, `context/README.md`, the feature, and only the conventions the task
-needs (`library/index.json` first). Find code through `context/map/` (`nexo map` when missing or
+needs (`library/index.json` first). Start from `context/map/README.md` and its detail files (`nexo map` when missing or
 stale) instead of exploring cold; how to run and build the project is `context/infra.md` (`nexo-infra`).
 Check `blueprints/index.json` for a matching blueprint.
 

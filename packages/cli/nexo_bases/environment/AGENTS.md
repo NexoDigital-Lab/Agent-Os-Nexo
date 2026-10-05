@@ -46,6 +46,9 @@ commit, read `library/conventions/git/` — not every convention.
 8. **Commits** follow `library/conventions/git/` and use the identity in `library/profile.json`. Do
    not push or open PRs unless permissions allow it.
 9. **Subagents** never exceed the model ceiling in `library/profile.json`.
+10. **Read a project's index before exploring it**: `projects/<name>/context/map/README.md` (parts, stack,
+   entry points, services, API, how the parts talk), then only the detail file the task needs. Missing or
+   stale (`nexo map --check`) → `nexo map <name>`; never re-explore what the index already says.
 
 ## What you maintain on your own
 

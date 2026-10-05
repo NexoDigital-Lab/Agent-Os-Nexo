@@ -2,7 +2,7 @@
 name: nexo-onboard
 description: Fill a project's AGENTS.md and context/ after `nexo clone` or `nexo new` — stack, how to run and validate, rules, a map of the code. Use when a project's AGENTS.md still has empty sections or the user says "onboard <project>".
 owner: nexo
-version: 1.1.0
+version: 1.2.0
 ---
 
 # nexo-onboard
@@ -19,8 +19,9 @@ Makes a freshly cloned project workable without re-exploring it every session.
    confirm they work; ask before anything slow or with side effects.
 4. Fill `AGENTS.md` sections **Stack** and **How to run and validate** with exact commands.
    Ask the user for **Project rules** (production limits, branches, clients).
-5. Run `nexo map` (the code map in `context/map/`) and write `context/overview.md`: top-level folders
-   and the main entry points, one line each.
+5. Make sure the index is current (`nexo map --check`, else `nexo map`; `nexo clone` already ran it) and use
+   `context/map/README.md` for the Stack section; add to `AGENTS.md` only what the index can't know (why
+   things are the way they are, rules, gotchas).
 6. Report what you filled and what still needs the user.
 
 ## Does not

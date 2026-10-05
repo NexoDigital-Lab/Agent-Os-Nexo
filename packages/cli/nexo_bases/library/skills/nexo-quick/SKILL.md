@@ -2,7 +2,7 @@
 name: nexo-quick
 description: The light lane for a small, clear change — at most 3 files, no risk signal, no new module or public API. One focused change, verified, without plans or review panels. Use for "quick fix", copy tweaks, a small bug, adding a field, wiring an existing pattern into one more place.
 owner: nexo
-version: 1.0.0
+version: 1.1.0
 ---
 
 # nexo-quick
@@ -28,7 +28,8 @@ user choose.
 ## Steps
 
 1. Branch per `library/conventions/git/` unless it's a one-liner or the user works on main.
-2. Find the code through the project's `context/map/` (`nexo map` if missing or stale), then read only the
+2. Find the code through the project's index, `context/map/README.md` and its `routes.md`/`symbols/`
+   (`nexo map` if missing or stale), then read only the
    files you will change.
 3. Make the change in the surrounding style. Nothing beyond what was asked.
 4. Verify: the project's checks from its `AGENTS.md` for the touched code, run now, output read. Something

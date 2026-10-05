@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { findRoot } from "../core/paths.ts";
 import { enabledTools, folder, readConfig, type EnvironmentConfig } from "../core/config.ts";
@@ -109,6 +109,11 @@ export function diagnose(root: string, quick = false): Finding[] {
     const rel = dir.slice(root.length + 1);
     if (!dir.endsWith("-ws") && !isDir(join(dir, "code"))) {
       findings.push({ level: "warn", area: rel, message: "no code/ folder" });
+    }
+    // The code index agents read first (context/map/): missing on projects added before it existed or by hand.
+    const code = join(dir, "code");
+    if (isDir(code) && readdirSync(code).some((f) => f !== ".git") && !existsSync(join(dir, "context", "map", "README.md"))) {
+      findings.push({ level: "warn", area: rel, message: `no code index: run \`nexo map ${dir.slice(folder(root, config, "projects").length + 1) || rel}\`` });
     }
     for (const problem of validatePermissions(loadPermissions(join(dir, "context", "permissions.json")))) {
       findings.push({ level: "error", area: `${rel}/context/permissions.json`, message: problem });

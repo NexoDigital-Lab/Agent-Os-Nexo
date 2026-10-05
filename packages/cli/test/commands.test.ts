@@ -470,28 +470,52 @@ test("update stops on a real conflict; --continue needs it resolved, --abort und
   assert.match(gitOut(source, "log", "-1", "--format=%s"), /Update to agent-os 1\.1\.0/);
 });
 
-test("nexo map writes the code map by part and knows when it is stale", async () => {
+test("nexo map indexes a project: overview, parts, routes, how they talk, symbols; and knows when it is stale", async () => {
   const root = await freshEnv("claude");
   const { map } = await import("../src/commands/map.ts");
   create("shop", { root });
   const code = join(root, "projects", "shop", "code");
-  mkdirSync(join(code, "apps", "web", "src"), { recursive: true });
-  mkdirSync(join(code, "apps", "api", "src"), { recursive: true });
-  mkdirSync(join(code, "node_modules", "dep"), { recursive: true });
-  writeFileSync(join(code, "package.json"), JSON.stringify({ workspaces: ["apps/*"] }));
-  writeFileSync(join(code, "apps/web/src/App.tsx"), "export function App() {}\n");
-  writeFileSync(join(code, "apps/api/src/server.ts"), "export class Server {}\nexport const port = 1;\n");
-  writeFileSync(join(code, "node_modules/dep/index.js"), "function hidden() {}\n");
+  const put = (rel: string, text: string) => (mkdirSync(join(code, rel, ".."), { recursive: true }), writeFileSync(join(code, rel), text));
+  put("package.json", JSON.stringify({ workspaces: ["apps/*"] }));
+  put("apps/api/package.json", JSON.stringify({ name: "@shop/api", dependencies: { express: "^5" }, scripts: { dev: "node src/server.ts" } }));
+  put("apps/api/src/server.ts", 'export class Server {}\nexport const port = Number(process.env.PORT);\napp.get("/api/users/:id", h);\nrouter.post("/api/orders", h);\n');
+  put("apps/web/package.json", JSON.stringify({ name: "@shop/web", dependencies: { react: "^19", vite: "^8" } }));
+  put("apps/web/src/App.tsx", 'import { money } from "@shop/api/money";\nexport function App() {}\nfetch(`${BASE}/api/users/${id}`);\naxios.post("/api/orders", body);\n');
+  put("apps/web/src/App.test.tsx", 'fetch("/api/orders");\n');
+  put("docker-compose.yml", "services:\n  db:\n    image: postgres:16\n    ports:\n      - 5432:5432\n  api:\n    build: .\n    depends_on:\n      - db\n    environment:\n      - DATABASE_URL=x\n");
+  put("node_modules/dep/index.js", "function hidden() {}\n");
   const out = map("shop", { root });
-  assert.match(out, /context\/map\/apps-api\.txt: 1 files, 2 symbols/);
-  assert.match(out, /context\/map\/apps-web\.txt: 1 files, 1 symbols/);
-  const api = readFileSync(join(root, "projects/shop/context/map/apps-api.txt"), "utf8");
-  assert.match(api, /apps\/api\/src\/server\.ts\n\s+1 class Server\n\s+2 const port/);
-  assert.doesNotMatch(readdirSync(join(root, "projects/shop/context/map")).join(), /node_modules|dep/);
+  assert.match(out, /Indexed shop in context\/map\/: \d+ files, 2 part\(s\), 3 symbols in 2 file\(s\), 2 routes, 2 HTTP calls\./);
+  const dir = join(root, "projects/shop/context/map");
+  const readme = readFileSync(join(dir, "README.md"), "utf8");
+  assert.match(readme, /### apps-api — `apps\/api\/`\n- package: `@shop\/api` \(package\.json\)\n- stack: Express/);
+  assert.match(readme, /stack: React, Vite/);
+  assert.match(readme, /reads env: PORT/);
+  assert.match(readme, /\*\*apps-web\*\* imports \*\*apps-api\*\*/);
+  assert.match(readme, /\*\*apps-web\*\* calls \*\*apps-api\*\* over HTTP: 2 call site\(s\)/, "the test file's call is not counted");
+  assert.match(readme, /\*\*db\*\* \(docker-compose\.yml\) image `postgres:16` · ports 5432:5432/);
+  assert.match(readme, /service \*\*api\*\* depends on \*\*db\*\*/);
+  assert.match(readFileSync(join(dir, "routes.md"), "utf8"), /`GET \/api\/users\/:id` — apps\/api\/src\/server\.ts:3/);
+  assert.match(readFileSync(join(dir, "symbols/apps-api.txt"), "utf8"), /apps\/api\/src\/server\.ts\n\s+1 class Server\n\s+2 const port/);
+  assert.doesNotMatch(readFileSync(join(dir, "files.md"), "utf8"), /node_modules/);
   assert.equal(map("shop", { root, check: true }), "The code map is current.");
   const later = new Date(Date.now() + 5000);
-  writeFileSync(join(code, "apps/web/src/New.tsx"), "export function New() {}\n");
+  put("apps/web/src/New.tsx", "export function New() {}\n");
   (await import("node:fs")).utimesSync(join(code, "apps/web/src/New.tsx"), later, later);
   assert.match(map("shop", { root, check: true }), /older than the code/);
   assert.throws(() => map("nope", { root }), /Unknown project/);
+});
+
+test("nexo clone indexes the project right away, and doctor flags a project without an index", async () => {
+  const root = await freshEnv("claude");
+  const origin = join(tempDir(), "app");
+  mkdirSync(origin);
+  execFileSync("git", ["init", "-q", origin]);
+  writeFileSync(join(origin, "main.py"), "def main():\n    pass\n");
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-C", origin, "add", "-A"]);
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-C", origin, "commit", "-qm", "init"]);
+  assert.match(clone(origin, { root, name: "pyapp" }), /Indexed pyapp in context\/map\//);
+  assert.match(readFileSync(join(root, "projects/pyapp/context/map/symbols/code.txt"), "utf8"), /function main/);
+  rmSync(join(root, "projects/pyapp/context/map"), { recursive: true });
+  assert.ok(diagnose(root).some((f) => f.area === "projects/pyapp" && /no code index: run `nexo map pyapp`/.test(f.message)));
 });

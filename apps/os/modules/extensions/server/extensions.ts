@@ -9,6 +9,7 @@ import { httpError, readJson, run, writeJson } from "../../../host/server/http.t
 import { projectDir, projectIds, projectPath } from "../../projects/server/projects.ts";
 import { detectStacks, type Stack } from "../../projects/server/stacks.ts";
 import { installed } from "../../projects/server/vscode.ts";
+import { confineHook } from "../../sessions/server/claude.ts";
 import { userLanguage } from "../../sessions/server/skills.ts";
 import { byId, CATALOG, isEditorOnly, VSCODE_ID, type EditorPlugin } from "./catalog.ts";
 
@@ -213,6 +214,7 @@ Rules:
     prompt,
     options: {
       cwd: repo,
+      hooks: { PreToolUse: [confineHook(repo)] }, // reads stay in the repository
       model: "haiku",
       tools: ["Read", "Glob", "Grep"],
       allowedTools: ["Read", "Glob", "Grep"],

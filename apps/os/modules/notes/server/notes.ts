@@ -6,6 +6,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { httpError, readJson, writeJson } from "../../../host/server/http.ts";
 import { listFeatures, writeFeature, type Feature } from "../../projects/server/features.ts";
 import { projectDir, projectPath } from "../../projects/server/projects.ts";
+import { confineHook } from "../../sessions/server/claude.ts";
 import { userLanguage } from "../../sessions/server/skills.ts";
 
 let NOTES = "";
@@ -170,10 +171,15 @@ Rules:
   let cost = 0;
   let error = "";
   const tools = dir ? ["Read", "Glob", "Grep"] : [];
+  // Reads stay in the project's code/ and context/: never its secrets/, other projects or the home folder.
+  const readable = dir ? [repo, path.join(dir, "context"), path.join(dir, "AGENTS.md")].filter((p): p is string => !!p) : [];
+  const cwd = repo ?? (dir ? path.join(dir, "context") : path.dirname(NOTES));
   for await (const msg of query({
     prompt,
     options: {
-      cwd: dir ?? path.dirname(NOTES),
+      cwd,
+      additionalDirectories: readable.filter((p) => p !== cwd),
+      hooks: { PreToolUse: [confineHook(cwd, readable)] },
       model: "sonnet",
       tools,
       allowedTools: tools,

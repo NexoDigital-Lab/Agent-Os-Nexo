@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { httpError, readJson, run, writeJson } from "../../../../../host/server/http.ts";
-import { MODEL, READ_ONLY, structured } from "../../../../sessions/server/claude.ts";
+import { confineHook, MODEL, READ_ONLY, structured } from "../../../../sessions/server/claude.ts";
 import { userLanguage } from "../../../../sessions/server/skills.ts";
 import { readText } from "../../../server/files.ts";
 
@@ -168,7 +168,7 @@ Current content of the file:
 \`\`\`
 ${current.slice(0, 20000)}
 \`\`\``,
-    options: { cwd, model: MODEL, tools: READ_ONLY, allowedTools: READ_ONLY, settingSources: [], persistSession: false, maxTurns: 8 },
+    options: { cwd, model: MODEL, tools: READ_ONLY, allowedTools: READ_ONLY, settingSources: [], persistSession: false, maxTurns: 8, hooks: { PreToolUse: [confineHook(cwd)] } },
   })) {
     if (msg.type === "result") {
       cost = msg.total_cost_usd;

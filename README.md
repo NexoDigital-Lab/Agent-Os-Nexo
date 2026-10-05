@@ -1,18 +1,15 @@
 # Agent-Os-Nexo
+# Agent-Os-Nexo
 
-Nexo is an open-source **Agent Development Environment (ADE)**: an npm package that installs a
-local, structured environment where AI coding agents (Claude Code, Codex, Gemini CLI, OpenCode…)
-work on your projects with shared conventions, permissions, memory and tools — plus **agent-os**,
-a local app to drive it all.
+Agent-Os-Nexo is a source-available Agent Development Environment (ADE) to build, run, and manage AI agents. Design agents, connect tools and models, orchestrate workflows, and supervise runs from one local environment. Free to use, study, and modify for noncommercial purposes under the PolyForm Noncommercial License 1.0.0. Contributions welcome. See LICENSE for terms.
 
-Free to use, study, modify and redistribute under the GNU GPLv3. Contributions welcome.
+Nexo is an Agent Development Environment (ADE): an npm package that installs a local, structured environment where AI coding agents (Claude Code, Codex, Gemini CLI, OpenCode…) work on your projects with shared conventions, permissions, memory and tools — plus agent-os, a local app to drive it all.
 
-> Status: early development (`0.x`). The environment and the CLI come first; agent-os modules
-> are being migrated next.
+> Status: early development (`0.x`). The environment and the CLI come first; agent-os modules are being migrated next.
 
 ## What gets installed
 
-`npx @nexodigital-lab/nexo init` creates one **environment** (default `~/environments`):
+`npx @nexodigital-lab/nexo init` creates one environment (default `~/environments`):
 
 ```
 environments/
@@ -27,9 +24,7 @@ environments/
 └── .state/                   generated: logs, indexes, cache (safe to delete)
 ```
 
-Factory content (default skills such as `nexo-dev`, hooks, commands, permission presets) ships in
-[`packages/cli/nexo_bases/`](packages/cli/nexo_bases) and is placed into `library/` on install.
-`nexo update` only replaces items marked `owner: nexo`; anything you mark `owner: user` is yours.
+Factory content (default skills such as `nexo-dev`, hooks, commands, permission presets) ships in [`packages/cli/nexo_bases/`](packages/cli/nexo_bases) and is placed into `library/` on install. `nexo update` only replaces items marked `owner: nexo`; anything you mark `owner: user` is yours.
 
 ## CLI
 
@@ -62,5 +57,4 @@ npm install
 npm run check      # typecheck + tests
 ```
 
-See [AGENTS.md](AGENTS.md) for contributor and agent rules, and
-[docs/architecture.md](docs/architecture.md) for the design.
+See [AGENTS.md](AGENTS.md) for contributor and agent rules, and [docs/architecture.md](docs/architecture.md) for the design.

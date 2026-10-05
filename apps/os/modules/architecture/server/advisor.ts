@@ -68,7 +68,11 @@ const GOAL = {
 
 /** The UI language the answer must be written in. */
 export type AnswerLanguage = "en" | "es";
-const LANG: Record<AnswerLanguage, string> = { en: "English", es: "Spanish (Rioplatense, with voseo)" };
+// A register, not just a language: asked only for "Rioplatense", the model reached for slang ("Boludo, …").
+const LANG: Record<AnswerLanguage, string> = {
+  en: "English, in a professional, friendly tone",
+  es: "Spanish with Rioplatense voseo (vos, tenés, fijate), in a professional, friendly tone: no slang, no insults, not even affectionate ones",
+};
 export const answerLanguage = (v: unknown): AnswerLanguage => (v === "es" ? "es" : "en");
 
 export async function advise(project: string, mode: "start" | "analyze", focus?: string, lang: AnswerLanguage = "en"): Promise<ArchAdvice> {

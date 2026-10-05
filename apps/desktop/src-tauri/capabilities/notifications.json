@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "notifications",
+  "description": "Lets the agent-os page (served by its own local server) show native notifications when a tab finishes or needs the user.",
+  "windows": ["main"],
+  "remote": { "urls": ["http://127.0.0.1:47470/*"] },
+  "permissions": ["notification:allow-is-permission-granted", "notification:allow-request-permission", "notification:allow-notify"]
+}

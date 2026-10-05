@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>agent-os</title>
+  <style>
+    /* The Nexo palette (modules/themes): the window shows this until agent-os answers. */
+    :root { color-scheme: dark; }
+    body { margin: 0; height: 100vh; display: grid; place-items: center; background: #0a0a0f; color: #babac2;
+           font: 14px system-ui, sans-serif; }
+    .box { text-align: center; }
+    .brand { font: 600 22px system-ui, sans-serif; letter-spacing: .02em; background: linear-gradient(135deg, #00f5ff, #a855f7, #ff2d78);
+             -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .dot { display: inline-block; width: 8px; height: 8px; margin: 0 3px; border-radius: 50%; background: #a855f7;
+           animation: pulse 1.2s infinite ease-in-out; }
+    .dot:nth-child(2) { animation-delay: .2s; } .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes pulse { 0%, 80%, 100% { opacity: .2; } 40% { opacity: 1; } }
+    #err { color: #ff2d78; white-space: pre-wrap; max-width: 560px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <p class="brand">agent-os</p>
+    <p id="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></p>
+    <p>Starting agent-os…</p>
+    <p id="err"></p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+[package]
+name = "agent-os-desktop"
+version = "0.1.0"
+description = "agent-os desktop shell"
+license-file = "../../../LICENSE"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde_json = "1"
+tauri-plugin-notification = "2"
+
+# Process groups and signals: stop the server and everything it started when the window closes.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+signal-hook = "0.3"
+
+# The GTK webview behind Tauri, to re-size it after a zoom change (see set_page_zoom in main.rs).
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0.2"
+gtk = "0.18"
+
+[profile.release]
+strip = true
+lto = true

@@ -1,0 +1,16 @@
+{
+  "name": "@nexodigital-lab/agent-os-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "agent-os as a desktop window: a Tauri shell that runs the environment's active agent-os build.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:binary": "tauri build --no-bundle"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1"
+  }
+}

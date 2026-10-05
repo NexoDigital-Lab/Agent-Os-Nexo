@@ -1,0 +1,9 @@
+{
+  "name": "http",
+  "version": "1.0.0",
+  "description": "HTTP client with collections, environments and curl/Postman import",
+  "owner": "nexo",
+  "dependsOn": ["shell"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "HTTP client", "icon": "arrow-left-right", "order": 50 }
+}

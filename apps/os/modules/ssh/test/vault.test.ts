@@ -55,8 +55,11 @@ test("every save uses a fresh IV, and the file and folder are private", async ()
   ivs.add(read().iv);
   assert.equal(ivs.size, 3);
   assert.equal(read().N, 2 ** 17);
-  assert.equal(statSync(path.join(dir, "vault.json")).mode & 0o777, 0o600);
-  assert.equal(statSync(dir).mode & 0o777, 0o700);
+  if (process.platform !== "win32") {
+    // Windows does not enforce Unix file modes
+    assert.equal(statSync(path.join(dir, "vault.json")).mode & 0o777, 0o600);
+    assert.equal(statSync(dir).mode & 0o777, 0o700);
+  }
   rmSync(dir, { recursive: true });
 });
 

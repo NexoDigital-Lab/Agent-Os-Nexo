@@ -66,9 +66,10 @@ test("templates and names", () => {
 
 test("every published package carries the repository's LICENSE, unchanged", () => {
   const repo = join(import.meta.dirname, "..", "..", "..");
-  const license = readFileSync(join(repo, "LICENSE"), "utf8");
+  const license = readFileSync(join(repo, "LICENSE"), "utf8").replace(/\r\n/g, "\n");
   for (const pkg of ["packages/cli", "apps/os", "apps/desktop"]) {
-    assert.equal(readFileSync(join(repo, pkg, "LICENSE"), "utf8"), license, `${pkg}/LICENSE differs: copy the root LICENSE again`);
+    const pkgLicense = readFileSync(join(repo, pkg, "LICENSE"), "utf8").replace(/\r\n/g, "\n");
+    assert.equal(pkgLicense, license, `${pkg}/LICENSE differs: copy the root LICENSE again`);
   }
 });
 

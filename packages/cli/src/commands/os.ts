@@ -21,6 +21,9 @@ export interface OsOptions {
   abort?: boolean;
 }
 
+/** The repository this CLI runs from (packages/cli/{src,dist}/commands → four up), where a desktop build may live. */
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
+
 const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], open [--preview], check [--module <id>], update [--from <dir>|--continue|--abort].";
 
 export async function os(action: string | undefined, arg: string | undefined, opts: OsOptions, run: Runner = defaultRunner): Promise<string> {
@@ -72,9 +75,9 @@ export async function os(action: string | undefined, arg: string | undefined, op
       const fetched = hasSource && !opts.from ? "resumed with the source already in os/source" : fetchSource(osDir, opts.from, run);
       const version = buildVersion(osDir, "First build", run);
       const lines = [`agent-os installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."];
-      // Windows: a desktop shortcut to the Tauri shell, so the app opens like any other program.
-      const cliDir = dirname(fileURLToPath(import.meta.url));
-      if (createDesktopShortcut(cliDir)) lines.push("Desktop shortcut created: agent-os.");
+      // Windows: a desktop shortcut to the desktop shell, so the app opens like any other program.
+      const shortcut = createDesktopShortcut(REPO_ROOT);
+      if (shortcut) lines.push(`Desktop shortcut created: ${shortcut}`);
       return lines.join("\n");
     }
     case "build": {

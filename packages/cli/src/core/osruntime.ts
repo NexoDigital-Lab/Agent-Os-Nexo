@@ -7,7 +7,7 @@ import { closeSync, cpSync, existsSync, lstatSync, mkdtempSync, openSync, readdi
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { ensureDir, readJson, readText, writeJson, writeText } from "./fsx.ts";
-import { tryRun } from "./exec.ts";
+import { tryRun, resolveCmd, needsShell } from "./exec.ts";
 import { activeVersion, listVersions, nextVersion } from "./osversions.ts";
 import { commitChanges, initSourceRepo, tagBuild } from "./osupdate.ts";
 
@@ -19,7 +19,7 @@ export type OsProcess = keyof typeof PORTS;
 export type Runner = (cmd: string, args: string[], cwd: string) => void;
 
 export const defaultRunner: Runner = (cmd, args, cwd) => {
-  const r = spawnSync(cmd, args, { cwd, stdio: "inherit" });
+  const r = spawnSync(resolveCmd(cmd), args, { cwd, stdio: "inherit", shell: needsShell(cmd) });
   if (r.error) throw new Error(`${cmd} could not start: ${r.error.message}`);
   if (r.status !== 0) throw new Error(`\`${cmd} ${args.join(" ")}\` failed (exit ${r.status}) in ${cwd}`);
 };

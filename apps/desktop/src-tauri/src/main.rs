@@ -165,6 +165,12 @@ fn spawn_server(root: &Path, build: &Path, log_path: &Path, port: u16) -> Result
             });
         }
     }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // 0x08000000 = CREATE_NO_WINDOW: the server runs headless, no console window pops up.
+        cmd.creation_flags(0x08000000);
+    }
     cmd.spawn().map_err(|e| format!("Could not start the agent-os server: {e}"))
 }
 

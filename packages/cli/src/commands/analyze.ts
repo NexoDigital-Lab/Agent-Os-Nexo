@@ -13,13 +13,14 @@ interface AnalysisCommand {
 
 const VERSION = /\d+(?:\.\d+)+/;
 
-function osName(): string {
-  if (platform() === "linux" && existsSync("/etc/os-release")) {
-    const text = readText("/etc/os-release");
+/** The OS's display name: PRETTY_NAME from os-release on Linux, else the platform. */
+export function osName(os: NodeJS.Platform = platform(), osRelease = "/etc/os-release"): string {
+  if (os === "linux" && existsSync(osRelease)) {
+    const text = readText(osRelease);
     const pretty = /^PRETTY_NAME="?([^"\n]+)"?/m.exec(text);
     if (pretty?.[1]) return pretty[1];
   }
-  return platform();
+  return os;
 }
 
 export function analyze(opts: { root?: string; now?: Date }): string {

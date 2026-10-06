@@ -9,8 +9,9 @@ jobs:
   check:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         node: [22, 24]
     steps:
       - uses: actions/checkout@v4
@@ -21,3 +22,16 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      # agent-os is built per version by `nexo os build`; this proves a build from this tree works.
+      - run: node apps/os/scripts/build.ts --out "${{ runner.temp }}/agent-os" --version 0.0.0
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run coverage

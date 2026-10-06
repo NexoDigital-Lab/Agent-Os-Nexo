@@ -23,7 +23,7 @@
   "scripts": {
     "dev": "node host/server/main.ts --dev",
     "start": "node host/server/main.ts",
-    "build": "node scripts/build.ts",
+    "build:version": "node scripts/build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test --test-reporter=spec \"test/**/*.test.ts\" \"host/**/*.test.ts\" \"modules/**/*.test.ts\"",
     "docs": "node scripts/docs-index.ts"

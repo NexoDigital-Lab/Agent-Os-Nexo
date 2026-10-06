@@ -1,0 +1,2 @@
+# Every text file is LF in the working tree on every OS, so tests that compare bytes pass on Windows too.
+* text=auto eol=lf

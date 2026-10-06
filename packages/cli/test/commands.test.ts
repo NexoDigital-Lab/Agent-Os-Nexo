@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
@@ -15,6 +15,9 @@ import { connect } from "../src/commands/connect.ts";
 import { os } from "../src/commands/os.ts";
 import { readConfig } from "../src/core/config.ts";
 import { copySource, runtimeHash, type Runner } from "../src/core/osruntime.ts";
+import { generateAdapters } from "../src/core/adapters.ts";
+import { linksTo } from "../src/core/fsx.ts";
+import { loadPermissions } from "../src/core/permissions.ts";
 
 // Windows git converts LF to CRLF on commit when core.autocrlf=true; tests assert on exact bytes.
 process.env.GIT_CONFIG_PARAMETERS = "'core.autocrlf=false' 'core.eol=lf'";
@@ -93,7 +96,10 @@ test("init --factory none installs no factory items", async () => {
 test("Claude sees the library: .claude/skills links to it and agents get Claude's tool names", async () => {
   const root = await freshEnv("claude");
   assert.ok(lstatSync(join(root, ".claude/skills")).isSymbolicLink());
-  assert.equal(readlinkSync(join(root, ".claude/skills")).replace(/\\/g, "/"), "../library/skills");
+  assert.ok(linksTo(join(root, ".claude/skills"), "../library/skills"));
+  const linked = lstatSync(join(root, ".claude/skills")).ino;
+  generateAdapters(root, readConfig(root), root, loadPermissions(join(root, "library/permissions.json")));
+  assert.equal(lstatSync(join(root, ".claude/skills")).ino, linked, "a link that is already right is left alone");
   assert.ok(existsSync(join(root, ".claude/skills/nexo-dev/SKILL.md")));
   const planner = readFileSync(join(root, ".claude/agents/planner.md"), "utf8");
   assert.match(planner, /^---\nname: planner\n/);
@@ -101,7 +107,7 @@ test("Claude sees the library: .claude/skills links to it and agents get Claude'
   assert.match(planner, /\nmodel: sonnet\n/);
   assert.doesNotMatch(planner, /owner:/);
   create("shop", { root });
-  assert.equal(readlinkSync(join(root, "projects/shop/.claude/skills")).replace(/\\/g, "/"), "../../../library/skills");
+  assert.ok(linksTo(join(root, "projects/shop/.claude/skills"), "../../../library/skills"));
   assert.ok(existsSync(join(root, "projects/shop/.claude/agents/code-reviewer.md")));
   // an agent removed from the library disappears from .claude/agents; a file the user put there stays
   writeFileSync(join(root, "library/agents/scout.md"), "---\nname: scout\ndescription: d\nowner: user\ntools: [read]\n---\nlook\n");
@@ -291,7 +297,7 @@ test("os install copies the source, installs one shared runtime, and builds 1.0.
   assert.equal(runtimes.length, 1);
   for (const dir of ["source", "versions/1.0.0"]) {
     assert.ok(lstatSync(join(osDir, dir, "node_modules")).isSymbolicLink(), `${dir}/node_modules is a link`);
-    assert.equal(readlinkSync(join(osDir, dir, "node_modules")), join(osDir, "runtime", runtimes[0]!, "node_modules"));
+    assert.ok(linksTo(join(osDir, dir, "node_modules"), join(osDir, "runtime", runtimes[0]!, "node_modules")));
   }
   await assert.rejects(os("install", undefined, { root }, run), /already installed/);
 
@@ -314,7 +320,7 @@ test("a failed build leaves no version behind", async () => {
   assert.deepEqual(readdirSync(join(root, "os", "versions")), ["1.0.0"]);
 });
 
-test("os start runs the active build in the background and os stop ends it", { skip: process.platform === "win32" ? "spawn detached does not fully detach on Windows; the test runner waits for the child" : false }, async () => {
+test("os start runs the active build in the background and os stop ends it", async () => {
   const root = await freshEnv("claude");
   await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
   const port = String(await freePort());
@@ -409,7 +415,7 @@ test("os check runs the source's module checker and fails with its findings", as
   await assert.rejects(os("check", undefined, { root, module: "x" }), /M3 modules\/x\/web\/x\.css:1 — hardcoded color --module=x/);
 });
 
-test("os open opens the running app with its access link", { skip: process.platform === "win32" ? "depends on os start, which cannot detach on Windows" : false }, async () => {
+test("os open opens the running app with its access link", async () => {
   const root = await freshEnv("claude");
   await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
   await assert.rejects(os("open", undefined, { root }, fakeRunner([])), /not running/);

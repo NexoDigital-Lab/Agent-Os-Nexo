@@ -71,7 +71,7 @@ function writeClaudeAgents(libraryDir: string, targetDir: string): string[] {
  */
 function linkClaudeSkills(libraryDir: string, targetDir: string): boolean {
   const link = join(targetDir, ".claude", "skills");
-  const want = relative(dirname(link), join(libraryDir, "skills"));
+  const want = relative(dirname(link), join(libraryDir, "skills")).replace(/\\/g, "/");
   let stat: ReturnType<typeof lstatSync> | null = null;
   try {
     stat = lstatSync(link);

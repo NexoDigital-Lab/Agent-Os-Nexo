@@ -78,7 +78,7 @@ export function claudeBashRule(pattern: string): string {
 
 /** Converts a path glob relative to the environment root into an absolute Claude Code rule. */
 function claudePathRule(tool: "Read" | "Edit", root: string, glob: string): string {
-  const abs = join(root, glob).replace(/^\/+/, "");
+  const abs = join(root, glob).replace(/\\/g, "/").replace(/^\/+/, "");
   return `${tool}(//${abs})`;
 }
 

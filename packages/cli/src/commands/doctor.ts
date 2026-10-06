@@ -106,7 +106,7 @@ export function diagnose(root: string, quick = false): Finding[] {
     findings.push({ level: "error", area: "permissions.json", message: problem });
   }
   for (const dir of listProjectDirs(root, config)) {
-    const rel = dir.slice(root.length + 1);
+    const rel = dir.slice(root.length + 1).replace(/\\/g, "/");
     if (!dir.endsWith("-ws") && !isDir(join(dir, "code"))) {
       findings.push({ level: "warn", area: rel, message: "no code/ folder" });
     }

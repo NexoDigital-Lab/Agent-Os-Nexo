@@ -1,11 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { findRoot } from "../core/paths.ts";
 import { folder, readConfig } from "../core/config.ts";
 import { activeVersion, listVersions, nextVersion, pinVersion } from "../core/osversions.ts";
 import { abortUpdate, continueUpdate, updateSource } from "../core/osupdate.ts";
 import { accessLink, buildVersion, defaultRunner, fetchSource, logFile, withRelease, openerFor, PORTS, runningPid, runningPort, startProcess, stopProcesses, type Runner } from "../core/osruntime.ts";
+import { createDesktopShortcut } from "../core/desktopShortcut.ts";
 
 export interface OsOptions {
   root?: string;
@@ -69,7 +71,11 @@ export async function os(action: string | undefined, arg: string | undefined, op
       // A previous install that copied the source but failed to build picks up where it stopped.
       const fetched = hasSource && !opts.from ? "resumed with the source already in os/source" : fetchSource(osDir, opts.from, run);
       const version = buildVersion(osDir, "First build", run);
-      return [`agent-os installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."].join("\n");
+      const lines = [`agent-os installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."];
+      // Windows: a desktop shortcut to the Tauri shell, so the app opens like any other program.
+      const cliDir = dirname(fileURLToPath(import.meta.url));
+      if (createDesktopShortcut(cliDir)) lines.push("Desktop shortcut created: agent-os.");
+      return lines.join("\n");
     }
     case "build": {
       const version = buildVersion(osDir, opts.notes ?? "", run);

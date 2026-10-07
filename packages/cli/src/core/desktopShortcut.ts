@@ -46,8 +46,8 @@ export function desktopFolder(deps: ShortcutDeps): string | null {
   return classic && deps.exists(classic) ? classic : null;
 }
 
-/** A PowerShell single-quoted string: nothing inside is expanded, a quote is doubled. */
-export const psQuote = (s: string): string => `'${s.replace(/'/g, "''")}'`;
+/** A PowerShell single-quoted string: nothing inside is expanded, a quote is doubled (PowerShell also reads ‘ ’ ‚ ‛ as quotes). */
+export const psQuote = (s: string): string => `'${s.replace(/['\u2018\u2019\u201A\u201B]/g, "$&$&")}'`;
 
 /** The script that writes `lnk` pointing at `exe`, with the icon the executable carries. */
 export function shortcutScript(lnk: string, exe: string): string {

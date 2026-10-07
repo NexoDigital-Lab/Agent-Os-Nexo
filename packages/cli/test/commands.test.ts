@@ -12,7 +12,7 @@ import { diagnose, staleAnalysis } from "../src/commands/doctor.ts";
 import { analyze } from "../src/commands/analyze.ts";
 import { clone, create } from "../src/commands/project.ts";
 import { connect } from "../src/commands/connect.ts";
-import { os } from "../src/commands/os.ts";
+import { os, osDeps } from "../src/commands/os.ts";
 import { readConfig } from "../src/core/config.ts";
 import { copySource, runtimeHash, type Runner } from "../src/core/osruntime.ts";
 import { generateAdapters } from "../src/core/adapters.ts";
@@ -21,6 +21,9 @@ import { loadPermissions } from "../src/core/permissions.ts";
 
 // Windows git converts LF to CRLF on commit when core.autocrlf=true; tests assert on exact bytes.
 process.env.GIT_CONFIG_PARAMETERS = "'core.autocrlf=false' 'core.eol=lf'";
+
+// No test writes a real shortcut on a Windows desktop; the one that checks the message passes its own fake.
+osDeps.createDesktopShortcut = () => null;
 
 const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
@@ -306,6 +309,19 @@ test("os install copies the source, installs one shared runtime, and builds 1.0.
   assert.equal(calls.filter((c) => c[0] === "npm").length, 1);
   assert.ok(!existsSync(join(osDir, "versions", "1.0.1.building")));
   assert.match(await os("status", undefined, { root }), /agent-os 1\.0\.1 \(of 2 build/);
+});
+
+test("os install names the desktop shortcut when it made one (Windows)", async () => {
+  const root = await freshEnv();
+  const seen: string[] = [];
+  osDeps.createDesktopShortcut = (repo) => (seen.push(repo), "C:\\Users\\me\\Desktop\\agent-os.lnk");
+  try {
+    const out = await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
+    assert.match(out, /Desktop shortcut created: C:\\Users\\me\\Desktop\\agent-os\.lnk$/);
+    assert.ok(existsSync(join(seen[0]!, "packages", "cli")), "it looks in this repository");
+  } finally {
+    osDeps.createDesktopShortcut = () => null;
+  }
 });
 
 test("a failed build leaves no version behind", async () => {

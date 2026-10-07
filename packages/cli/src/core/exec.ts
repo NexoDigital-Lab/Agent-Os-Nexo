@@ -43,7 +43,7 @@ export function spawnable(
   return { file: "cmd.exe", args: ["/d", "/s", "/c", `"${line}"`], verbatim: true };
 }
 
-/** Runs a command and returns its trimmed stdout, or null when it fails or is missing. */
+/** Runs a command and returns its trimmed stdout (stderr when stdout is empty), or null when it fails or is missing. */
 export function tryRun(cmd: string, args: string[], timeoutMs = 5000): string | null {
   const s = spawnable(cmd, args);
   const r = spawnSync(s.file, s.args, {
@@ -53,10 +53,9 @@ export function tryRun(cmd: string, args: string[], timeoutMs = 5000): string | 
     windowsVerbatimArguments: s.verbatim,
     windowsHide: true,
   });
-  if (!r.error && r.status === 0) return r.stdout.trim();
-  // Some tools (java -version) print to stderr and still exit 0 or 1; keep their output.
-  const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
-  return r.status === 0 && out ? out : null;
+  // Some tools (java -version) print only to stderr: a success with nothing on stdout returns that.
+  if (!r.error && r.status === 0) return r.stdout.trim() || r.stderr.trim();
+  return null;
 }
 
 export function gitConfig(key: string): string {

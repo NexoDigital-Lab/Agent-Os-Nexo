@@ -45,6 +45,8 @@ test("exec: quoteForCmd keeps an argument whole through cmd.exe and a .cmd shim"
 test("exec: tryRun returns stdout, and null for a failing or missing command", () => {
   assert.equal(tryRun(process.execPath, ["-e", "console.log(' ok ')"]), "ok");
   assert.equal(tryRun(process.execPath, ["-e", "process.exit(3)"]), null);
+  assert.equal(tryRun(process.execPath, ["-e", "console.error('version 1.2.3')"]), "version 1.2.3", "like java -version: only stderr");
+  assert.equal(tryRun(process.execPath, ["-e", "console.error('bad'); process.exit(1)"]), null);
   assert.equal(tryRun("nexo-no-such-command", []), null);
   assert.equal(tryRun(process.execPath, ["-e", "setTimeout(() => {}, 5000)"], 200), null, "a timeout is a failure");
 });
@@ -150,6 +152,7 @@ test("shortcut: the desktop is the one Windows reports, else %USERPROFILE%\\Desk
 
 test("shortcut: the script quotes every path, so a quote in a folder name cannot break out", () => {
   assert.equal(psQuote("it's"), "'it''s'");
+  assert.equal(psQuote("O\u2019Brien"), "'O\u2019\u2019Brien'", "PowerShell reads typographic quotes as quotes too");
   const script = shortcutScript("C:\\Users\\o'neil\\Desktop\\agent-os.lnk", "C:\\Users\\o'neil\\agent-os\\agent-os.exe");
   assert.match(script, /CreateShortcut\('C:\\Users\\o''neil\\Desktop\\agent-os\.lnk'\)/);
   assert.match(script, /WorkingDirectory = 'C:\\Users\\o''neil\\agent-os'/);
@@ -170,8 +173,17 @@ test("shortcut: written on Windows when there is an app and a desktop, skipped o
   assert.equal(createDesktopShortcut(REPO, unsaved), null, "PowerShell said yes but wrote nothing");
 });
 
-test("shortcut: on this machine it does nothing unless this is Windows", () => {
+test("exec: a real .cmd shim on Windows gets arguments with spaces, & and quotes intact", { skip: process.platform === "win32" ? false : "needs cmd.exe" }, () => {
   const dir = tempDir();
-  writeFileSync(join(dir, "x"), "");
-  if (process.platform !== "win32") assert.equal(createDesktopShortcut(dir), null);
+  writeFileSync(join(dir, "args.js"), "console.log(JSON.stringify(process.argv.slice(2)))");
+  // The same shape as npm's own shims: the program, its script, then %*.
+  writeFileSync(join(dir, "pnpm.cmd"), `@"${process.execPath}" "%~dp0\\args.js" %*\r\n`);
+  const saved = process.env.PATH;
+  try {
+    process.env.PATH = `${dir};${saved}`;
+    const args = ["a b", "x&y", 'say "hi"', "100%", "C:\\dir\\"];
+    assert.deepEqual(JSON.parse(tryRun("pnpm", args)!), args);
+  } finally {
+    process.env.PATH = saved;
+  }
 });

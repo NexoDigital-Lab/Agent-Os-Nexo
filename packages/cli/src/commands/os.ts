@@ -21,6 +21,9 @@ export interface OsOptions {
   abort?: boolean;
 }
 
+/** What install reaches outside the environment. Tests replace it so no real shortcut lands on a desktop. */
+export const osDeps = { createDesktopShortcut };
+
 /** The repository this CLI runs from (packages/cli/{src,dist}/commands → four up), where a desktop build may live. */
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
@@ -76,7 +79,7 @@ export async function os(action: string | undefined, arg: string | undefined, op
       const version = buildVersion(osDir, "First build", run);
       const lines = [`agent-os installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."];
       // Windows: a desktop shortcut to the desktop shell, so the app opens like any other program.
-      const shortcut = createDesktopShortcut(REPO_ROOT);
+      const shortcut = osDeps.createDesktopShortcut(REPO_ROOT);
       if (shortcut) lines.push(`Desktop shortcut created: ${shortcut}`);
       return lines.join("\n");
     }

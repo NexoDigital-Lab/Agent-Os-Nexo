@@ -73,7 +73,7 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
     writeJson(join(library, "memory", "index.json"), []);
     writeText(
       join(library, "dictionary", "README.md"),
-      "# dictionary\n\nOne file per term or name of your domain (clients, products, jargon). Agents read it when a term is unclear.",
+      "# dictionary\n\nYour concepts, one file per term (clients, products, jargon), so no agent asks twice. Save one with\n`nexo dict add <term> --summary <s>`, or tell an agent \"guardá este concepto\". Agents see every term in\nlibrary/index.json and open the file when they need the details.",
     );
     const profile = readJson<Record<string, unknown>>(join(basesDir, "library", "profile.json"));
     writeJson(join(library, "profile.json"), { ...profile, identity: { name, email }, language });

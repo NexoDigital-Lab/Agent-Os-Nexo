@@ -9,6 +9,7 @@ import { clone, create } from "./commands/project.ts";
 import { connect } from "./commands/connect.ts";
 import { os } from "./commands/os.ts";
 import { map } from "./commands/map.ts";
+import { dict } from "./commands/dict.ts";
 import { nexoVersion } from "./core/version.ts";
 
 const HELP = `nexo — install and maintain a Nexo agent environment
@@ -23,6 +24,10 @@ Usage: nexo <command> [options]
   doctor [--quick] [--json]         Check the environment; reports, never changes
   analyze                           Record OS and toolchains (summary in the config)
   index                             Rebuild library/index.json
+  dict [list|show <term>|rm <term>] Your dictionary of concepts (library/dictionary/)
+  dict add <term> --summary <s> [--alias a,b] [--body <text>] [--from <old name>]
+                                    Save a concept (updates it if the term or an alias exists;
+                                    --from renames)
   map [project] [--check]           Code map (symbols by file) in the project's context/map/
   clone <repo-url> [--ws <name>] [--name <part>]
                                     Clone into projects/ with context ready
@@ -74,6 +79,9 @@ async function main(argv: string[]): Promise<number> {
       env: { type: "string", multiple: true },
       remote: { type: "boolean" },
       description: { type: "string" },
+      summary: { type: "string" },
+      alias: { type: "string" },
+      body: { type: "string" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -106,6 +114,8 @@ async function main(argv: string[]): Promise<number> {
       return print(connect(rest[0], values));
     case "map":
       return print(map(rest[0], values));
+    case "dict":
+      return print(dict(rest[0], rest.slice(1), values));
     case "os":
       return print(await os(rest[0], rest[1], values));
     default:

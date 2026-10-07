@@ -1,8 +1,9 @@
 import { join } from "node:path";
 import { parseFrontmatter } from "./frontmatter.ts";
-import { isDir, listDir, readJson, readText, writeJson } from "./fsx.ts";
+import { listDir, readJson, readText, writeJson } from "./fsx.ts";
 import { existsSync } from "node:fs";
 import { listConnections } from "./connections.ts";
+import { listTerms } from "./dictionary.ts";
 
 interface Entry {
   name: string;
@@ -50,7 +51,8 @@ export function buildLibraryIndex(libraryDir: string): void {
     hooks: fileEntries("hooks", ".json", jsonEntry),
     commands: fileEntries("commands", ".json", jsonEntry),
     conventions: dirEntries("conventions", "README.md"),
-    dictionary: listDir(join(libraryDir, "dictionary")).filter((f) => !isDir(join(libraryDir, "dictionary", f))),
+    // Every term with its one-line summary: an agent knows what is defined without opening a file.
+    dictionary: listTerms(libraryDir).map((t) => ({ term: t.term, aliases: t.aliases, summary: t.summary, path: t.path.replace(/\\/g, "/") })),
     connections: listConnections(libraryDir).map((c) => ({ name: c.name, description: c.description, type: c.type, tools: c.tools })),
     memory: {
       index: "memory/index.json",

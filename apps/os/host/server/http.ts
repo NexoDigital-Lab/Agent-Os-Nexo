@@ -115,10 +115,12 @@ export function guardRequest(port: number) {
       res.end(JSON.stringify({ error: "Origin not allowed" }));
       return;
     }
-    // nosniff: files we serve (screenshots, repo images) are never reinterpreted as HTML/script. X-Agent-OS-Nexo lets a
-    // launcher tell this server apart from any other program that happens to hold its port.
+    // nosniff: files we serve (screenshots, repo images) are never reinterpreted as HTML/script. The identity headers
+    // let a launcher tell this server apart from any other program that happens to hold its port: X-Agent-OS-Nexo is
+    // the contract since the rename; X-Agent-OS stays as a transitional alias for pre-rename desktop builds and CLIs.
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Agent-OS-Nexo", "1");
+    res.setHeader("X-Agent-OS", "1");
     // The access link (?token=…) becomes a cookie, and the address bar loses the token.
     const url = new URL(req.url ?? "/", "http://agent-os-nexo");
     const offered = url.searchParams.get("token");

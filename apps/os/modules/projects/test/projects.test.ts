@@ -1,7 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initProjects, listProjects, projectDir, projectIds, projectPath, worktreeNames, worktreePath } from "../server/projects.ts";
@@ -57,6 +57,19 @@ test("worktrees live in worktrees/<name> and must belong to the project's repo",
   assert.deepEqual(worktreeNames("shop"), ["feat-x"]);
   assert.equal(worktreePath("shop", "stray"), null);
   assert.equal(worktreePath("shop", "feat-x"), join(shop, "worktrees", "feat-x"));
+});
+
+test("worktrees are found when the environment is reached through a symlink (macOS's /var → /private/var)", { skip: process.platform === "win32" ? "symlinks need admin on Windows" : false }, () => {
+  const linked = join(mkdtempSync(join(tmpdir(), "agent-os-link-")), "env");
+  symlinkSync(root, linked, "dir");
+  try {
+    initProjects({ projects: join(linked, "projects") } as Env);
+    git(join(linked, "projects", "shop", "code"), "worktree", "add", "-q", "-b", "feat-y", join(linked, "projects", "shop", "worktrees", "feat-y"));
+    assert.ok(readFileSync(join(shop, "worktrees", "feat-y", ".git"), "utf8").includes(root), "git wrote the resolved path");
+    assert.ok(worktreeNames("shop").includes("feat-y"));
+  } finally {
+    initProjects({ projects } as Env);
+  }
 });
 
 test("features: write, list, read, update status", () => {

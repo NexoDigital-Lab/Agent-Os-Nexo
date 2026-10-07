@@ -1,7 +1,7 @@
 // The environment's projects: projects/<name>/ or projects/<ws>-ws/<part>/, each with AGENTS.md, code/
 // (the repository), context/ and secrets/. A project's id is its path under projects/ ("api-ws/web").
 // These lookups are the only way an id from a request reaches the filesystem.
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Env } from "../../../host/server/env.ts";
 import { git } from "./git.ts";
@@ -58,17 +58,27 @@ export function workspaceOf(id: string): string | null {
   return id.includes("/") ? join(root, id.split("/")[0]!) : null;
 }
 
+/** A path as the file system spells it (symlinks resolved, Windows' own case and separators); itself when missing. */
+function real(p: string): string {
+  try {
+    return realpathSync.native(p);
+  } catch {
+    return resolve(p);
+  }
+}
+
 /** worktrees/<name> folders of a project whose .git file points back into code/.git/worktrees/. */
 export function worktreeNames(id: string): string[] {
   const dir = projectDir(id);
   if (!dir) return [];
-  const home = join(dir, "code", ".git", "worktrees") + sep;
+  // git writes the resolved path (macOS: /private/var for /var; Windows: C:/ with forward slashes), so compare resolved.
+  const home = real(join(dir, "code", ".git", "worktrees")) + sep;
   const base = join(dir, "worktrees");
   return subdirs(base).filter((name) => {
     const dotgit = join(base, name, ".git");
     if (!existsSync(dotgit) || statSync(dotgit).isDirectory()) return false;
     const gitdir = /^gitdir:\s*(.+)$/m.exec(readFileSync(dotgit, "utf8"))?.[1]?.trim();
-    return !!gitdir && resolve(base, name, gitdir).startsWith(home);
+    return !!gitdir && real(resolve(base, name, gitdir)).startsWith(home);
   });
 }
 

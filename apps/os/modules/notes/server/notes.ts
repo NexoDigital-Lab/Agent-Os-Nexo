@@ -9,6 +9,9 @@ import { projectDir, projectPath } from "../../projects/server/projects.ts";
 import { confineHook } from "../../sessions/server/claude.ts";
 import { userLanguage } from "../../sessions/server/skills.ts";
 
+// The SDK call, replaceable so tests can answer without Claude.
+export const deps = { query };
+
 let NOTES = "";
 let DRAFTS = "";
 
@@ -174,7 +177,7 @@ Rules:
   // Reads stay in the project's code/ and context/: never its secrets/, other projects or the home folder.
   const readable = dir ? [repo, path.join(dir, "context"), path.join(dir, "AGENTS.md")].filter((p): p is string => !!p) : [];
   const cwd = repo ?? (dir ? path.join(dir, "context") : path.dirname(NOTES));
-  for await (const msg of query({
+  for await (const msg of deps.query({
     prompt,
     options: {
       cwd,

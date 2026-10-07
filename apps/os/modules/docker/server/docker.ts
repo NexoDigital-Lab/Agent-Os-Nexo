@@ -6,11 +6,14 @@ import { httpError, userBinPath } from "../../../host/server/http.ts";
 
 export const DOCKER_ENV = { ...process.env, PATH: userBinPath().join(path.delimiter) };
 
+/** The process launcher; tests swap `execFile` for a fake so no real docker runs. */
+export const dockerExec: { execFile: typeof execFile } = { execFile };
+
 const DAEMON_DOWN = /Cannot connect to the Docker daemon|docker daemon is not running|error during connect/i;
 
 export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
   return new Promise((resolve, reject) =>
-    execFile("docker", args, { env: DOCKER_ENV, timeout, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
+    dockerExec.execFile("docker", args, { env: DOCKER_ENV, timeout, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (!err) return resolve(stdout);
       // A killed process is our own timeout (stderr is empty then, so check it first).
       if (err.killed) return reject(httpError(504, `docker took more than ${Math.round(timeout / 1000)} s to answer`));

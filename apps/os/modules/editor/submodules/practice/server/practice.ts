@@ -7,6 +7,9 @@ import { confineHook, MODEL, READ_ONLY, structured } from "../../../../sessions/
 import { userLanguage } from "../../../../sessions/server/skills.ts";
 import { readText } from "../../../server/files.ts";
 
+/** The Claude calls, swappable so tests never reach the SDK. */
+export const deps = { structured, query };
+
 let DIR = "";
 
 /** Where each tab's plan and review live (this submodule's data folder). */
@@ -147,7 +150,7 @@ Explore the code with Read/Glob/Grep and build a practice plan:
 - terminal: 1-4 terminal tasks that make sense for this task (git: create a branch, look at status/diff, stage, commit with a good message; or config: .env, scripts). command = the expected command (shown only if they ask).
 - a short title and a 2-line summary.
 Write every text in ${lang()}. Follow the conventions you see in the repository.`;
-  const { out, cost } = await structured<Omit<Plan, "task" | "cost" | "createdAt">>(prompt, cwd, PLAN_SCHEMA, hasContext ? [context] : []);
+  const { out, cost } = await deps.structured<Omit<Plan, "task" | "cost" | "createdAt">>(prompt, cwd, PLAN_SCHEMA, hasContext ? [context] : []);
   const plan: Plan = { ...out, task, cost, createdAt: new Date().toISOString() };
   save(tabId, { plan, review: null });
   return plan;
@@ -160,7 +163,7 @@ export async function snippet(tabId: string, cwd: string, stepId: string) {
   const current = readText(cwd, step.file).content;
   let text = "";
   let cost = 0;
-  for await (const msg of query({
+  for await (const msg of deps.query({
     prompt: `The user is practicing and asked for the real snippet of this step. Give it short, explained in 2-3 lines in ${lang()}. Only this step's code, not the whole feature.
 Step: ${step.goal}
 File: ${step.file} (${step.mode} at line ${step.line})
@@ -227,7 +230,7 @@ You can read more files with Read/Glob/Grep if you need context. Return:
 - steps: one item per plan step (same id) with status ok / partial / pending / problem, feedback of 1-3 sentences, issues with file (relative path) + line + msg.
 - terminal: one item per terminal task: does it look done in the git state (branch, commits, messages)?
 - verdict: done / almost / missing. overall: 2-3 sentences. next: the concrete next step.`;
-  const { out, cost } = await structured<Omit<Review, "cost" | "at">>(prompt, cwd, REVIEW_SCHEMA);
+  const { out, cost } = await deps.structured<Omit<Review, "cost" | "at">>(prompt, cwd, REVIEW_SCHEMA);
   const review: Review = { ...out, cost, at: new Date().toISOString() };
   save(tabId, { plan: data.plan, review });
   return review;

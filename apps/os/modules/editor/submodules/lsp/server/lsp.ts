@@ -22,7 +22,12 @@ function bundledPyright(): string | null {
 
 type Spec = { lang: string; name: string; find: () => Promise<string | null>; args: string[]; hint: string };
 
-const which = loginWhich;
+let which = loginWhich;
+
+/** Swaps how binaries are looked up (tests inject a fake); no argument restores the login-shell lookup. */
+export function setLspWhich(fn: typeof loginWhich = loginWhich): void {
+  which = fn;
+}
 
 const SERVERS: Record<string, Spec> = {
   go: { lang: "go", name: "gopls", find: () => which("gopls"), args: [], hint: "Install Go, then gopls from the panel → 🧰 Environment" },

@@ -41,6 +41,8 @@ export type Spawn = (file: string, args: string[], env: Record<string, string>) 
 
 const realSpawn: Spawn = (file, args, env) =>
   spawnPty(file, args, { name: "xterm-256color", cols: 100, rows: 24, cwd: os.homedir(), env });
+// What connect() spawns by default, replaceable so route tests never start a real pty.
+export const deps = { spawn: realSpawn };
 
 export type RunResult = { exitCode: number | null; output: string; status: "done" | "timeout" | "waiting_password" | "closed" };
 
@@ -148,7 +150,7 @@ const reset = (tabId: string) => resetHooks.forEach((cb) => cb(tabId));
 const reEscape = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Opens (or reopens) the SSH console of a tab. The old pty, if any, is closed first. */
-export function connect(tabId: string, host: StoredHost, spawn: Spawn = realSpawn): SshSessionInfo {
+export function connect(tabId: string, host: StoredHost, spawn: Spawn = (...a) => deps.spawn(...a)): SshSessionInfo {
   let s = sessions.get(tabId);
   if (s) endPty(s);
   else {

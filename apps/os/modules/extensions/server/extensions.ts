@@ -186,7 +186,8 @@ const SCHEMA = {
   required: ["summary", "recommendations"],
 };
 
-export async function recommendWithClaude(p: string) {
+/** The agent SDK's query(); tests pass a fake so no model is called. */
+export async function recommendWithClaude(p: string, ask: typeof query = query) {
   const repo = repoOf(p);
   const view = await projectView(p);
   const general = readGeneral();
@@ -210,7 +211,7 @@ Rules:
   let out = null as { summary: string; recommendations: AiRec[] } | null;
   let cost = 0;
   let error = "";
-  for await (const msg of query({
+  for await (const msg of ask({
     prompt,
     options: {
       cwd: repo,

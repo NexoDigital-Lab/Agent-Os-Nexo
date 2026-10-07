@@ -8,6 +8,13 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { delimiter } from "node:path";
 import { httpError, sameOrigin, userBinPath } from "../../../../../host/server/http.ts";
 
+let ptySpawn: typeof spawnPty = spawnPty;
+
+/** Swaps the pty factory (tests inject a fake); no argument restores node-pty. */
+export function setPtySpawn(fn: typeof spawnPty = spawnPty): void {
+  ptySpawn = fn;
+}
+
 const SCROLLBACK = 256 * 1024; // chars replayed on reattach
 
 type Term = { id: string; tab: string; title: string; cwd: string; pty: IPty; buffer: string; clients: Set<WebSocket>; exited: boolean; startedAt: number };
@@ -46,7 +53,7 @@ export function shellFor(project: string, where: "host" | "container"): ShellSpe
 export function createTerm(tab: string, cwd: string, title = "bash", run?: string, shell?: ShellSpec): TermInfo {
   const id = Math.random().toString(36).slice(2, 8);
   const { file, args } = shell ?? { file: process.env.SHELL || "bash", args: ["-l"] };
-  const pty = spawnPty(file, args, {
+  const pty = ptySpawn(file, args, {
     name: "xterm-256color",
     cols: 100,
     rows: 20,

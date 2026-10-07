@@ -10,6 +10,9 @@ import { httpError } from "../../../host/server/http.ts";
 export const READ_ONLY = ["Read", "Glob", "Grep"];
 export const MODEL = "sonnet";
 
+/** The SDK's query function; the callers below take it as a parameter so tests can pass a fake stream. */
+export type QueryFn = typeof query;
+
 // Real path when it exists, else the real path of the nearest existing ancestor + the rest (so a symlink can't smuggle a path out).
 function realOrAncestor(abs: string): string {
   let cur = abs;
@@ -81,11 +84,11 @@ const baseOptions = (cwd: string, extraDirs: string[] = []) => ({
 });
 
 /** Runs the prompt and returns the model's output validated by `schema` (json_schema output format). */
-export async function structured<T>(prompt: string, cwd: string, schema: Record<string, unknown>, extraDirs: string[] = []) {
+export async function structured<T>(prompt: string, cwd: string, schema: Record<string, unknown>, extraDirs: string[] = [], run: QueryFn = query) {
   let out: T | null = null;
   let cost = 0;
   let error = "";
-  for await (const msg of query({ prompt, options: { ...baseOptions(cwd, extraDirs), outputFormat: { type: "json_schema", schema } } })) {
+  for await (const msg of run({ prompt, options: { ...baseOptions(cwd, extraDirs), outputFormat: { type: "json_schema", schema } } })) {
     if (msg.type === "result") {
       cost = msg.total_cost_usd;
       if (msg.subtype === "success") out = msg.structured_output as T;
@@ -97,11 +100,11 @@ export async function structured<T>(prompt: string, cwd: string, schema: Record<
 }
 
 /** Same read-only query, but free text: `system` is the whole system prompt (no Claude Code preset). */
-export async function ask(prompt: string, system: string, cwd: string) {
+export async function ask(prompt: string, system: string, cwd: string, run: QueryFn = query) {
   let text = "";
   let cost = 0;
   let error = "";
-  for await (const msg of query({ prompt, options: { ...baseOptions(cwd), systemPrompt: system, maxTurns: 20 } })) {
+  for await (const msg of run({ prompt, options: { ...baseOptions(cwd), systemPrompt: system, maxTurns: 20 } })) {
     if (msg.type === "result") {
       cost = msg.total_cost_usd;
       if (msg.subtype === "success") text = msg.result;

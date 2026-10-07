@@ -15,8 +15,11 @@ import { RECIPES, type Answers, type Ctx } from "./recipes.ts";
 const IGNORABLE = new Set(["README.md", ".gitignore", "LICENSE", "LICENSE.md", ".gitattributes"]);
 const ENV_EXAMPLES = [".env.example", ".env.sample", ".env.template", ".env.dist"];
 
+/** The GitHub CLI lookup (a network call), swappable so tests do not depend on it. */
+export const deps = { githubLogin: () => run("gh", ["api", "user", "-q", ".login"]).then((r) => r.stdout.trim(), () => "user") };
+
 let ghUser: string | null = null;
-const githubUser = async () => (ghUser ??= await run("gh", ["api", "user", "-q", ".login"]).then((r) => r.stdout.trim(), () => "user"));
+const githubUser = async () => (ghUser ??= await deps.githubLogin());
 
 async function context(repo: string): Promise<Ctx> {
   const files = await repoFiles(repo);

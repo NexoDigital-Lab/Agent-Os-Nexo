@@ -21,6 +21,7 @@ módulo es nuevo).
 ```bash
 node scripts/check-modules.ts --module <id>   # en este repo (o: nexo os check --module <id>)
 npm run check                                 # tipos + todos los tests
+npm run coverage                              # cada archivo del servidor al 80% (ramas 70%)
 ```
 
 Cada hallazgo M es **blocker**; copialos al informe tal cual salen. Tests o tipos que fallan también son blocker.

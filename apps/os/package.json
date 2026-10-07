@@ -26,6 +26,7 @@
     "build:version": "node scripts/build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test --test-reporter=spec \"test/**/*.test.ts\" \"host/**/*.test.ts\" \"modules/**/*.test.ts\"",
+    "coverage": "c8 node --test \"test/**/*.test.ts\" \"host/**/*.test.ts\" \"modules/**/*.test.ts\"",
     "docs": "node scripts/docs-index.ts"
   },
   "dependencies": {

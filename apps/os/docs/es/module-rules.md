@@ -170,7 +170,10 @@ todos los submódulos apagados. Preferí un slot del padre cuando el submódulo 
 
 ### R10 — Tests
 La lógica de servidor con ramas (validación, parseo, políticas, máquinas de estado) tiene tests de
-`node:test` en `test/`. Cada bug arreglado suma un test de regresión. `npm run check` pasa antes de cada commit.
+`node:test` en `test/`. Cada bug arreglado suma un test de regresión. `npm run check` pasa antes de cada commit, y
+`npm run coverage` también: cada archivo del `server/` de un módulo mantiene 80% de líneas, sentencias y funciones y
+70% de ramas. El código que llega al SDK, a una pty, a Docker o a la red recibe esa dependencia como parámetro (o un
+objeto `deps`) para que un test le pase una falsa; `host/test/harness.ts` monta las rutas de un módulo para sus tests.
 
 ### R11 — Versiones y documentación
 Desde la primera versión publicada del módulo, subí su `version` con cada cambio (hasta entonces queda en

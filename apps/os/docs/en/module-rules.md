@@ -162,7 +162,10 @@ submodule off. Prefer a slot the parent owns when the submodule only adds someth
 
 ### R10 — Tests
 Server logic with branches (validation, parsing, policies, state machines) has `node:test` tests in
-`test/`. Every bug fixed gets a regression test. `npm run check` passes before every commit.
+`test/`. Every bug fixed gets a regression test. `npm run check` passes before every commit, and
+`npm run coverage` too: every file of a module's `server/` keeps 80% of lines, statements and functions and 70% of
+branches. Code that reaches the SDK, a pty, Docker or the network takes that dependency as a parameter (or a
+`deps` object) so a test can pass a fake; `host/test/harness.ts` mounts a module's routes for its tests.
 
 ### R11 — Versions and docs
 From the module's first published release on, bump its `version` with every change (until then it stays

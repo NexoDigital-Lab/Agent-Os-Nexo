@@ -21,6 +21,7 @@ new module).
 ```bash
 node scripts/check-modules.ts --module <id>   # in this repo (or: nexo os check --module <id>)
 npm run check                                 # typecheck + every test
+npm run coverage                              # every server file at 80% (branches 70%)
 ```
 
 Every M finding is a **blocker**; copy them into the report as they come. Failing tests or types are a

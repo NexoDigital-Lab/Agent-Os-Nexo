@@ -18,6 +18,11 @@ itself; the environment that Nexo installs has its own template at
 
 - `npm install` once at the root (npm workspaces).
 - `npm run check` — typecheck + tests. Must pass before every commit.
+- `npm run coverage` — the tests under c8: every source file of the CLI and of agent-os's server needs 80% of
+  lines, statements and functions and 70% of branches. CI fails below that. Excluded in `apps/os/.c8rc.json`, and
+  nothing else: UI code (`web/`, `.tsx`), type-only files (`host/server/module-api.ts`, `modules/*/server/types.ts`)
+  and `host/server/main.ts` (reads the command line and listens; everything else is `app.ts`, tested). A new
+  exclusion needs its reason here.
 - `node packages/cli/src/bin.ts <command>` runs the CLI from source (Node strips types natively).
 
 ## Rules

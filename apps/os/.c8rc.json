@@ -1,0 +1,40 @@
+{
+  "all": true,
+  "src": [
+    "host",
+    "modules",
+    "scripts",
+    "src"
+  ],
+  "include": [
+    "host/**/*.ts",
+    "modules/**/*.ts",
+    "scripts/**/*.ts",
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/test/**",
+    "**/web/**",
+    "**/*.tsx",
+    "**/*.d.ts",
+    "**/node_modules/**",
+    "host/server/main.ts",
+    "host/server/module-api.ts",
+    "modules/ssh/server/types.ts",
+    "modules/architecture/server/types.ts"
+  ],
+  "extension": [
+    ".ts"
+  ],
+  "reporter": [
+    "text",
+    "lcov"
+  ],
+  "check-coverage": true,
+  "per-file": true,
+  "lines": 80,
+  "statements": 80,
+  "functions": 80,
+  "branches": 70
+}

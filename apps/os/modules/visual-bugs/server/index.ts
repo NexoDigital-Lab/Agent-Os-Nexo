@@ -22,7 +22,7 @@ const register: ModuleServer = (ctx) => {
     if (!file) return void res.status(404).end();
     // User-pasted bytes: never let the browser sniff them into something executable, and don't cache stale deletes.
     res.set({ "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store" });
-    res.sendFile(file);
+    res.sendFile(file, { dotfiles: "allow" }); // the environment may sit in a dot-folder; bugPath vetted the name
   });
   api.patch(
     "/visual-bugs/:name",

@@ -373,11 +373,16 @@ const SHELL_SINK = /\|\s*(?:(?:sudo|env|exec|command)\s+)*(?:\S*\/)?(?:ba|z|da|k
 // The ssh module's own folders inside the environment: the vault (os/data/ssh) and the temp key files (.state/os/ssh).
 // The absolute ones are set at register; the names below also catch them relative to wherever the agent runs.
 let guardedDirs: string[] = [];
-export function guardDirs(dirs: string[]): void {
-  guardedDirs = dirs.map((d) => {
-    // Unix-style absolute paths stay as-is on Windows (path.resolve would add a drive letter)
-    if (d.startsWith("/")) return d;
-    return path.resolve(d).replace(/\\/g, "/");
+/** Windows paths ignore case: there the comparison is done in lower case. */
+let caseless = false;
+export function guardDirs(dirs: string[], platform: NodeJS.Platform = process.platform): void {
+  caseless = platform === "win32";
+  guardedDirs = dirs.flatMap((d) => {
+    if (!caseless) return [path.resolve(d)];
+    // Forward slashes, lower case, and Git Bash's spelling of the drive (C:\x is also /c/x).
+    const abs = (d.startsWith("/") ? d : path.win32.resolve(d)).replace(/\\/g, "/").toLowerCase();
+    const drive = /^([a-z]):\//.exec(abs);
+    return drive ? [abs, `/${drive[1]}/${abs.slice(3)}`] : [abs];
   });
 }
 const MODULE_DIRS = /(?:^|[/\s'"=])(?:os\/data|\.state\/os)\/ssh(?:[/\s'"]|$)/;
@@ -385,7 +390,8 @@ const MODULE_PARENT = /(?:^|[/\s'"=])(?:os\/data|\.state\/os)(?:[/\s'"]|$)/;
 
 /** The ssh module's folders (vault, run keys), reached by name or by a glob; `tool` also refuses their parents as roots to search. */
 function touchesDataDir(s: string, tool = false): boolean {
-  const norm = s.replace(/\\/g, "/");
+  const slashed = s.replace(/\\/g, "/");
+  const norm = caseless ? slashed.toLowerCase() : slashed;
   if (MODULE_DIRS.test(norm)) return true;
   if (/(?:os\/data|\.state\/os)\/[^/\s]*[*?[{]/.test(norm)) return true; // a glob over the modules' folders
   if (MODULE_PARENT.test(norm) && /\bssh\b/.test(norm)) return true; // `cd os/data && cat ssh/vault/vault.json`

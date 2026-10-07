@@ -18,7 +18,7 @@ export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
       // A killed process is our own timeout (stderr is empty then, so check it first).
       if (err.killed) return reject(httpError(504, `docker took more than ${Math.round(timeout / 1000)} s to answer`));
       if (DAEMON_DOWN.test(stderr)) return reject(httpError(503, "Docker is not running (open Docker Desktop or start the daemon)"));
-      const msg = (stderr || err.message).trim().split("\n").pop() ?? "docker failed";
+      const msg = (stderr || err.message).trim().split("\n").pop() || "docker failed";
       reject(httpError((err as NodeJS.ErrnoException).code === "ENOENT" ? 503 : 400, msg));
     }),
   );

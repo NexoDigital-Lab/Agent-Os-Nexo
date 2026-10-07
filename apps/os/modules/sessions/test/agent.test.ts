@@ -25,8 +25,8 @@ const { initProjects } = await import("../../projects/server/projects.ts");
 const { projectHooks } = await import("../../projects/server/hooks.ts");
 const { contributeToSessions } = await import("../server/contributions.ts");
 initProjects(env);
-// stateDir outside ".state": express's sendFile treats a dot-folder anywhere in an absolute path as hidden (404).
-const m = await mountModule(register, { env, id: "sessions", stateDir: join(tempDir("agent-state-"), "sessions") });
+// The real layout: uploads under <env>/.state/os/sessions (a dot-folder, which sendFile hides unless allowed).
+const m = await mountModule(register, { env, id: "sessions" });
 
 // ---- the fake SDK -------------------------------------------------------------------------------------------
 type Args = { prompt: AsyncIterable<any>; options: any };

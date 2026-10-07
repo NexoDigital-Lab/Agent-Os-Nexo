@@ -45,6 +45,8 @@ test("dockerRun maps a timeout, a dead daemon, a missing binary and plain failur
   assert.equal(e.message, "Error: no such image");
   reply = () => ({ err: { message: "spawn failed" }, stderr: "" });
   assert.equal((await fails(docker.dockerRun(["ps"]))).message, "spawn failed", "falls back to the error message");
+  reply = () => ({ err: { message: "" }, stderr: "  \n" });
+  assert.equal((await fails(docker.dockerRun(["ps"]))).message, "docker failed", "never an empty message");
 });
 
 test("info reports version and context, or the error", async () => {

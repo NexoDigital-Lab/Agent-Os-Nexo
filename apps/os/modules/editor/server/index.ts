@@ -29,7 +29,8 @@ const register: ModuleServer = (ctx) => {
   api.post("/tabs/:id/move", h((req) => moveEntry(tabOf(req).cwd, String(req.body.from ?? ""), String(req.body.toDir ?? ""))));
   api.get("/tabs/:id/image", (req, res) => {
     try {
-      res.sendFile(imagePath(tabOf(req).cwd, String(req.query.path ?? "")));
+      // A repo image may sit in a dot-folder (.github/); imagePath keeps it inside the repo.
+      res.sendFile(imagePath(tabOf(req).cwd, String(req.query.path ?? "")), { dotfiles: "allow" });
     } catch (e) {
       const err = e as Error & { status?: number };
       res.status(err.status ?? 500).json({ error: err.message });

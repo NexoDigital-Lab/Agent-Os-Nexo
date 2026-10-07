@@ -39,6 +39,15 @@ test("resolveCli: posix finds the plain bin; win32 finds the .cmd shim and wraps
   });
 });
 
+test("resolveCli: on win32 the .cmd shim wins over a bare shell script of the same name", () => {
+  // npm globals write gemini (sh), gemini.cmd and gemini.ps1 — only the .cmd is execFile-runnable.
+  const both = (n: string) =>
+    n === "gemini.cmd" ? "C:\\npm\\gemini.cmd" : n === "gemini" ? "C:\\npm\\gemini" : null;
+  const hit = providers.resolveCli(["gemini"], "win32", both);
+  assert.equal(hit?.path, "C:\\npm\\gemini.cmd");
+  assert.deepEqual(hit?.pre, ["/c", "C:\\npm\\gemini.cmd"]);
+});
+
 test("resolveCli: nothing found is null; the first name in the list that resolves wins", () => {
   assert.equal(providers.resolveCli(["nope"], "linux", () => null), null);
   const hit = providers.resolveCli(["agy", "gemini"], "linux", (n) =>

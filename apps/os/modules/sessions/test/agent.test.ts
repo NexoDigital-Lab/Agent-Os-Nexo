@@ -573,7 +573,9 @@ test("send with a CLI provider: the same chat events, headless argv, no SDK call
     assert.equal(evs[3].cost, 0);
     assert.equal(evs[3].turns, 1);
     assert.equal(calls.length, sdkBefore, "the SDK query never ran");
-    assert.deepEqual(askCalls[0].args, ["run", "go"]);
+    // resolveCli prefers the .cmd shim on win32 and wraps it in cmd.exe /c; posix runs the bare bin.
+    const shim = process.platform === "win32";
+    assert.deepEqual(askCalls[0].args, shim ? ["/c", "/fake/opencode.cmd", "run", "go"] : ["run", "go"]);
     const t = await tab(id);
     assert.equal(t.provider, "opencode");
     assert.equal(t.sdkSessionId, null);
@@ -585,8 +587,13 @@ test("send with a CLI provider: the same chat events, headless argv, no SDK call
     assert.equal((await send(id, { prompt: "second" })).status, 200);
     await idle(id);
     assert.equal(askCalls.length, 2);
-    assert.equal(askCalls[1].cmd, "/fake/opencode");
-    assert.deepEqual(askCalls[1].args, ["run", "User: go\nAssistant: CLI answer one\n\nsecond"]);
+    assert.equal(askCalls[1].cmd, shim ? (process.env.ComSpec ?? "cmd.exe") : "/fake/opencode");
+    assert.deepEqual(
+      askCalls[1].args,
+      shim
+        ? ["/c", "/fake/opencode.cmd", "run", "User: go\nAssistant: CLI answer one\n\nsecond"]
+        : ["run", "User: go\nAssistant: CLI answer one\n\nsecond"],
+    );
     agent.closeTab(id);
   } finally {
     providersHost.providerExec.run = realRun;

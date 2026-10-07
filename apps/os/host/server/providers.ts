@@ -94,18 +94,20 @@ export const providerExec: {
 };
 
 /**
- * Resolves a CLI on this machine, Windows-safe: for each candidate name, in order, try the plain name then
- * the .cmd/.bat shims npm writes. A shim cannot be execFile'd directly, so a hit ending in .cmd/.bat is
- * wrapped in cmd.exe /c. First hit wins; nothing found is null.
+ * Resolves a CLI on this machine, Windows-safe: for each candidate name, the first hit wins. On Windows
+ * npm writes a .cmd/.bat shim alongside a bare shell script that execFile cannot run — the shim is
+ * checked FIRST so detection matches what askWithProvider will actually spawn. A .cmd/.bat hit is
+ * wrapped in cmd.exe /c. Nothing found is null.
  */
 export function resolveCli(
   names: string[],
   platform: NodeJS.Platform = process.platform,
   find: (name: string) => string | null = findBin,
 ): { cmd: string; pre: string[]; path: string } | null {
-  void platform; // candidate list is uniform; the wrap rule keys off the hit's extension
+  const order = (name: string): string[] =>
+    platform === "win32" ? [`${name}.cmd`, `${name}.bat`, name] : [name, `${name}.cmd`, `${name}.bat`];
   for (const name of names) {
-    for (const candidate of [name, `${name}.cmd`, `${name}.bat`]) {
+    for (const candidate of order(name)) {
       const hit = find(candidate);
       if (!hit) continue;
       if (/\.(cmd|bat)$/i.test(hit)) return { cmd: process.env.ComSpec ?? "cmd.exe", pre: ["/c", hit], path: hit };

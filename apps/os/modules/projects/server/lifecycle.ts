@@ -30,11 +30,26 @@ const errText = (e: unknown) => {
 /**
  * Runs the nexo CLI against this environment. NEXO_CLI points at a checkout (`…/packages/cli/src/bin.ts`)
  * during development; otherwise `nexo` must be on PATH (it is, when Nexo was installed with npm -g).
+ * On Windows the global install is a `.cmd` shim that execFile cannot run directly — go through cmd.exe.
  */
 export async function nexo(env: Env, args: string[]): Promise<string> {
   const dev = process.env.NEXO_CLI;
-  const [cmd, pre] = dev ? [process.execPath, [dev]] : [findBin("nexo"), []];
-  if (!cmd) throw httpError(500, "The nexo CLI was not found. Install it with: npm install -g @nexodigital/nexo");
+  let cmd: string;
+  let pre: string[];
+  if (dev) {
+    cmd = process.execPath;
+    pre = [dev];
+  } else {
+    const bin = process.platform === "win32" ? findBin("nexo.cmd") ?? findBin("nexo") : findBin("nexo");
+    if (!bin) throw httpError(500, "The nexo CLI was not found. Install it with: npm install -g @nexodigital/nexo");
+    if (/\.(cmd|bat)$/i.test(bin)) {
+      cmd = process.env.ComSpec ?? "cmd.exe";
+      pre = ["/c", bin];
+    } else {
+      cmd = bin;
+      pre = [];
+    }
+  }
   try {
     return (await run(cmd, [...pre, ...args, "--root", env.root], { maxBuffer: 10 * 1024 * 1024 })).stdout.trim();
   } catch (e) {

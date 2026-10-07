@@ -102,6 +102,14 @@ Notas libres por proyecto que un agente convierte en features; un tablero de las
 - **Rutas:** `GET/POST /notes`, `PUT/DELETE /notes/:id`, `POST /notes/analyze|accept`,
   `GET /notes/drafts`, `DELETE /notes/drafts/:id`, `POST /notes/drafts/promote`. **Guarda:** data (notas, borradores).
 
+## dictionary
+Tus conceptos (clientes, productos, jerga), un archivo por término en `library/dictionary/`, así ningún agente
+pregunta dos veces qué significa una palabra. Los agentes ven cada término con su resumen en
+`library/index.json` y guardan los nuevos con `nexo dict add` (skill de fábrica `nexo-dictionary`). Lee y escribe
+con `nexo dict`, así el formato y el índice son los mismos desde acá, un agente o una terminal.
+- **Depende de:** shell, projects. **Vista:** Diccionario.
+- **Rutas:** `GET/POST /dictionary`, `GET/PUT/DELETE /dictionary/:term` (PUT puede renombrar). **Guarda:** library (dictionary/).
+
 ## docker
 Los contenedores, imágenes, logs y shells del motor; y un contenedor de desarrollo espejo por proyecto
 cuyas herramientas (python, node, go…) usan primero las terminales y el agente de la pestaña.

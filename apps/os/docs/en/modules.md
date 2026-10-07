@@ -101,6 +101,14 @@ Free notes per project that an agent turns into features; a board of the feature
 - **Routes:** `GET/POST /notes`, `PUT/DELETE /notes/:id`, `POST /notes/analyze|accept`,
   `GET /notes/drafts`, `DELETE /notes/drafts/:id`, `POST /notes/drafts/promote`. **Stores:** data (notes, drafts).
 
+## dictionary
+Your concepts (clients, products, jargon), one file per term in `library/dictionary/`, so no agent asks twice
+what a word means. Agents see every term with its summary in `library/index.json` and save new ones with
+`nexo dict add` (factory skill `nexo-dictionary`). Reads and writes go through `nexo dict`, so the format and the
+index are the same from here, an agent or a terminal.
+- **Depends on:** shell, projects. **View:** Dictionary.
+- **Routes:** `GET/POST /dictionary`, `GET/PUT/DELETE /dictionary/:term` (PUT may rename). **Stores:** library (dictionary/).
+
 ## docker
 The engine's containers, images, logs and shells; and a mirror dev container per project whose tools
 (python, node, go…) the tab's terminals and agent use first.

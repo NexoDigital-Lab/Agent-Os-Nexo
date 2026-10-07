@@ -1,13 +1,14 @@
 // One short line and an icon per known module, for the cards. A module not listed here (one the user wrote)
 // shows its manifest description and a generic icon.
 import {
-  Activity, ArrowLeftRight, BookOpen, Blocks, Box, Braces, Bug, Code, Container, FileText, FolderGit2, GitBranch,
+  Activity, ArrowLeftRight, BookA, BookOpen, Blocks, Box, Braces, Bug, Code, Container, FileText, FolderGit2, GitBranch,
   GraduationCap, History, House, KeyRound, MessagesSquare, Network, Palette, PanelLeft, Puzzle, SquareTerminal, Wrench,
   type LucideIcon,
 } from "lucide-react";
 
 export const SUMMARIES: Record<string, string> = {
   architecture: "Each project's architecture, followed by its agents",
+  dictionary: "Your concepts, so no agent asks twice",
   docker: "Containers, images and a dev container per project",
   docs: "agent-os-nexo's documentation, searchable",
   editor: "A full code editor inside each tab",
@@ -32,7 +33,7 @@ export const SUMMARIES: Record<string, string> = {
 };
 
 const ICONS: Record<string, LucideIcon> = {
-  architecture: Network, docker: Container, docs: BookOpen, editor: Code, "editor/lsp": Braces,
+  architecture: Network, dictionary: BookA, docker: Container, docs: BookOpen, editor: Code, "editor/lsp": Braces,
   "editor/practice": GraduationCap, "editor/scm": GitBranch, "editor/setup": Wrench, "editor/terminal": SquareTerminal,
   extensions: Puzzle, home: House, http: ArrowLeftRight, modules: Blocks, monitor: Activity, notes: FileText,
   projects: FolderGit2, sessions: MessagesSquare, shell: PanelLeft, ssh: KeyRound, themes: Palette, versions: History,

@@ -1,0 +1,30 @@
+.dict { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; flex: 1; min-height: 0; }
+.dict-side { display: flex; flex-direction: column; gap: 10px; padding: 24px 16px 16px 24px; border-right: 1px solid var(--line); min-height: 0; }
+.dict-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dict-head h1 { font: 600 22px var(--sans); margin: 0; letter-spacing: -0.01em; }
+.dict-hint { font-size: 12.5px; margin: 0; line-height: 1.45; }
+.dict-search { position: relative; display: flex; align-items: center; color: var(--text-3); }
+.dict-search svg { position: absolute; left: 10px; pointer-events: none; }
+.dict-search input.field { padding-left: 32px; }
+.dict-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; min-height: 0; padding-right: 4px; }
+.dict-empty { padding: 24px 8px; text-align: center; font-size: 13px; }
+.dict-item {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 9px 11px; border-radius: 9px; cursor: pointer;
+  background: none; border: 1px solid transparent; color: var(--text);
+}
+.dict-item:hover { background: var(--panel); }
+.dict-item.on { background: var(--panel); border-color: var(--line-2); }
+.dict-item span { color: var(--text-2); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dict-item small { color: var(--text-3); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dict-main { padding: 24px 32px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.dict-form { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+.dict-form-head { display: flex; align-items: center; justify-content: space-between; min-height: 28px; }
+.dict-form-head .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.dict-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.dict-form label small { font-weight: 400; margin-left: 4px; }
+.dict-form textarea.field { resize: vertical; font-family: var(--sans); line-height: 1.5; }
+.dict-actions { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 900px) {
+  .dict { grid-template-columns: 1fr; }
+  .dict-side { border-right: 0; border-bottom: 1px solid var(--line); max-height: 45vh; }
+}

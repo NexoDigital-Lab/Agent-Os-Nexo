@@ -1,9 +1,10 @@
 import { call, seg } from "@os/lib/http";
 import type { Diff } from "../../projects/server/projects.ts";
+import type { DetectedProvider, ProviderId, ProvidersFile } from "../../../host/server/providers.ts";
 import type { Ev, TabInfo, WorkMode } from "../server/agent.ts";
 import type { Recommendation, Skill } from "../server/skills.ts";
 import type { AgentStatus, WorkStatus } from "../server/status.ts";
-export type { AgentStatus, Diff, Ev, Recommendation, Skill, WorkMode, WorkStatus };
+export type { AgentStatus, DetectedProvider, Diff, Ev, ProviderId, ProvidersFile, Recommendation, Skill, WorkMode, WorkStatus };
 export type Tab = TabInfo;
 export type TaskEv = Extract<Ev, { kind: "task" }>;
 export type TaskStatus = TaskEv["status"];
@@ -23,12 +24,17 @@ export interface HistoryItem {
   tabId: string | null;
 }
 
+/** GET /api/providers (T1 route): the detected registry providers plus the enabled set / default. */
+export interface ProvidersState extends ProvidersFile {
+  providers: DetectedProvider[];
+}
+
 export const sessionsApi = {
   tabs: () => call<Tab[]>("GET", "/api/tabs"),
   openTab: (project: string, title: string, worktree?: string) => call<{ id: string }>("POST", "/api/tabs", { project, title, worktree }),
   renameTab: (id: string, title: string) => call("PATCH", `/api/tabs/${id}`, { title }),
   closeTab: (id: string) => call("DELETE", `/api/tabs/${id}`),
-  send: (id: string, body: { prompt: string; skills: string[]; images: string[]; mode: Mode; model?: string; workMode?: WorkMode }) =>
+  send: (id: string, body: { prompt: string; skills: string[]; images: string[]; mode: Mode; model?: string; workMode?: WorkMode; provider?: ProviderId }) =>
     call("POST", `/api/tabs/${id}/send`, body),
   permission: (id: string, permId: string, allow: boolean, always = false) => call("POST", `/api/tabs/${id}/permission`, { permId, allow, always }),
   upload: async (id: string, blob: Blob) => {
@@ -47,6 +53,7 @@ export const sessionsApi = {
   skills: () => call<Skill[]>("GET", "/api/sessions/skills"),
   savePrefs: (disabled: string[], pinned: string[]) => call("PUT", "/api/sessions/skills/prefs", { disabled, pinned }),
   recommend: (task: string, project: string) => call<{ skills: Recommendation[]; cost: number }>("POST", "/api/sessions/skills/recommend", { task, project }),
+  providers: () => call<ProvidersState>("GET", "/api/providers"),
 };
 
 export { prepareImage } from "@os/lib/images";

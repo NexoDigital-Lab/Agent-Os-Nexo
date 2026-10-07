@@ -6,12 +6,23 @@ import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { HookCallbackMatcher } from "@anthropic-ai/claude-agent-sdk";
 import { httpError } from "../../../host/server/http.ts";
+import { askWithProvider, type ProviderId } from "../../../host/server/providers.ts";
 
 export const READ_ONLY = ["Read", "Glob", "Grep"];
 export const MODEL = "sonnet";
 
 /** The SDK's query function; the callers below take it as a parameter so tests can pass a fake stream. */
 export type QueryFn = typeof query;
+
+// The provider ask()/structured() route by. claude (the bundled SDK) is the default; sessions/server/index.ts
+// seeds it from library/providers.json at boot. null counts as claude.
+let activeProvider: ProviderId | null = "claude";
+export function setActiveProviderId(id: ProviderId | null): void {
+  activeProvider = id;
+}
+export function getActiveProviderId(): ProviderId | null {
+  return activeProvider;
+}
 
 // Real path when it exists, else the real path of the nearest existing ancestor + the rest (so a symlink can't smuggle a path out).
 function realOrAncestor(abs: string): string {
@@ -83,8 +94,11 @@ const baseOptions = (cwd: string, extraDirs: string[] = []) => ({
   hooks: { PreToolUse: [confineHook(cwd, extraDirs)] },
 });
 
-/** Runs the prompt and returns the model's output validated by `schema` (json_schema output format). */
+/** Runs the prompt and returns the model's output validated by `schema` (json_schema output format).
+ *  claude-only in v1: a structured schema needs the SDK's outputFormat, so a non-claude active provider
+ *  fails honestly instead of silently falling back to a wrong shape. */
 export async function structured<T>(prompt: string, cwd: string, schema: Record<string, unknown>, extraDirs: string[] = [], run: QueryFn = query) {
+  if (activeProvider !== "claude" && activeProvider !== null) throw httpError(502, "Structured AI calls need Claude in this version");
   let out: T | null = null;
   let cost = 0;
   let error = "";
@@ -99,8 +113,14 @@ export async function structured<T>(prompt: string, cwd: string, schema: Record<
   return { out, cost };
 }
 
-/** Same read-only query, but free text: `system` is the whole system prompt (no Claude Code preset). */
+/** Same read-only query, but free text: `system` is the whole system prompt (no Claude Code preset).
+ *  Routes by the active provider: claude keeps the SDK path unchanged; a CLI provider runs headless
+ *  (v1: only the prompt is passed — no system channel, no Read/Glob/Grep confinement; cost unknown → 0). */
 export async function ask(prompt: string, system: string, cwd: string, run: QueryFn = query) {
+  if (activeProvider !== "claude" && activeProvider !== null) {
+    const r = await askWithProvider(activeProvider, prompt, { cwd });
+    return { text: r.text, cost: 0 };
+  }
   let text = "";
   let cost = 0;
   let error = "";

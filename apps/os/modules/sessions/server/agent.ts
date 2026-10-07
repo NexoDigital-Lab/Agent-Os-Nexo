@@ -12,7 +12,9 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { join } from "node:path";
 import { httpError, readJson, writeJson } from "../../../host/server/http.ts";
+import { askWithProvider, type ProviderId } from "../../../host/server/providers.ts";
 import { contributions, mergedHooks, safely, type TabContext, type TurnInfo } from "./contributions.ts";
+import { getActiveProviderId } from "./claude.ts";
 import { lastTask, translate, type Ev } from "./sdkEvents.ts";
 import { createWorkServer, deriveStatus, trackWaiting, WORK_NOTE, WORK_TOOL_PREFIX, type AgentStatus, type TurnEnd, type WorkStatus } from "./status.ts";
 import { dropUploads, pruneUploads, uploadPath, userMessage } from "./uploads.ts";
@@ -30,6 +32,8 @@ export function setQueryFn(fn: typeof query): void {
 
 type Session = TabContext & {
   sdkSessionId?: string;
+  /** Which registry provider this tab routes through; claude is the SDK path, the rest are headless CLIs. */
+  provider?: ProviderId;
   events: Ev[];
   clients: Set<Response>;
   running: boolean;
@@ -85,12 +89,12 @@ class Inbox implements AsyncIterable<SDKUserMessage> {
 
 const sessions = new Map<string, Session>();
 
-type SavedTab = TabContext & { sdkSessionId?: string; cost: number; forkNext?: boolean; work?: WorkStatus | null };
+type SavedTab = TabContext & { sdkSessionId?: string; provider?: ProviderId; cost: number; forkNext?: boolean; work?: WorkStatus | null };
 
 const ctxOf = (s: Session): TabContext => ({ id: s.id, title: s.title, project: s.project, dir: s.dir, cwd: s.cwd, worktree: s.worktree, meta: s.meta });
 
 function persist() {
-  const tabs: SavedTab[] = [...sessions.values()].map((s) => ({ ...ctxOf(s), sdkSessionId: s.sdkSessionId, cost: s.cost, forkNext: s.forkNext, work: s.work }));
+  const tabs: SavedTab[] = [...sessions.values()].map((s) => ({ ...ctxOf(s), sdkSessionId: s.sdkSessionId, provider: s.provider, cost: s.cost, forkNext: s.forkNext, work: s.work }));
   writeJson(TABS_FILE, tabs);
 }
 
@@ -122,7 +126,10 @@ export interface OpenTab {
 
 export function openTab(o: OpenTab): string {
   const id = crypto.randomUUID().slice(0, 8);
-  sessions.set(id, { ...fresh(), id, title: o.title, project: o.project, dir: o.dir, cwd: o.cwd, worktree: o.worktree ?? null, meta: o.meta ?? {} });
+  sessions.set(id, {
+    ...fresh(), id, title: o.title, project: o.project, dir: o.dir, cwd: o.cwd, worktree: o.worktree ?? null, meta: o.meta ?? {},
+    provider: getActiveProviderId() ?? "claude",
+  });
   persist();
   return id;
 }
@@ -144,6 +151,8 @@ export function resumeTab(o: OpenTab & { sdkSessionId: string; fork: boolean; hi
   };
   sessions.set(id, {
     ...fresh(), id, title: o.title, project: o.project, dir: o.dir, cwd: o.cwd, worktree: o.worktree ?? null, meta: o.meta ?? {},
+    // Resume is Claude-transcript-only in v1: a resumed tab always routes through the SDK.
+    provider: "claude",
     sdkSessionId: o.sdkSessionId, forkNext: o.fork, events: [...o.history, note],
   });
   persist();
@@ -169,7 +178,7 @@ export function setTabMeta(id: string, key: string, value: unknown): void {
 export function listTabs() {
   return [...sessions.values()].map((s) => {
     const status = refresh(s);
-    return { ...ctxOf(s), running: s.running, cost: s.cost, sdkSessionId: s.sdkSessionId ?? null, status, statusSince: s.st.since, workStatus: s.work ?? null };
+    return { ...ctxOf(s), running: s.running, cost: s.cost, sdkSessionId: s.sdkSessionId ?? null, provider: s.provider ?? null, status, statusSince: s.st.since, workStatus: s.work ?? null };
   });
 }
 
@@ -214,7 +223,7 @@ export function emitTo(id: string, ev: Ev): void {
 }
 
 export type WorkMode = "relax" | "focus" | "practice";
-type SendOpts = { prompt: string; skills: string[]; images: string[]; mode: PermissionMode; model?: string; workMode?: WorkMode };
+type SendOpts = { prompt: string; skills: string[]; images: string[]; mode: PermissionMode; model?: string; workMode?: WorkMode; provider?: ProviderId };
 
 // The work-mode dial, per message (see the nexo-dev skill).
 const WORK_MODE: Record<WorkMode, string> = {
@@ -237,9 +246,64 @@ function systemNote(s: Session, opts: SendOpts): string {
   return [`Session launched from agent-os-nexo (the Nexo web UI; ${where}). ${loadout}`, work, ...notes, WORK_NOTE].filter(Boolean).join("\n");
 }
 
+/** Short text transcript of the tab's prior user/assistant turns. v1 has no resume for CLI providers, so
+ *  this is what stands in for conversation history — computed BEFORE the current turn's user event lands. */
+function transcriptPrefix(s: Session): string {
+  const prior = s.events
+    .filter((e): e is Extract<Ev, { kind: "user" } | { kind: "text" }> => e.kind === "user" || e.kind === "text")
+    .map((e) => (e.kind === "user" ? `User: ${e.text}` : `Assistant: ${e.text}`));
+  return prior.length ? `${prior.slice(-20).join("\n")}\n\n` : "";
+}
+
+/** One headless CLI turn: the same chat events the claude path emits (user → text → result → activity →
+ *  status), without the SDK. Cost is unknown → 0; usage.ts reads Claude transcripts only, so CLI turns
+ *  are never recorded there (nothing to corrupt). Mid-turn quick prompts queue via afterRun; interrupt
+ *  cannot kill the child process in v1, but an aborted turn still ends quietly like the claude path. */
+async function runCliTurn(s: Session, provider: ProviderId, opts: SendOpts, transcript: string, ctx: TabContext, signal: AbortSignal): Promise<void> {
+  const started = Date.now();
+  let ok = false;
+  try {
+    const { text } = await askWithProvider(provider, transcript + opts.prompt, { cwd: s.dir });
+    if (signal.aborted) return;
+    emit(s, { kind: "text", text, sub: false });
+    emit(s, { kind: "result", cost: 0, turns: 1, ms: Date.now() - started, ok: true, text });
+    ok = true;
+  } catch (e) {
+    if (signal.aborted) return;
+    emit(s, { kind: "error", text: e instanceof Error ? e.message : String(e) });
+  } finally {
+    s.q = undefined;
+    s.input = undefined;
+    emit(s, { kind: "activity", tool: null });
+    s.running = false;
+    s.pending.clear();
+    s.waiting.clear();
+    // A turn the user stopped is not news; one that failed is — same rule as the claude path.
+    s.end = signal.aborted ? null : ok ? "ok" : "error";
+    s.unseen = s.end !== null;
+    refresh(s);
+    emit(s, { kind: "status", running: false });
+    persist();
+    const info: TurnInfo = { prompt: opts.prompt, skills: opts.skills, cost: 0, turns: 1, ok: ok && !signal.aborted };
+    for (const c of contributions()) safely(() => c.onTurnEnd?.(ctx, info), undefined);
+    const queued = s.afterRun.splice(0);
+    if (queued.length && sessions.has(s.id)) send(s.id, { prompt: queued.join("\n\n"), images: [], ...(s.last ?? { skills: [], mode: "default" }) });
+  }
+}
+
 export function send(id: string, opts: SendOpts): void {
   const s = get(id);
   if (s.running) throw httpError(409, "A task is already running in this tab");
+  // The provider for this turn: the body's explicit choice sticks to the session; otherwise the session's
+  // current provider, else the active default (library/providers.json, seeded at boot).
+  if (opts.provider) {
+    s.provider = opts.provider;
+    persist();
+  }
+  const provider = opts.provider ?? s.provider ?? getActiveProviderId() ?? "claude";
+  // v1 has no resume for CLI providers: prefix prior turns as a short transcript BEFORE this turn's
+  // user event is appended, so the prompt never duplicates the message being sent.
+  const cliTranscript = provider === "claude" ? "" : transcriptPrefix(s);
   s.running = true;
   s.end = null;
   s.unseen = false;
@@ -249,12 +313,18 @@ export function send(id: string, opts: SendOpts): void {
   const images = opts.images.filter((n) => uploadPath(id, n));
   emit(s, { kind: "user", text: opts.prompt, skills: opts.skills, images: images.map((n) => `/api/tabs/${id}/uploads/${n}`) });
 
-  s.last = { skills: opts.skills, mode: opts.mode, model: opts.model, workMode: opts.workMode };
+  s.last = { skills: opts.skills, mode: opts.mode, model: opts.model, workMode: opts.workMode, provider };
+  const ctx = ctxOf(s);
+  const signal = s.abort.signal;
+
+  if (provider !== "claude") {
+    void runCliTurn(s, provider, opts, cliTranscript, ctx, signal);
+    return;
+  }
+
   const input = new Inbox();
   input.push(userMessage(id, opts.prompt, images));
   s.input = input;
-  const ctx = ctxOf(s);
-  const signal = s.abort.signal;
 
   void (async () => {
     let turns = 0;

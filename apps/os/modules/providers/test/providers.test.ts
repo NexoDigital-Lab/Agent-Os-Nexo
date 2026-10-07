@@ -181,3 +181,50 @@ test("POST /providers/test re-detects one provider, bypassing the detect cache",
 
   assert.equal((await m.call("POST", "/providers/test", { id: "bogus" })).status, 400);
 });
+
+// ---- askWithProvider (T2 headless runners) -------------------------------------------------
+test("askWithProvider: headless argv per provider (opencode run / codex exec / agy -p)", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = () => ({ stdout: "  the answer\n" });
+  const r = await providers.askWithProvider("opencode", "fix the bug", { cwd: "/tmp/proj" });
+  assert.deepEqual(r, { text: "the answer", raw: "  the answer\n" });
+  assert.deepEqual(runCalls.at(-1), ["run", "fix the bug"]);
+
+  findHits = { codex: "/usr/local/bin/codex" };
+  runReply = () => ({ stdout: "ok" });
+  await providers.askWithProvider("codex", "do it", { cwd: "/tmp" });
+  assert.deepEqual(runCalls.at(-1), ["exec", "do it"]);
+
+  findHits = { agy: "/usr/bin/agy" };
+  runReply = () => ({ stdout: "g" });
+  await providers.askWithProvider("antigravity", "hello", { cwd: "/tmp" });
+  assert.deepEqual(runCalls.at(-1), ["-p", "hello"]);
+});
+
+test("askWithProvider: a win32 .cmd shim resolves through cmd.exe /c with the headless argv after it", async () => {
+  const seen: { cmd: string; args: string[] }[] = [];
+  providers.providerExec.run = ((cmd: string, args: string[]) => {
+    seen.push({ cmd, args });
+    return Promise.resolve({ stdout: "ok", stderr: "" });
+  }) as unknown as typeof providers.providerExec.run;
+  findHits = { "codex.cmd": "C:\\tools\\codex.cmd" };
+  await providers.askWithProvider("codex", "x", { cwd: "C:\\proj" });
+  assert.equal(seen[0].cmd, process.env.ComSpec ?? "cmd.exe");
+  assert.deepEqual(seen[0].args, ["/c", "C:\\tools\\codex.cmd", "exec", "x"]);
+});
+
+test("askWithProvider: non-zero exit is a 502 carrying a trimmed stderr tail; empty stdout is a 502", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  providers.providerExec.run = (() =>
+    Promise.reject(Object.assign(new Error("Command failed"), { stderr: "line1\nline2\nAGENT ERROR: bad login\n", stdout: "" }))) as unknown as typeof providers.providerExec.run;
+  await assert.rejects(
+    providers.askWithProvider("opencode", "x", { cwd: "/tmp" }),
+    (e: any) => e.status === 502 && /AGENT ERROR: bad login/.test(e.message),
+  );
+  providers.providerExec.run = (() => Promise.resolve({ stdout: "   \n", stderr: "" })) as unknown as typeof providers.providerExec.run;
+  await assert.rejects(providers.askWithProvider("opencode", "x", { cwd: "/tmp" }), (e: any) => e.status === 502 && /no output/.test(e.message));
+});
+
+test("askWithProvider: claude is refused (SDK path), not spawned headless", async () => {
+  await assert.rejects(providers.askWithProvider("claude", "x", { cwd: "/tmp" }), (e: any) => e.status === 502 && /SDK/.test(e.message));
+});

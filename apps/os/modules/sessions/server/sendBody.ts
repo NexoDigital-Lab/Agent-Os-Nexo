@@ -1,6 +1,7 @@
 // The body of POST /api/tabs/:id/send, checked before anything about the tab changes: a malformed request used
 // to leave the tab "working" forever (rule R3). Anything that reaches the agent is typed and bounded here.
 import { httpError } from "../../../host/server/http.ts";
+import { providerById, type ProviderId } from "../../../host/server/providers.ts";
 import type { PermissionMode } from "@anthropic-ai/claude-agent-sdk";
 import type { WorkMode } from "./agent.ts";
 
@@ -11,6 +12,8 @@ export interface SendBody {
   mode: PermissionMode;
   model?: string;
   workMode?: WorkMode;
+  /** Registry provider id; missing/unknown falls back to the session's current provider (or the active default). */
+  provider?: ProviderId;
 }
 
 const MODES: readonly PermissionMode[] = ["default", "acceptEdits", "plan", "bypassPermissions"];
@@ -36,6 +39,11 @@ export function parseSendBody(b: unknown): SendBody {
   if (!MODES.includes(mode as PermissionMode)) throw httpError(400, `mode must be one of: ${MODES.join(", ")}`);
   if (body.model !== undefined && body.model !== null && (typeof body.model !== "string" || !MODEL.test(body.model))) throw httpError(400, "Invalid model");
   if (body.workMode !== undefined && body.workMode !== null && !WORK_MODES.includes(body.workMode as WorkMode)) throw httpError(400, `workMode must be one of: ${WORK_MODES.join(", ")}`);
+  let provider: ProviderId | undefined;
+  if (body.provider !== undefined && body.provider !== null) {
+    if (typeof body.provider !== "string" || !providerById(body.provider)) throw httpError(400, `Unknown provider: ${String(body.provider)}`);
+    provider = body.provider as ProviderId;
+  }
   return {
     prompt: body.prompt,
     skills: list(body.skills, "skills", SKILL, 20),
@@ -43,5 +51,6 @@ export function parseSendBody(b: unknown): SendBody {
     mode: mode as PermissionMode,
     model: (body.model as string | undefined) || undefined,
     workMode: (body.workMode as WorkMode | undefined) ?? undefined,
+    provider,
   };
 }

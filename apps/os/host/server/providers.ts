@@ -2,7 +2,7 @@
 // machine (Windows-safe — execFile cannot run .cmd/.bat shims, so those resolve through cmd.exe /c), and
 // library/providers.json read/write. Sessions routing (T2) adapts claude.ts over this same registry.
 import { readFileSync } from "node:fs";
-import { findBin, run, writeJson } from "./http.ts";
+import { findBin, httpError, run, writeJson } from "./http.ts";
 
 export type ProviderId = "claude" | "opencode" | "codex" | "antigravity";
 export type ProviderKind = "sdk" | "cli";
@@ -26,6 +26,12 @@ export interface DetectedProvider {
   version: string | null;
   install: string;
   loginHint: string;
+}
+
+/** What a headless provider run produced: the trimmed answer text and the raw stdout. */
+export interface AskResult {
+  text: string;
+  raw: string;
 }
 
 /** The fixed v1 registry. claude is the bundled SDK; the rest are CLIs spawned headless. */
@@ -107,6 +113,50 @@ export function resolveCli(
     }
   }
   return null;
+}
+
+/** Headless argv per CLI provider, prompt as ONE argument (verified where possible: opencode run, codex exec, agy -p). */
+function headlessArgs(id: ProviderId, prompt: string): string[] {
+  if (id === "opencode") return ["run", prompt]; // `opencode run [message..]` (v1.18.29)
+  if (id === "codex") return ["exec", prompt]; // `codex exec "…"`
+  if (id === "antigravity") return ["-p", prompt]; // `agy -p "…"`; legacy `gemini -p "…"` shares the flag
+  throw httpError(502, `Provider ${id} runs through the Claude SDK, not a headless CLI`);
+}
+
+/**
+ * Runs a CLI provider headless in `cwd`. stdout is the answer text (trimmed). Throws httpError(502, …)
+ * on a non-zero exit (with a trimmed stderr/stdout tail, docker.ts style) or empty output; a killed
+ * process (our own timeout) is a 504, same as docker. claude is not handled here — it is the SDK path.
+ */
+export async function askWithProvider(
+  id: ProviderId,
+  prompt: string,
+  opts: { cwd: string; timeoutMs?: number },
+): Promise<AskResult> {
+  const meta = providerById(id);
+  if (!meta) throw httpError(502, `Unknown provider: ${id}`);
+  if (meta.kind !== "cli") throw httpError(502, `Provider ${id} runs through the Claude SDK, not a headless CLI`);
+  const cli = resolveCli(meta.binaries, process.platform, providerExec.find);
+  if (!cli) throw httpError(502, `${meta.label} is not installed (or not on PATH)`);
+  const argv = headlessArgs(id, prompt);
+  const timeout = opts.timeoutMs ?? 120_000;
+  try {
+    const out = await providerExec.run(cli.cmd, [...cli.pre, ...argv], { timeout, cwd: opts.cwd });
+    const text = (out.stdout ?? "").trim();
+    if (!text) throw httpError(502, `${meta.label} returned no output`);
+    return { text, raw: out.stdout ?? "" };
+  } catch (e) {
+    if (e && typeof e === "object" && "status" in e) throw e; // our own httpError above passes through
+    const err = e as { stderr?: string; stdout?: string; killed?: boolean; message?: string };
+    if (err.killed) throw httpError(504, `${meta.label} took more than ${Math.round(timeout / 1000)} s to answer`);
+    const tail = String(err.stderr || err.stdout || err.message || "failed")
+      .trim()
+      .split("\n")
+      .slice(-3)
+      .join("\n")
+      .trim();
+    throw httpError(502, `${meta.label} failed: ${tail || "no output"}`);
+  }
 }
 
 /** agent-os-nexo's own version (the SDK is bundled with the app); null when the package.json is unreadable. */

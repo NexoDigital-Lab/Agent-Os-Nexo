@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { parseSendBody } from "../server/sendBody.ts";
 
 test("a valid send body passes, with defaults", () => {
-  assert.deepEqual(parseSendBody({ prompt: "hi" }), { prompt: "hi", skills: [], images: [], mode: "default", model: undefined, workMode: undefined });
-  const full = parseSendBody({ prompt: "x", skills: ["nexo-dev"], images: ["a1.png"], mode: "plan", model: "sonnet", workMode: "focus" });
+  assert.deepEqual(parseSendBody({ prompt: "hi" }), { prompt: "hi", skills: [], images: [], mode: "default", model: undefined, workMode: undefined, provider: undefined });
+  const full = parseSendBody({ prompt: "x", skills: ["nexo-dev"], images: ["a1.png"], mode: "plan", model: "sonnet", workMode: "focus", provider: "opencode" });
   assert.equal(full.mode, "plan");
   assert.equal(full.workMode, "focus");
+  assert.equal(full.provider, "opencode");
 });
 
 test("a malformed send body is refused before the tab changes", () => {

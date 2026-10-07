@@ -1,11 +1,11 @@
 // Where a task is written: skill recommendation + picker, images (paste / drop / 📎), work mode, permission
-// mode and model, and the buttons that send it (plus actions other modules add, like "Practice this").
+// mode, provider + model, and the buttons that send it (plus actions other modules add, like "Practice this").
 import { Paperclip, Play, Sparkles, Square, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { readStr, writeStr } from "@os/lib/storage";
 import { toggled } from "@os/lib/ui";
 import { slot } from "@os/registry";
-import { prepareImage, sessionsApi as api, type Mode, type Recommendation, type Skill, type Tab, type WorkMode } from "../api";
+import { prepareImage, sessionsApi as api, type Mode, type ProviderId, type Recommendation, type Skill, type Tab, type WorkMode } from "../api";
 import type { ComposerAction, TabViewProps } from "../slots";
 import { t } from "@os/i18n";
 
@@ -43,6 +43,11 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
     writeStr(`mode:${tab.id}`, mode);
   }, [mode]);
   const [model, setModel] = useState("");
+  // Enabled providers for the picker (GET /api/providers, T1 route). Empty until it answers; the send
+  // payload then omits provider and the server keeps the session's current one (or the active default).
+  const [enabledProviders, setEnabledProviders] = useState<{ id: ProviderId; label: string }[]>([]);
+  // What the next send will use: the session's provider unless the user picks another one here.
+  const [providerPick, setProviderPick] = useState<string>("");
   const [recs, setRecs] = useState<Recommendation[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [recLoading, setRecLoading] = useState(false);
@@ -52,6 +57,16 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
   const [uploading, setUploading] = useState(0);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void api.providers().then((r) => {
+      setEnabledProviders(r.providers.filter((p) => r.enabled.includes(p.id)).map((p) => ({ id: p.id, label: p.label })));
+    }, () => {});
+  }, [tab.id]);
+
+  const effectiveProvider = (providerPick || tab.provider || "claude") as string;
+  // Models are claude-specific in v1: the model dropdown shows only on the SDK path.
+  const showModel = effectiveProvider === "claude";
 
   async function addImages(files: Iterable<Blob>) {
     const list = [...files].filter((f) => f.type.startsWith("image/"));
@@ -94,7 +109,15 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
     if (!prompt.trim() || running || uploading) return;
     setError("");
     try {
-      await api.send(tab.id, { prompt, skills: [...picked], images: images.map((i) => i.name), mode, model: model || undefined, workMode });
+      await api.send(tab.id, {
+        prompt,
+        skills: [...picked],
+        images: images.map((i) => i.name),
+        mode,
+        model: showModel ? model || undefined : undefined,
+        workMode,
+        provider: providerPick && providerPick !== (tab.provider ?? "claude") ? (providerPick as ProviderId) : undefined,
+      });
       setPrompt("");
       setImages([]);
       setRecs(null);
@@ -233,9 +256,18 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
         <select className="field" value={mode} aria-label={t("Permission mode")} onChange={(e) => setMode(e.target.value as Mode)}>
           {MODES.map((m) => <option key={m.v} value={m.v}>{t(m.label)}</option>)}
         </select>
-        <select className="field" value={model} aria-label={t("Model")} onChange={(e) => setModel(e.target.value)}>
-          {MODELS.map((m) => <option key={m.v} value={m.v}>{t(m.label)}</option>)}
-        </select>
+        {enabledProviders.length > 0 && (
+          <select className="field" value={effectiveProvider} aria-label={t("Provider")} onChange={(e) => setProviderPick(e.target.value)}>
+            {enabledProviders.map((p) => <option key={p.id} value={p.id}>{t(p.label)}</option>)}
+          </select>
+        )}
+        {showModel ? (
+          <select className="field" value={model} aria-label={t("Model")} onChange={(e) => setModel(e.target.value)}>
+            {MODELS.map((m) => <option key={m.v} value={m.v}>{t(m.label)}</option>)}
+          </select>
+        ) : (
+          <span className="faint" style={{ fontSize: 11.5, alignSelf: "center" }}>{t("New provider session")}</span>
+        )}
         <span className="grow errline">{error}</span>
         {running ? (
           <button className="btn danger" onClick={() => api.interrupt(tab.id)}><Square size={14} /> {t("Stop")}</button>

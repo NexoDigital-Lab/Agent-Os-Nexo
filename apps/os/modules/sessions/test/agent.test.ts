@@ -537,3 +537,89 @@ test("search routes: query, project filter, and id validation for 'around'", asy
   const around = await m.get(`/sessions/${SID}/around?at=2026-01-01T10:00:00Z&n=1`);
   assert.equal(around.status, 200);
 });
+
+// ---- provider routing (T2) ---------------------------------------------------------------------
+const providersHost = await import("../../../host/server/providers.ts");
+const { parseSendBody } = await import("../server/sendBody.ts");
+
+test("parseSendBody: a registry provider id passes; an unknown one is a 400", () => {
+  assert.equal(parseSendBody({ prompt: "x" }).provider, undefined);
+  assert.equal(parseSendBody({ prompt: "x", provider: "opencode" }).provider, "opencode");
+  assert.throws(() => parseSendBody({ prompt: "x", provider: "bogus" }), (e: any) => e.status === 400 && /provider/i.test(e.message));
+  assert.throws(() => parseSendBody({ prompt: "x", provider: 42 }), (e: any) => e.status === 400);
+});
+
+test("send with a CLI provider: the same chat events, headless argv, no SDK call; the provider sticks", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  const askCalls: { cmd: string; args: string[] }[] = [];
+  providersHost.providerExec.find = (n: string) => (n === "opencode" || n === "opencode.cmd" ? `/fake/${n}` : null);
+  providersHost.providerExec.run = ((cmd: string, args: string[]) => {
+    askCalls.push({ cmd, args });
+    return Promise.resolve({ stdout: "  CLI answer one\n", stderr: "" });
+  }) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const id = await open("cli tab");
+    const sdkBefore = calls.length;
+    assert.equal((await send(id, { provider: "opencode" })).status, 200);
+    await idle(id);
+    const evs = await events(id);
+    // The same machinery as the claude path: status, user, the answer as text, result, activity, status.
+    assert.deepEqual(evs.map((e) => e.kind), ["status", "user", "text", "result", "activity", "status", "status", "replay_done"]);
+    assert.equal(evs[1].text, "go");
+    assert.equal(evs[2].text, "CLI answer one");
+    assert.equal(evs[2].sub, false);
+    assert.equal(evs[3].ok, true);
+    assert.equal(evs[3].cost, 0);
+    assert.equal(evs[3].turns, 1);
+    assert.equal(calls.length, sdkBefore, "the SDK query never ran");
+    assert.deepEqual(askCalls[0].args, ["run", "go"]);
+    const t = await tab(id);
+    assert.equal(t.provider, "opencode");
+    assert.equal(t.sdkSessionId, null);
+    // A second send without a provider keeps the session's provider and prefixes the transcript.
+    providersHost.providerExec.run = ((cmd: string, args: string[]) => {
+      askCalls.push({ cmd, args });
+      return Promise.resolve({ stdout: "CLI answer two", stderr: "" });
+    }) as unknown as typeof providersHost.providerExec.run;
+    assert.equal((await send(id, { prompt: "second" })).status, 200);
+    await idle(id);
+    assert.equal(askCalls.length, 2);
+    assert.equal(askCalls[1].cmd, "/fake/opencode");
+    assert.deepEqual(askCalls[1].args, ["run", "User: go\nAssistant: CLI answer one\n\nsecond"]);
+    agent.closeTab(id);
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});
+
+test("a CLI provider failure emits the same error shape as the claude path and ends the turn as error", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  providersHost.providerExec.find = (n: string) => (n === "codex" ? "/fake/codex" : null);
+  providersHost.providerExec.run = (() =>
+    Promise.reject(Object.assign(new Error("Command failed"), { stderr: "login required\n", stdout: "" }))) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const id = await open();
+    const sdkBefore = calls.length;
+    assert.equal((await send(id, { provider: "codex" })).status, 200);
+    await idle(id);
+    const evs = await events(id);
+    assert.ok(evs.some((e) => e.kind === "error" && /login required/.test(e.text)));
+    assert.equal((await tab(id)).status, "error");
+    assert.equal(calls.length, sdkBefore, "the SDK path was not touched");
+    agent.closeTab(id);
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});
+
+test("a tab opens with the active provider as its default; an invalid provider id is refused before the turn", async () => {
+  const id = await open();
+  assert.equal((await tab(id)).provider, "claude");
+  assert.equal((await send(id, { provider: "nope" })).status, 400);
+  assert.equal((await tab(id)).status, "idle", "the 400 never starts a turn");
+  agent.closeTab(id);
+});

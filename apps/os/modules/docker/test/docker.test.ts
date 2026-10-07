@@ -7,6 +7,7 @@ type Reply = { stdout?: string; stderr?: string; err?: Partial<Error & { killed:
 let calls: { file: string; args: string[]; timeout: number }[] = [];
 let reply: (args: string[]) => Reply = () => ({ stdout: "" });
 let spawnCalls: string[] = [];
+const realSpawnDesktop = docker.dockerSys.spawnDesktop;
 
 beforeEach(() => {
   calls = [];
@@ -14,6 +15,7 @@ beforeEach(() => {
   spawnCalls = [];
   docker.dockerSys.platform = process.platform;
   docker.dockerSys.desktop = null;
+  docker.dockerSys.exists = () => true;
   docker.dockerSys.spawnDesktop = (exe) => {
     spawnCalls.push(exe);
   };
@@ -172,6 +174,19 @@ test("openDockerDesktop refuses without an installed Desktop, else launches it",
   docker.dockerSys.desktop = "C:\\Docker\\Docker Desktop.exe";
   assert.deepEqual(docker.openDockerDesktop(), { ok: true, path: "C:\\Docker\\Docker Desktop.exe" });
   assert.deepEqual(spawnCalls, ["C:\\Docker\\Docker Desktop.exe"], "goes through the injectable launcher, never a real spawn");
+});
+
+test("openDockerDesktop refuses a Desktop uninstalled since the server started", () => {
+  docker.dockerSys.desktop = "C:\\Docker\\Docker Desktop.exe";
+  docker.dockerSys.exists = () => false;
+  assert.throws(() => docker.openDockerDesktop(), (e: Error & { status: number }) => e.status === 400 && /no longer installed/.test(e.message));
+  assert.deepEqual(spawnCalls, [], "nothing is launched");
+});
+
+test("the real Desktop launcher survives an exe that cannot start (no unhandled 'error')", async () => {
+  realSpawnDesktop("/nonexistent/Docker Desktop.exe");
+  // spawn reports ENOENT on a later tick; without a listener that would crash the whole server (and this test run).
+  await new Promise((r) => setTimeout(r, 200));
 });
 
 test("containers parses the json lines and the project label", async () => {

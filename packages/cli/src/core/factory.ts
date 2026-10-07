@@ -45,7 +45,7 @@ function allFactoryItems(): FactoryItem[] {
     for (const name of listDir(join(basesLibrary, kind))) {
       const src = join(basesLibrary, kind, name);
       if (!isDir(src)) continue;
-      items.push({ kind, name, src, rel: join(kind, name), ownerFile: kind === "skills" ? "SKILL.md" : "README.md", isDir: true });
+      items.push({ kind, name, src, rel: `${kind}/${name}`, ownerFile: kind === "skills" ? "SKILL.md" : "README.md", isDir: true });
     }
   }
   const files: Array<[FactoryItem["kind"], string]> = [["agents", ".md"], ["hooks", ".json"], ["commands", ".json"]];
@@ -53,7 +53,7 @@ function allFactoryItems(): FactoryItem[] {
     for (const file of listDir(join(basesLibrary, kind))) {
       if (!file.endsWith(ext)) continue;
       const src = join(basesLibrary, kind, file);
-      items.push({ kind, name: basename(file, ext), src, rel: join(kind, file), ownerFile: "", isDir: false });
+      items.push({ kind, name: basename(file, ext), src, rel: `${kind}/${file}`, ownerFile: "", isDir: false });
     }
   }
   return items;

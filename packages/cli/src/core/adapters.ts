@@ -1,8 +1,8 @@
-import { existsSync, lstatSync, readlinkSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, lstatSync, rmSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { enabledTools, folder, type EnvironmentConfig } from "./config.ts";
 import { listConnections, mcpServersFor } from "./connections.ts";
-import { ensureDir, listDir, readJson, readText, writeJson, writeText } from "./fsx.ts";
+import { ensureDir, linkDir, linksTo, listDir, readJson, readText, writeJson, writeText } from "./fsx.ts";
 import { parseFrontmatter } from "./frontmatter.ts";
 import { toClaudePermissions, type Permissions } from "./permissions.ts";
 
@@ -79,10 +79,10 @@ function linkClaudeSkills(libraryDir: string, targetDir: string): boolean {
     stat = null;
   }
   if (stat && !stat.isSymbolicLink()) return false;
-  if (stat && readlinkSync(link) === want) return true;
+  if (stat && linksTo(link, want)) return true;
   if (stat) rmSync(link);
   ensureDir(dirname(link));
-  symlinkSync(want, link, "dir");
+  linkDir(want, link);
   return true;
 }
 

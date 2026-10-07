@@ -43,6 +43,9 @@ export function noteUsage(u: SDKControlGetUsageResponse, now = Date.now()) {
 }
 
 // ---- probe: ask the CLI for /usage without sending any prompt (no model call), at most every 5 minutes ----
+// The SDK call, replaceable so tests can answer without a CLI.
+export const deps = { query };
+
 let probing: Promise<void> | null = null;
 let lastProbe = 0;
 export function probe(force = false): Promise<void> {
@@ -54,7 +57,7 @@ export function probe(force = false): Promise<void> {
     const idle = (async function* () {
       await new Promise<void>((r) => abort.signal.addEventListener("abort", () => r()));
     })();
-    const q = query({ prompt: idle, options: { settingSources: [], abortController: abort, persistSession: false } });
+    const q = deps.query({ prompt: idle, options: { settingSources: [], abortController: abort, persistSession: false } });
     const timer = setTimeout(() => abort.abort(), 20_000);
     try {
       noteUsage(await q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({ skipBehaviors: true }));

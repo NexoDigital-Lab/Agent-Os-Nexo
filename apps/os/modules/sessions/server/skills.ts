@@ -112,7 +112,7 @@ const RECOMMEND_SCHEMA = {
 };
 
 /** Picks a focused loadout for a task with a cheap model call: few skills, rare-signal matches first, under ~15k tokens. */
-export async function recommendSkills(task: string, project: string | null) {
+export async function recommendSkills(task: string, project: string | null, run: typeof query = query) {
   const pool = listSkills().filter((s) => s.enabled);
   const catalog = pool.map((s) => `- ${s.name} (${s.tokens} tok): ${s.description}`).join("\n");
   const prompt = `You pick the skill loadout for a coding agent before it starts a task.
@@ -131,7 +131,7 @@ Rules:
 
   let recs: Recommendation[] = [];
   let cost = 0;
-  for await (const msg of query({
+  for await (const msg of run({
     prompt,
     options: { model: "haiku", tools: [], settingSources: [], persistSession: false, maxTurns: 2, outputFormat: { type: "json_schema", schema: RECOMMEND_SCHEMA } },
   })) {

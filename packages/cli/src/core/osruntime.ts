@@ -3,11 +3,11 @@
 // processes (pid + log in .state/os). Everything here shells out to node, npm and tar: no runtime dependencies.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { closeSync, cpSync, existsSync, lstatSync, mkdtempSync, openSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync } from "node:fs";
+import { closeSync, cpSync, existsSync, lstatSync, mkdtempSync, openSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { ensureDir, readJson, readText, writeJson, writeText } from "./fsx.ts";
-import { tryRun } from "./exec.ts";
+import { ensureDir, linkDir, readJson, readText, writeJson, writeText } from "./fsx.ts";
+import { spawnable, tryRun } from "./exec.ts";
 import { activeVersion, listVersions, nextVersion } from "./osversions.ts";
 import { commitChanges, initSourceRepo, tagBuild } from "./osupdate.ts";
 
@@ -19,7 +19,8 @@ export type OsProcess = keyof typeof PORTS;
 export type Runner = (cmd: string, args: string[], cwd: string) => void;
 
 export const defaultRunner: Runner = (cmd, args, cwd) => {
-  const r = spawnSync(cmd, args, { cwd, stdio: "inherit" });
+  const s = spawnable(cmd, args);
+  const r = spawnSync(s.file, s.args, { cwd, stdio: "inherit", windowsVerbatimArguments: s.verbatim });
   if (r.error) throw new Error(`${cmd} could not start: ${r.error.message}`);
   if (r.status !== 0) throw new Error(`\`${cmd} ${args.join(" ")}\` failed (exit ${r.status}) in ${cwd}`);
 };
@@ -72,7 +73,7 @@ export function linkRuntime(target: string, runtimeDir: string): void {
     if (!isLink(link)) throw new Error(`${link} is a real folder; agent-os expects a link to os/runtime/. Remove it first.`);
     rmSync(link);
   }
-  symlinkSync(join(runtimeDir, "node_modules"), link, "dir");
+  linkDir(join(runtimeDir, "node_modules"), link);
 }
 
 function isLink(p: string): boolean {
@@ -176,16 +177,34 @@ export function openerFor(platform: NodeJS.Platform = process.platform): { cmd: 
 export const logFile = (stateDir: string, p: OsProcess) => join(stateDir, "os", `${p}.log`);
 
 /** The command line of a live process we may signal, or null (gone, or another user's). */
-function commandOf(pid: number): string | null {
+export function commandOf(pid: number, platform: NodeJS.Platform = process.platform): string | null {
   try {
     process.kill(pid, 0);
   } catch {
     return null; // ESRCH: gone; EPERM: someone else's process, never ours to stop
   }
+  if (platform === "win32") {
+    // No /proc and no ps: Windows keeps the command line in WMI.
+    const query = `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`;
+    return tryRun("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", query], 15_000) ?? "";
+  }
   try {
     return readFileSync(`/proc/${pid}/cmdline`, "utf8").replace(/\0/g, " ");
   } catch {
     return tryRun("ps", ["-p", String(pid), "-o", "command="]) ?? ""; // macOS and other systems without /proc
+  }
+}
+
+/** Ends a process and what it started: its group on Unix (it was started detached), its tree on Windows. */
+export function killTree(pid: number, platform: NodeJS.Platform = process.platform): void {
+  if (platform === "win32" && tryRun("taskkill", ["/pid", String(pid), "/T", "/F"], 15_000) !== null) return;
+  for (const target of platform === "win32" ? [pid] : [-pid, pid]) {
+    try {
+      process.kill(target, "SIGTERM");
+      return;
+    } catch {
+      // no group, or already gone: try the process itself, then give up quietly
+    }
   }
 }
 
@@ -245,7 +264,7 @@ export async function startProcess(
   const args = [join(dir, "host", "server", "main.ts"), "--port", String(port), ...(p === "preview" ? ["--dev"] : [])];
   let child;
   try {
-    child = spawn(process.execPath, args, { cwd: dir, detached: true, stdio: ["ignore", fd, fd], env: { ...process.env, NEXO_ROOT: root } });
+    child = spawn(process.execPath, args, { cwd: dir, detached: true, windowsHide: true, stdio: ["ignore", fd, fd], env: { ...process.env, NEXO_ROOT: root } });
   } finally {
     closeSync(fd); // the child has its own copy
   }
@@ -270,14 +289,7 @@ export function stopProcesses(stateDir: string, which: OsProcess[]): OsProcess[]
   for (const p of which) {
     const pid = runningPid(stateDir, p);
     if (!pid) continue;
-    for (const target of [-pid, pid]) {
-      try {
-        process.kill(target, "SIGTERM"); // the whole group first: it was started detached, with the agents it ran
-        break;
-      } catch {
-        // no group (Windows) or already gone: try the process itself, then give up quietly
-      }
-    }
+    killTree(pid); // with the agents it ran
     rmSync(pidFile(stateDir, p), { force: true });
     rmSync(portFile(stateDir, p), { force: true });
     stopped.push(p);

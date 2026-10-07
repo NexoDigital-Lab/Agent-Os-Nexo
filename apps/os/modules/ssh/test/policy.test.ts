@@ -5,6 +5,39 @@ import { blockedToolUse, guardDirs, isReadOnly, redact } from "../server/policy.
 // The absolute folders the module guards at register (vault and run keys elsewhere, as a custom setup could put them).
 guardDirs(["/srv/vault-dir", "/srv/run-dir"]);
 
+test("on Windows the module's folders are guarded whatever the case, slashes or drive spelling", () => {
+  try {
+    guardDirs(["C:\\Users\\Me\\env\\os\\data\\ssh", "/srv/run-dir"], "win32");
+    for (const command of [
+      "type C:\\Users\\Me\\env\\os\\data\\ssh\\vault\\vault.json",
+      "type c:\\users\\me\\env\\OS\\DATA\\SSH\\vault\\vault.json",
+      "cat /c/Users/Me/env/os/data/ssh/vault/vault.json",
+      "cat C:/USERS/me/env/os/data/ssh/vault/vault.json",
+      "cat /SRV/RUN-DIR/key",
+    ]) assert.ok(blockedToolUse("Bash", { command }), command);
+    assert.equal(blockedToolUse("Bash", { command: "type C:\\Users\\Me\\env\\notes.txt" }), null);
+    // Tool paths are literal: the backslashes are separators, not shell escapes.
+    for (const file_path of ["C:\\Users\\Me\\env\\os\\data\\ssh\\vault\\vault.json", "c:\\users\\me\\env\\os\\data\\ssh\\vault\\vault.json"]) {
+      assert.ok(blockedToolUse("Read", { file_path }), file_path);
+      assert.ok(blockedToolUse("Edit", { file_path }), file_path);
+    }
+    assert.ok(blockedToolUse("Grep", { path: "C:\\Users\\Me\\env\\os\\data", pattern: "x" }), "a search rooted at the modules' data");
+    assert.equal(blockedToolUse("Read", { file_path: "C:\\Users\\Me\\env\\notes.txt" }), null);
+  } finally {
+    guardDirs(["/srv/vault-dir", "/srv/run-dir"]);
+  }
+});
+
+test("elsewhere the folders are resolved: a trailing slash or .. in the configured path still guards them", () => {
+  try {
+    guardDirs(["/srv/x/../vault-dir/", "/srv/run-dir"], "linux");
+    assert.ok(blockedToolUse("Bash", { command: "cat /srv/vault-dir/vault.json" }));
+    assert.equal(blockedToolUse("Bash", { command: "cat /SRV/VAULT-DIR/vault.json" }), null, "Linux paths keep their case");
+  } finally {
+    guardDirs(["/srv/vault-dir", "/srv/run-dir"]);
+  }
+});
+
 test("isReadOnly allows plain inspection, pipes included", () => {
   for (const cmd of [
     "ls -la /var/log",

@@ -1,11 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { findRoot } from "../core/paths.ts";
 import { folder, readConfig } from "../core/config.ts";
 import { activeVersion, listVersions, nextVersion, pinVersion } from "../core/osversions.ts";
 import { abortUpdate, continueUpdate, updateSource } from "../core/osupdate.ts";
 import { accessLink, buildVersion, defaultRunner, fetchSource, logFile, withRelease, openerFor, PORTS, runningPid, runningPort, startProcess, stopProcesses, type Runner } from "../core/osruntime.ts";
+import { createDesktopShortcut } from "../core/desktopShortcut.ts";
 
 export interface OsOptions {
   root?: string;
@@ -18,6 +20,12 @@ export interface OsOptions {
   continue?: boolean;
   abort?: boolean;
 }
+
+/** What install reaches outside the environment. Tests replace it so no real shortcut lands on a desktop. */
+export const osDeps = { createDesktopShortcut };
+
+/** The repository this CLI runs from (packages/cli/{src,dist}/commands → four up), where a desktop build may live. */
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
 const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], open [--preview], check [--module <id>], update [--from <dir>|--continue|--abort].";
 
@@ -69,7 +77,11 @@ export async function os(action: string | undefined, arg: string | undefined, op
       // A previous install that copied the source but failed to build picks up where it stopped.
       const fetched = hasSource && !opts.from ? "resumed with the source already in os/source" : fetchSource(osDir, opts.from, run);
       const version = buildVersion(osDir, "First build", run);
-      return [`agent-os installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."].join("\n");
+      const lines = [`agent-os installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."];
+      // Windows: a desktop shortcut to the desktop shell, so the app opens like any other program.
+      const shortcut = osDeps.createDesktopShortcut(REPO_ROOT);
+      if (shortcut) lines.push(`Desktop shortcut created: ${shortcut}`);
+      return lines.join("\n");
     }
     case "build": {
       const version = buildVersion(osDir, opts.notes ?? "", run);

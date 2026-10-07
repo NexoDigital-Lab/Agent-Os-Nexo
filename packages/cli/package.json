@@ -15,7 +15,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "test": "node --test --test-timeout=120000 --test-reporter=spec \"test/**/*.test.ts\"",
+    "coverage": "c8 node --test --test-timeout=120000 \"test/**/*.test.ts\"",
     "prepack": "npm run build"
   },
   "engines": {

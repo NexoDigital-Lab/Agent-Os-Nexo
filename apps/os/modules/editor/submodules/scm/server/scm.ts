@@ -5,6 +5,9 @@ import path from "node:path";
 import { httpError, run, trash } from "../../../../../host/server/http.ts";
 import { safePath } from "../../../../projects/server/repo.ts";
 
+/** What reaches outside git: the system trash, swappable so tests do not depend on it. */
+export const deps = { trash };
+
 // Never hang on a prompt: fail fast if a push/pull needs a password or an unknown host key.
 const ENV = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: "ssh -o BatchMode=yes", GIT_EDITOR: "true" };
 
@@ -104,7 +107,7 @@ export async function discard(cwd: string, list: unknown) {
   const tracked = files.filter((f) => !untracked.includes(f));
   if (tracked.length) await git(cwd, ["restore", "--", ...tracked]);
   for (const f of untracked) {
-    await trash(safePath(cwd, f), f);
+    await deps.trash(safePath(cwd, f), f);
   }
   return status(cwd);
 }

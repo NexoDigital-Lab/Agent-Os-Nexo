@@ -128,6 +128,10 @@ fn is_agent_os(port: u16) -> bool {
     status_ok && head.lines().any(|l| l.to_ascii_lowercase().replace(' ', "") == "x-agent-os:1")
 }
 
+/// Windows process creation flag: start the child without a console window.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 /// Must be called from the main thread on Linux: PR_SET_PDEATHSIG fires when the *thread* that spawned the
 /// child exits, not the process, so spawning from a short-lived worker would kill the server early.
 fn spawn_server(root: &Path, build: &Path, log_path: &Path, port: u16) -> Result<Child, String> {
@@ -165,6 +169,12 @@ fn spawn_server(root: &Path, build: &Path, log_path: &Path, port: u16) -> Result
             });
         }
     }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // The server runs headless: no console window pops up next to the app.
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
     cmd.spawn().map_err(|e| format!("Could not start the agent-os server: {e}"))
 }
 
@@ -183,8 +193,14 @@ fn stop_server(child: &mut Child) {
         // Always SIGKILL the group, even if the leader exited: grandchildren may linger. ESRCH is fine.
         unsafe { libc::kill(-pgid, libc::SIGKILL) };
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+        // No process groups on Windows: end the server's whole tree (agents, language servers), then the server.
+        let _ = Command::new("taskkill")
+            .args(["/pid", &child.id().to_string(), "/T", "/F"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
         let _ = child.kill();
     }
     let _ = child.wait();

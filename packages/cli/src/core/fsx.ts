@@ -1,5 +1,5 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, readlinkSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 export function ensureDir(path: string): void {
   mkdirSync(path, { recursive: true });
@@ -55,4 +55,15 @@ export function copyTemplate(src: string, dst: string, vars: Record<string, stri
     if (isDir(from)) copyTemplate(from, to, vars);
     else if (!existsSync(to)) writeFileSync(to, render(readText(from), vars));
   }
+}
+
+/** Links `link` to the folder `target`: a symlink, or on Windows a junction (needs no admin or Developer Mode). */
+export function linkDir(target: string, link: string, platform: NodeJS.Platform = process.platform): void {
+  symlinkSync(target, link, platform === "win32" ? "junction" : "dir");
+}
+
+/** True when the link `link` resolves to `target` (either may be relative to the link's folder). */
+export function linksTo(link: string, target: string): boolean {
+  const raw = readlinkSync(link).replace(/^\\\\\?\\/, ""); // a junction reads back as \\?\C:\...
+  return resolve(dirname(link), raw) === resolve(dirname(link), target);
 }

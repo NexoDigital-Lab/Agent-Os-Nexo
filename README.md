@@ -61,6 +61,7 @@ Requires Node 22.18+.
 ```
 npm install
 npm run check      # typecheck + tests
+npm run coverage   # tests with coverage: each source file at 80% (branches 70%), or it fails; exclusions in AGENTS.md
 ```
 
 See [AGENTS.md](AGENTS.md) for contributor and agent rules, and [docs/architecture.md](docs/architecture.md) for the design.

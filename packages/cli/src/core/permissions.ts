@@ -76,9 +76,15 @@ export function claudeBashRule(pattern: string): string {
   return `Bash(${prefix}:*)`;
 }
 
-/** Converts a path glob relative to the environment root into an absolute Claude Code rule. */
-function claudePathRule(tool: "Read" | "Edit", root: string, glob: string): string {
-  const abs = join(root, glob).replace(/^\/+/, "");
+/**
+ * Converts a path glob relative to the environment root into an absolute Claude Code rule. Claude Code matches
+ * POSIX paths: on Windows `C:\Users\me` is `/c/Users/me` there, so the rule is `//c/Users/me/...`.
+ */
+export function claudePathRule(tool: "Read" | "Edit", root: string, glob: string): string {
+  const abs = join(root, glob)
+    .replace(/\\/g, "/")
+    .replace(/^([A-Za-z]):/, (_, drive: string) => drive.toLowerCase())
+    .replace(/^\/+/, "");
   return `${tool}(//${abs})`;
 }
 

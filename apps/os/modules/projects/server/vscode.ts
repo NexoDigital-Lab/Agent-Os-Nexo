@@ -12,9 +12,9 @@ export const VSCODE_ID = /^[A-Za-z0-9][A-Za-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9._-]*$
 export const isEditorOnly = (id: string) => id.startsWith("agent-os.");
 
 let installedCache: { at: number; ids: Set<string> | null } | null = null;
-export async function installed(): Promise<Set<string> | null> {
+export async function installed(bin = CODE_BIN): Promise<Set<string> | null> {
   if (installedCache && Date.now() - installedCache.at < 20_000) return installedCache.ids;
-  const ids = await run(CODE_BIN, ["--list-extensions"], { timeout: 20_000 }).then(
+  const ids = await run(bin, ["--list-extensions"], { timeout: 20_000 }).then(
     (r) => new Set(r.stdout.split("\n").filter(Boolean).map((s) => s.toLowerCase())),
     () => null, // no `code` on PATH
   );
@@ -22,10 +22,10 @@ export async function installed(): Promise<Set<string> | null> {
   return ids;
 }
 
-export async function installExtension(id: string) {
+export async function installExtension(id: string, bin = CODE_BIN) {
   if (!VSCODE_ID.test(id) || isEditorOnly(id)) throw httpError(400, "Invalid extension id");
   try {
-    await run(CODE_BIN, ["--install-extension", id], { timeout: 180_000 });
+    await run(bin, ["--install-extension", id], { timeout: 180_000 });
   } catch (err) {
     const e = err as { stderr?: string; message: string };
     throw httpError(500, `code --install-extension failed: ${(e.stderr || e.message).trim()}`);
@@ -35,10 +35,10 @@ export async function installExtension(id: string) {
 }
 
 /** Opens the project (or one file at a line) in VS Code, falling back to the desktop default. */
-export function openInEditor(root: string, rel?: string, line?: number) {
+export function openInEditor(root: string, rel?: string, line?: number, launch: typeof spawn = spawn, bin = CODE_BIN) {
   const target = rel ? `${safePath(root, rel)}${line ? `:${line}` : ""}` : root;
   const args = rel ? ["-g", target] : [root];
-  const child = spawn(CODE_BIN, args, { detached: true, stdio: "ignore" });
-  child.on("error", () => spawn("xdg-open", [rel ? safePath(root, rel) : root], { detached: true, stdio: "ignore" }).unref());
+  const child = launch(bin, args, { detached: true, stdio: "ignore" });
+  child.on("error", () => launch("xdg-open", [rel ? safePath(root, rel) : root], { detached: true, stdio: "ignore" }).unref());
   child.unref();
 }

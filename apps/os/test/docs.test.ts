@@ -12,7 +12,8 @@ const docsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "docs");
 
 test("the docs are complete in English and Spanish, and the index is current", () => {
   assert.deepEqual(checkDocs(docsDir), []);
-  assert.equal(readFileSync(join(docsDir, "README.md"), "utf8"), renderIndex(docsDir), "run `npm run docs`");
+  const readme = readFileSync(join(docsDir, "README.md"), "utf8").replace(/\r\n/g, "\n");
+  assert.equal(readme, renderIndex(docsDir), "run `npm run docs`");
   assert.deepEqual(listDocs(docsDir, "es").map((d) => d.slug), listDocs(docsDir, "en").map((d) => d.slug));
 });
 

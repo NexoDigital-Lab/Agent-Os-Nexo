@@ -96,7 +96,8 @@ const register: ModuleServer = (ctx) => {
   );
   api.get("/tabs/:id/uploads/:name", (req, res) => {
     const file = uploadPath(String(req.params.id), String(req.params.name));
-    if (file) res.sendFile(file);
+    // Uploads live under .state/: send would hide any path with a dot-folder; uploadPath already vetted the name.
+    if (file) res.sendFile(file, { dotfiles: "allow" });
     else res.status(404).end();
   });
   api.delete("/tabs/:id/uploads/:name", h((req) => (deleteUpload(String(req.params.id), String(req.params.name)), ok)));

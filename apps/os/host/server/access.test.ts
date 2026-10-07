@@ -36,7 +36,10 @@ test("the API needs this run's token; the health check and the page do not", asy
   await start();
   const token = issueAccess(state, port);
   assert.equal(readFileSync(accessFile(state, port), "utf8").trim(), token);
-  assert.equal(statSync(accessFile(state, port)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") {
+    // Windows does not enforce Unix file modes; chmod is a no-op there
+    assert.equal(statSync(accessFile(state, port)).mode & 0o777, 0o600);
+  }
 
   assert.equal((await get("/api/tabs")).status, 401);
   assert.match((await get("/api/tabs")).body, /"access":true/);

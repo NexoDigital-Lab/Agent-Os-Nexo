@@ -22,6 +22,12 @@ export type { Ev };
 
 let TABS_FILE = "";
 
+// The SDK query function; tests swap it for a fake stream.
+let runQuery: typeof query = query;
+export function setQueryFn(fn: typeof query): void {
+  runQuery = fn;
+}
+
 type Session = TabContext & {
   sdkSessionId?: string;
   events: Ev[];
@@ -260,7 +266,7 @@ export function send(id: string, opts: SendOpts): void {
       ...contributions().map((c) => safely(() => c.mcpServers?.(ctx, { emit: (ev) => emit(s, ev), signal }), null) ?? {}),
     );
     try {
-      const q = query({
+      const q = runQuery({
         prompt: input,
         options: {
           cwd: s.dir,

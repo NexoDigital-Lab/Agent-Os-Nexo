@@ -9,6 +9,9 @@ import { ask, structured } from "../../sessions/server/claude.ts";
 import { MAX_CHAT, architecturePrompt, readArch, writeAdvice, writeChat } from "./store.ts";
 import type { ArchAdvice, ArchChatMsg, ArchStep } from "./types.ts";
 
+// The Claude calls, replaceable so tests can answer without the SDK (same pattern as the practice module).
+export const deps = { structured, ask };
+
 const MAX_STEPS = 12;
 const HISTORY = 10;
 const PAST_MSG = 1500; // each past message, so a long answer can't bloat every later prompt
@@ -89,7 +92,7 @@ export async function advise(project: string, mode: "start" | "analyze", focus?:
       focus?.trim() ? `Pay special attention to: ${focus.trim().slice(0, 500)}` : "",
       `Return a short summary and between 1 and ${MAX_STEPS} steps. Each step: a short title, a detail with the what and the why, and files with repository-relative paths of files that EXIST and are relevant ([] if none).`,
     ].filter(Boolean).join("\n\n");
-    const { out, cost } = await structured<{ summary: string; steps: ArchStep[] }>(prompt, repo, SCHEMA);
+    const { out, cost } = await deps.structured<{ summary: string; steps: ArchStep[] }>(prompt, repo, SCHEMA);
     const steps = out.steps.slice(0, MAX_STEPS).map((s) => ({ ...s, files: [...new Set(s.files.map((f) => cleanFile(repo, f)).filter((f): f is string => !!f))] }));
     if (!steps.length) throw httpError(502, "The agent returned no steps");
     const advice: ArchAdvice = { mode, summary: out.summary, steps, createdAt: new Date().toISOString(), cost };
@@ -117,7 +120,7 @@ async function runChat(project: string, text: string, lang: AnswerLanguage) {
     architecturePrompt(project) || "The user has not defined an architecture for this project yet.",
   ].join("\n\n");
   const past = history.slice(-HISTORY).map((m) => `${m.role === "user" ? "User" : "Architect"}: ${m.text.length > PAST_MSG ? `${m.text.slice(0, PAST_MSG)}…` : m.text}`).join("\n");
-  const { text: reply } = await ask(`${past ? `Conversation so far:\n${past}\n\n` : ""}User message: ${text}`, system, repo);
+  const { text: reply } = await deps.ask(`${past ? `Conversation so far:\n${past}\n\n` : ""}User message: ${text}`, system, repo);
   const at = new Date().toISOString();
   const asked: ArchChatMsg = { role: "user", text, at };
   const answered: ArchChatMsg = { role: "assistant", text: reply, at: new Date().toISOString() };

@@ -26,14 +26,15 @@ const SLUG = /^[a-z0-9-]+$/;
 export const isDocLanguage = (v: unknown): v is DocLanguage => DOC_LANGUAGES.includes(v as DocLanguage);
 
 function parse(text: string): { meta: Record<string, string>; body: string } {
-  const m = /^---\n([\s\S]*?)\n---\n?/.exec(text);
-  if (!m) return { meta: {}, body: text };
+  const normalized = text.replace(/\r\n/g, "\n");
+  const m = /^---\n([\s\S]*?)\n---\n?/.exec(normalized);
+  if (!m) return { meta: {}, body: normalized };
   const meta: Record<string, string> = {};
   for (const line of m[1]!.split("\n")) {
     const i = line.indexOf(":");
     if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
   }
-  return { meta, body: text.slice(m[0].length) };
+  return { meta, body: normalized.slice(m[0].length) };
 }
 
 /** One document, or null when the slug or language is unknown. */

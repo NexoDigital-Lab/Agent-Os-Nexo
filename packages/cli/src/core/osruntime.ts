@@ -268,7 +268,7 @@ export async function startProcess(
   const args = [join(dir, "host", "server", "main.ts"), "--port", String(port), ...(p === "preview" ? ["--dev"] : [])];
   let child;
   try {
-    child = spawn(process.execPath, args, { cwd: dir, detached: true, windowsHide: true, stdio: ["ignore", fd, fd], env: { ...process.env, NEXO_ROOT: root } });
+    child = spawn(process.execPath, args, { cwd: dir, detached: true, windowsHide: true, stdio: ["ignore", fd, fd], env: { ...process.env, NEXO_ROOT: root, NEXO_PID_FILE: pidFile(stateDir, p), NEXO_LOG_FILE: log } });
   } finally {
     closeSync(fd); // the child has its own copy
   }

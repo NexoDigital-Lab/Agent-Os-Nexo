@@ -55,8 +55,14 @@ nexo os use 1.0.3             # fijar un build; `nexo os use latest` vuelve al m
 Cada ejecución tiene su propio link de acceso (security.md): `start` lo muestra y `open` lo abre, así que después
 de un reinicio el navegador necesita `nexo os open` de nuevo. El build activo es el que está fijado en
 `os/current`, o el más nuevo. La app que está corriendo busca un
-build más nuevo y muestra "Nueva versión detectada: reiniciá para cargarla"; nunca se reinicia sola, y los
-agentes nunca la reinician. Logs y archivos pid: `.state/os/app.log`, `.state/os/preview.log`, `*.pid`.
+build más nuevo y muestra "Nueva versión detectada: reiniciá para cargarla" con un botón **Reiniciar ahora** (la
+vista Módulos tiene el mismo botón para los cambios de módulos pendientes). Nunca se reinicia sola y los agentes
+nunca la reinician: solo ese clic, desde la página que tiene el token de esta ejecución. El servidor le pasa su
+token al proceso nuevo por stdin (nunca por el entorno), así la página abierta solo se recarga; las sesiones y
+terminales abiertas se cierran. El servidor nuevo escribe su pid en el archivo pid del lanzador (`NEXO_PID_FILE`:
+`nexo os` usa `app.pid`/`preview.pid`, la app de escritorio `desktop.pid`) y sigue escribiendo en su log
+(`NEXO_LOG_FILE`), así `nexo os stop` y cerrar la ventana de escritorio lo siguen deteniendo.
+Logs y archivos pid: `.state/os/app.log`, `.state/os/preview.log`, `*.pid` (`restart.log` si ningún lanzador fijó uno).
 
 ## Actualizar a una nueva versión de Nexo
 
@@ -85,7 +91,7 @@ Un source instalado antes de que existieran las actualizaciones no tiene histori
 |---|---|
 | `start` dice que terminó, con un pedazo del log | Leé el extracto: un puerto en uso (`--port`), un módulo que falló al compilar, un runtime que falta (`nexo os build`). |
 | `start` dice que otro agent-os-nexo responde en el puerto | Ya hay uno corriendo ahí (quizás de la app de escritorio o una vista previa): usalo, o `--port`. |
-| Falta un módulo en la app | Ajustes → Módulos muestra si está apagado, esperando un reinicio, o si no cargó (con el error). |
+| Falta un módulo en la app | la vista Módulos muestra si está apagado, esperando un reinicio, o si no cargó (con el error). |
 | La vista previa muestra tipografías de reemplazo | Un source viejo sin el runtime en la lista permitida de Vite: actualizá `vite.config.ts` desde una versión más nueva. |
 | `install` no puede descargar el paquete | Todavía no está publicado: `nexo os install --from <checkout>/apps/os`. |
 | Se acumulan builds | Cada uno pesa unos 20 MB (el bundle web; las dependencias viven en el runtime compartido). Los viejos se pueden borrar a mano, salvo el activo. |

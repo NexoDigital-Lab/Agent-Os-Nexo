@@ -366,6 +366,23 @@ test("os start still recognizes a pre-rename build, which stamps only X-Agent-OS
   }
 });
 
+test("os start tells the server its pid file and log, so a restart it does itself stays stoppable", async () => {
+  const root = await freshEnv("claude");
+  await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
+  const seen = join(root, "seen.json");
+  writeFileSync(join(root, "os", "versions", "1.0.0", "host", "server", "main.ts"),
+    `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(seen)}, JSON.stringify({ pid: process.env.NEXO_PID_FILE, log: process.env.NEXO_LOG_FILE }));\n${FAKE_MAIN}`);
+  const port = String(await freePort());
+  try {
+    await os("start", undefined, { root, port });
+    const env = JSON.parse(readFileSync(seen, "utf8")) as { pid: string; log: string };
+    assert.equal(env.pid, join(root, ".state", "os", "app.pid"));
+    assert.equal(env.log, join(root, ".state", "os", "app.log"));
+  } finally {
+    await os("stop", undefined, { root });
+  }
+});
+
 test("init --os yes installs agent-os-nexo; the default leaves it for later", async () => {
   const later = await freshEnv("claude");
   assert.ok(!existsSync(join(later, "os", "runtime")));

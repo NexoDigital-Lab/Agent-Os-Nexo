@@ -3,3 +3,10 @@ dist/
 *.log
 .DS_Store
 coverage/
+
+# Local credentials — never commit. The npm token lives in .env (see the expiry comment there);
+# packages/cli/.npmrc references ${NPM_TOKEN} from the environment for npm publish.
+.env
+.env.*
+!.env.example
+.npmrc

@@ -16,6 +16,7 @@ let reply: (args: string[]) => { stdout?: string; stderr?: string; err?: boolean
 beforeEach(() => {
   calls = [];
   reply = () => ({ stdout: "" });
+  docker.dockerSys.platform = process.platform;
   docker.dockerExec.execFile = ((_f: string, args: string[], _o: unknown, cb: (e: unknown, o: string, s: string) => void) => {
     calls.push(args);
     const r = reply(args);

@@ -10,6 +10,7 @@ let reply: (args: string[]) => Reply = () => ({ stdout: "" });
 beforeEach(() => {
   calls = [];
   reply = () => ({ stdout: "" });
+  docker.dockerSys.platform = process.platform;
   docker.dockerExec.execFile = ((file: string, args: string[], opts: { timeout: number }, cb: (e: unknown, o: string, s: string) => void) => {
     calls.push({ file, args, timeout: opts.timeout });
     const r = reply(args);
@@ -35,10 +36,11 @@ test("dockerRun maps a timeout, a dead daemon, a missing binary and plain failur
   reply = () => ({ err: {}, stderr: "Cannot connect to the Docker daemon at unix:///x" });
   e = await fails(docker.dockerRun(["ps"]));
   assert.equal(e.status, 503);
+  docker.dockerSys.platform = "win32";
   reply = () => ({ err: { code: "ENOENT", message: "spawn docker ENOENT" } });
   e = await fails(docker.dockerRun(["ps"]));
   assert.equal(e.status, 503);
-  assert.match(e.message, /ENOENT/);
+  assert.match(e.message, /Docker Desktop|install/i);
   reply = () => ({ err: {}, stderr: "first line\nError: no such image\n" });
   e = await fails(docker.dockerRun(["ps"]));
   assert.equal(e.status, 400);
@@ -47,6 +49,35 @@ test("dockerRun maps a timeout, a dead daemon, a missing binary and plain failur
   assert.equal((await fails(docker.dockerRun(["ps"]))).message, "spawn failed", "falls back to the error message");
   reply = () => ({ err: { message: "" }, stderr: "  \n" });
   assert.equal((await fails(docker.dockerRun(["ps"]))).message, "docker failed", "never an empty message");
+});
+
+test("dockerRun maps Windows npipe daemon-down and missing CLI to install guidance", async () => {
+  docker.dockerSys.platform = "win32";
+  reply = () => ({
+    err: {},
+    stderr: "failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.",
+  });
+  let e = await fails(docker.dockerRun(["ps"]));
+  assert.equal(e.status, 503);
+  assert.match(e.message, /Docker Desktop/);
+  assert.match(e.message, /install/i);
+  reply = () => ({ err: { code: "ENOENT", message: "spawn docker ENOENT" } });
+  e = await fails(docker.dockerRun(["ps"]));
+  assert.equal(e.status, 503);
+  assert.match(e.message, /Docker CLI/);
+  assert.match(e.message, /install/i);
+});
+
+test("dockerRun maps a dead daemon and a missing CLI on other platforms to the original messages", async () => {
+  docker.dockerSys.platform = "linux";
+  reply = () => ({ err: {}, stderr: "Cannot connect to the Docker daemon at unix:///x" });
+  let e = await fails(docker.dockerRun(["ps"]));
+  assert.equal(e.status, 503);
+  assert.equal(e.message, "Docker is not running (open Docker Desktop or start the daemon)");
+  reply = () => ({ err: { code: "ENOENT", message: "spawn docker ENOENT" } });
+  e = await fails(docker.dockerRun(["ps"]));
+  assert.equal(e.status, 503);
+  assert.equal(e.message, "The Docker CLI was not found. Install Docker and make sure docker is on PATH.");
 });
 
 test("info reports version and context, or the error", async () => {

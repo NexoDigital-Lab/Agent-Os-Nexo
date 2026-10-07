@@ -9,7 +9,20 @@ export const DOCKER_ENV = { ...process.env, PATH: userBinPath().join(path.delimi
 /** The process launcher; tests swap `execFile` for a fake so no real docker runs. */
 export const dockerExec: { execFile: typeof execFile } = { execFile };
 
-const DAEMON_DOWN = /Cannot connect to the Docker daemon|docker daemon is not running|error during connect/i;
+/** The platform; tests swap it so daemon-down/ENOENT messages can be checked per OS. */
+export const dockerSys: { platform: NodeJS.Platform } = { platform: process.platform };
+
+const DAEMON_DOWN = /Cannot connect to the Docker daemon|docker daemon is not running|error during connect|failed to connect to the docker API/i;
+
+const daemonDownMessage = () =>
+  dockerSys.platform === "win32"
+    ? "Docker is not running. On Windows, install Docker Desktop (it includes the Docker CLI) from https://docs.docker.com/desktop/setup/install/windows-install/ and start it."
+    : "Docker is not running (open Docker Desktop or start the daemon)";
+
+const missingCliMessage = () =>
+  dockerSys.platform === "win32"
+    ? "The Docker CLI was not found. On Windows, install Docker Desktop (it includes the Docker CLI) from https://docs.docker.com/desktop/setup/install/windows-install/."
+    : "The Docker CLI was not found. Install Docker and make sure docker is on PATH.";
 
 export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
   return new Promise((resolve, reject) =>
@@ -17,9 +30,10 @@ export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
       if (!err) return resolve(stdout);
       // A killed process is our own timeout (stderr is empty then, so check it first).
       if (err.killed) return reject(httpError(504, `docker took more than ${Math.round(timeout / 1000)} s to answer`));
-      if (DAEMON_DOWN.test(stderr)) return reject(httpError(503, "Docker is not running (open Docker Desktop or start the daemon)"));
+      if (DAEMON_DOWN.test(stderr)) return reject(httpError(503, daemonDownMessage()));
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return reject(httpError(503, missingCliMessage()));
       const msg = (stderr || err.message).trim().split("\n").pop() || "docker failed";
-      reject(httpError((err as NodeJS.ErrnoException).code === "ENOENT" ? 503 : 400, msg));
+      reject(httpError(400, msg));
     }),
   );
 }

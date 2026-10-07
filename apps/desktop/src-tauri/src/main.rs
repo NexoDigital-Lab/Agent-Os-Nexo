@@ -109,7 +109,8 @@ fn is_listening(port: u16) -> bool {
 }
 
 /// True only if what answers on the port is agent-os-nexo: `GET /api/os/info` → 200 stamped `X-Agent-OS-Nexo: 1`
-/// (host/server/http.ts). A bare "port is open" would happily load some other program's page into the window.
+/// (host/server/http.ts), or `X-Agent-OS: 1` from a build made before the rename. A bare "port is open" would
+/// happily load some other program's page into the window.
 fn is_agent_os_nexo(port: u16) -> bool {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let Ok(mut s) = TcpStream::connect_timeout(&addr, Duration::from_millis(500)) else {
@@ -125,7 +126,11 @@ fn is_agent_os_nexo(port: u16) -> bool {
     let text = String::from_utf8_lossy(&buf);
     let status_ok = text.lines().next().is_some_and(|l| l.split_whitespace().nth(1) == Some("200"));
     let head = text.split_once("\r\n\r\n").map_or(&*text, |(h, _)| h);
-    status_ok && head.lines().any(|l| l.to_ascii_lowercase().replace(' ', "") == "x-agent-os-nexo:1")
+    status_ok
+        && head.lines().any(|l| {
+            let l = l.to_ascii_lowercase().replace(' ', "");
+            l == "x-agent-os-nexo:1" || l == "x-agent-os:1"
+        })
 }
 
 /// Windows process creation flag: start the child without a console window.

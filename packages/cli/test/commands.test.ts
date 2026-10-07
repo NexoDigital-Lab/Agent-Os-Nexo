@@ -354,6 +354,18 @@ test("os start runs the active build in the background and os stop ends it", asy
   assert.equal(await os("stop", undefined, { root }), "agent-os-nexo was not running.");
 });
 
+test("os start still recognizes a pre-rename build, which stamps only X-Agent-OS", async () => {
+  const root = await freshEnv("claude");
+  await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
+  writeFileSync(join(root, "os", "versions", "1.0.0", "host", "server", "main.ts"), FAKE_MAIN.replace("X-Agent-OS-Nexo", "X-Agent-OS"));
+  const port = String(await freePort());
+  try {
+    assert.match(await os("start", undefined, { root, port }), /agent-os-nexo 1\.0\.0 started/);
+  } finally {
+    await os("stop", undefined, { root });
+  }
+});
+
 test("init --os yes installs agent-os-nexo; the default leaves it for later", async () => {
   const later = await freshEnv("claude");
   assert.ok(!existsSync(join(later, "os", "runtime")));

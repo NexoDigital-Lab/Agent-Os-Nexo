@@ -224,11 +224,14 @@ export function runningPid(stateDir: string, p: OsProcess): number | null {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Answers like agent-os-nexo: 200 from /api/os/info, stamped X-Agent-OS-Nexo (a foreign program on the port doesn't count). */
+/** The identity stamps: X-Agent-OS-Nexo since the rename, X-Agent-OS on builds made before it (still installed). */
+const IDENTITY_HEADERS = ["x-agent-os-nexo", "x-agent-os"];
+
+/** Answers like agent-os-nexo: 200 from /api/os/info, stamped with an identity header (a foreign program doesn't count). */
 async function answers(port: number): Promise<boolean> {
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/os/info`, { signal: AbortSignal.timeout(1500) });
-    return res.ok && res.headers.get("x-agent-os-nexo") === "1";
+    return res.ok && IDENTITY_HEADERS.some((h) => res.headers.get(h) === "1");
   } catch {
     return false;
   }

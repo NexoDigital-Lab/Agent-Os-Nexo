@@ -114,8 +114,15 @@ test("info reports the CLI even when the daemon is down", async () => {
   const r = await docker.info();
   assert.equal(r.ok, false);
   assert.deepEqual(r.cli, { found: true, version: cliLine }, "the CLI probe answers without the daemon");
-  assert.match(String(r.error), /not running/);
+  assert.match(String(r.error), /not running/, "every platform's daemon-down message starts there");
+});
+
+test("the daemon-down message is CLI-first on Windows", async () => {
+  docker.dockerSys.platform = "win32";
+  reply = infoReply({ server: { err: {}, stderr: "error during connect" } });
+  const r = await docker.info();
   assert.match(String(r.error), /CLI/);
+  assert.match(String(r.error), /not running/);
 });
 
 test("info offers to open Docker Desktop when the daemon is down but Desktop is installed", async () => {

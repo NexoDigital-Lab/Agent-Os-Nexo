@@ -1,13 +1,11 @@
-// modules: the module manager, shown in Settings.
+// modules: the module manager, a view of its own in the rail.
+import { Blocks } from "lucide-react";
 import { defineModule } from "@os/registry";
-import type { SettingsSection } from "../../shell/web/slots";
 import { ModuleManager } from "./ModuleManager";
 import "./modules.css";
 import { es } from "./messages";
 
 export default defineModule({
-  slots: {
-    "settings.sections": [{ id: "modules", label: "Modules", order: 30, component: ModuleManager } satisfies SettingsSection],
-  },
+  views: [{ id: "modules", label: "Modules", icon: Blocks, order: 95, component: ModuleManager }],
   messages: { es },
 });

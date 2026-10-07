@@ -24,18 +24,18 @@ El marco de la app: el riel, la vista activa, Ajustes, avisos y banners.
 ## themes — core
 Ocho paletas (Nexo por defecto; Night, Amber, Aurora, Ocean, Synthwave, Nexo Light, High contrast) y
 tipografías incluidas, aplicadas como tokens CSS en `:root`; deriva los temas de Monaco, xterm y el grafo de git.
-- **Depende de:** shell. **Aporta:** `settings.sections` (selector de paleta).
+- **Depende de:** shell. **Aporta:** una vista en la barra lateral (Módulos) (selector de paleta).
 - **Guarda:** la elección en `os/data/prefs.json` (`theme`) a través del host, más una caché del navegador
   para el primer pintado.
 
 ## modules — core
 Prender y apagar módulos con chequeo de dependencias (se aplica en el próximo arranque); muestra por qué
 un módulo no cargó.
-- **Depende de:** shell. **Aporta:** `settings.sections`. **Usa:** `GET/PUT /api/os/modules`.
+- **Depende de:** shell. **Aporta:** una vista en la barra lateral (Módulos). **Usa:** `GET/PUT /api/os/modules`.
 
 ## versions — core
 Builds personales: los lista, fija cuál cargar y avisa cuando hay uno más nuevo.
-- **Depende de:** shell. **Aporta:** `settings.sections`, `shell.banners` ("Nueva versión detectada").
+- **Depende de:** shell. **Aporta:** una vista en la barra lateral (Módulos), `shell.banners` ("Nueva versión detectada").
 - **Rutas:** `GET /versions`, `PUT /versions/pin` (escribe `os/current`).
 
 ## projects — core

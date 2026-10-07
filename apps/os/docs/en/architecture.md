@@ -45,7 +45,7 @@ The server finds the environment from `NEXO_ROOT`, or by walking up from its own
    a module whose dependency is off is off too.
 4. In dependency order, import each active module's `entry.server` and call `register(ctx)`. A module
    that fails to load is skipped with the modules that depend on it (`host/server/mount.ts`); the rest
-   still start, and Settings → Modules shows the error.
+   still start, and the Modules view shows the error.
 5. Serve the web app: Vite in middleware mode with HMR on the same port (`--dev`), or `dist/web`.
 
 Host routes: `GET /api/os/info` (version, newer build, environment, language), `GET/PUT /api/os/modules`

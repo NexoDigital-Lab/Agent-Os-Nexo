@@ -24,18 +24,18 @@ The app frame: the rail, the active view, Settings, notices and banners.
 ## themes — core
 Eight palettes (Nexo by default; Night, Amber, Aurora, Ocean, Synthwave, Nexo Light, High contrast) and
 bundled fonts, applied as CSS tokens on `:root`; derives the Monaco, xterm and git-graph themes.
-- **Depends on:** shell. **Contributes:** `settings.sections` (palette picker).
+- **Depends on:** shell. **Contributes:** a view in the rail (Modules) (palette picker).
 - **Stores:** the choice in `os/data/prefs.json` (`theme`) through the host, plus a browser cache for
   the first paint.
 
 ## modules — core
 Turn modules on and off with dependency checks (takes effect on the next start); shows why a module
 did not load.
-- **Depends on:** shell. **Contributes:** `settings.sections`. **Uses:** `GET/PUT /api/os/modules`.
+- **Depends on:** shell. **Contributes:** a view in the rail (Modules). **Uses:** `GET/PUT /api/os/modules`.
 
 ## versions — core
 Personal builds: lists them, pins the one to load, and announces a newer one.
-- **Depends on:** shell. **Contributes:** `settings.sections`, `shell.banners` ("New version detected").
+- **Depends on:** shell. **Contributes:** a view in the rail (Modules), `shell.banners` ("New version detected").
 - **Routes:** `GET /versions`, `PUT /versions/pin` (writes `os/current`).
 
 ## projects — core

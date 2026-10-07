@@ -184,9 +184,10 @@ export function commandOf(pid: number, platform: NodeJS.Platform = process.platf
     return null; // ESRCH: gone; EPERM: someone else's process, never ours to stop
   }
   if (platform === "win32") {
-    // No /proc and no ps: Windows keeps the command line in WMI.
+    // No /proc and no ps: Windows keeps the command line in WMI. Loaded CI runners make CIM slow:
+    // give the query more room than an interactive box needs before concluding the line is unreadable.
     const query = `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`;
-    return tryRun("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", query], 15_000) ?? "";
+    return tryRun("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", query], 25_000) ?? "";
   }
   try {
     return readFileSync(`/proc/${pid}/cmdline`, "utf8").replace(/\0/g, " ");

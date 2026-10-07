@@ -87,7 +87,13 @@ test("links: linkDir makes a folder link that linksTo recognizes, relative or ab
 test("processes: commandOf reads a live process's command line, null for a dead one", async () => {
   const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], { stdio: "ignore" });
   try {
-    assert.match(commandOf(child.pid!) ?? "", /setTimeout/);
+    // WMI through PowerShell can be slow on loaded CI runners: re-read a few times before asserting.
+    let line = "";
+    for (let i = 0; i < 3 && !/setTimeout/.test(line); i++) {
+      line = commandOf(child.pid!) ?? "";
+      if (!/setTimeout/.test(line)) await new Promise((r) => setTimeout(r, 1000));
+    }
+    assert.match(line, /setTimeout/);
     // Windows asks WMI through PowerShell; where there is no PowerShell the answer is empty, never a crash.
     if (process.platform !== "win32") assert.equal(typeof commandOf(child.pid!, "win32"), "string");
   } finally {

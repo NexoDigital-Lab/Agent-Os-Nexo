@@ -74,7 +74,7 @@ environments/
 ## agent-os-nexo
 
 agent-os-nexo is a local app built from modules (see `apps/os/README.md`), distributed as its own npm
-package (`@nexodigital-lab/agent-os-nexo`) that `nexo os install` copies into `os/source`. Each user has a
+package (`@nexodigital/agent-os-nexo`) that `nexo os install` copies into `os/source`. Each user has a
 personal version history starting at `1.0.0`: a requested change is previewed in the browser
 (`nexo os preview`), built only on approval (`nexo os build`), and loaded on the next restart (the
 app detects the new build and asks to restart; agents never close it). Each run has its own access token (only the

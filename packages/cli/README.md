@@ -1,11 +1,11 @@
-# @nexodigital-lab/nexo
+# @nexodigital/nexo
 
 The `nexo` CLI installs and maintains a **Nexo environment**: a structured local workspace where AI
 coding agents (Claude Code, Codex, Gemini CLI, OpenCode) share rules, permissions, memory, skills
 and tools across your projects.
 
 ```
-npx @nexodigital-lab/nexo init          # create ~/environments (asks a few questions)
+npx @nexodigital/nexo init          # create ~/environments (asks a few questions)
 cd ~/environments
 nexo analyze                            # record OS and toolchains
 nexo clone git@github.com:you/app.git   # projects/app/{AGENTS.md, code/, context/, secrets/}

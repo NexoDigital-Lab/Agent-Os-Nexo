@@ -251,7 +251,7 @@ function fakeOsSource(deps: Record<string, string> = { express: "^5" }): string 
   mkdirSync(join(src, "modules", "shell"), { recursive: true });
   mkdirSync(join(src, "scripts"), { recursive: true });
   mkdirSync(join(src, "host", "server"), { recursive: true });
-  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os-nexo", dependencies: deps }));
+  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital/agent-os-nexo", dependencies: deps }));
   writeFileSync(join(src, "scripts", "build.ts"), "// real builds run Vite; the fake runner stands in for it\n");
   writeFileSync(join(src, "host", "server", "main.ts"), FAKE_MAIN);
   for (const junk of ["node_modules/x", "dist/web", ".git"]) mkdirSync(join(src, junk), { recursive: true });
@@ -452,7 +452,7 @@ test("os open opens the running app with its access link", async () => {
 
 function release(version: string, files: Record<string, string>): string {
   const src = fakeOsSource();
-  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os-nexo", version, dependencies: { express: "^5" } }));
+  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital/agent-os-nexo", version, dependencies: { express: "^5" } }));
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(join(src, rel, ".."), { recursive: true });
     writeFileSync(join(src, rel), text);

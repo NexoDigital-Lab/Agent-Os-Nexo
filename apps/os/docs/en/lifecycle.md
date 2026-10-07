@@ -13,7 +13,7 @@ agent-os-nexo is optional in a Nexo environment. Everything here is a `nexo os` 
 
 ```bash
 nexo init --os yes                              # while creating the environment, or later:
-nexo os install                                 # from npm (@nexodigital-lab/agent-os-nexo)
+nexo os install                                 # from npm (@nexodigital/agent-os-nexo)
 nexo os install --from <Agent-Os-Nexo>/apps/os  # from a checkout (until the package is published)
 ```
 

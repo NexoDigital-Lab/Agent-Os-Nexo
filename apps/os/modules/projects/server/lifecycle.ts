@@ -34,7 +34,7 @@ const errText = (e: unknown) => {
 export async function nexo(env: Env, args: string[]): Promise<string> {
   const dev = process.env.NEXO_CLI;
   const [cmd, pre] = dev ? [process.execPath, [dev]] : [findBin("nexo"), []];
-  if (!cmd) throw httpError(500, "The nexo CLI was not found. Install it with: npm install -g @nexodigital-lab/nexo");
+  if (!cmd) throw httpError(500, "The nexo CLI was not found. Install it with: npm install -g @nexodigital/nexo");
   try {
     return (await run(cmd, [...pre, ...args, "--root", env.root], { maxBuffer: 10 * 1024 * 1024 })).stdout.trim();
   } catch (e) {

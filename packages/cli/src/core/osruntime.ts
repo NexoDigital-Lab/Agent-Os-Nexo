@@ -11,7 +11,7 @@ import { spawnable, tryRun } from "./exec.ts";
 import { activeVersion, listVersions, nextVersion } from "./osversions.ts";
 import { commitChanges, initSourceRepo, tagBuild } from "./osupdate.ts";
 
-export const OS_PACKAGE = "@nexodigital-lab/agent-os-nexo";
+export const OS_PACKAGE = "@nexodigital/agent-os-nexo";
 export const PORTS = { app: 4780, preview: 4781 } as const;
 export type OsProcess = keyof typeof PORTS;
 

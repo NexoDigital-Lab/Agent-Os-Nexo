@@ -42,7 +42,7 @@ export const es: Record<string, string> = {
   "Private": "Privado",
   "Public": "Público",
   "the branch has no upstream: there may be commits that are on no remote": "la rama no tiene upstream: puede haber commits que no están en ningún remoto",
-  "The nexo CLI was not found. Install it with: npm install -g @nexodigital-lab/nexo": "No se encontró la CLI de nexo. Instalala con: npm install -g @nexodigital-lab/nexo",
+  "The nexo CLI was not found. Install it with: npm install -g @nexodigital/nexo": "No se encontró la CLI de nexo. Instalala con: npm install -g @nexodigital/nexo",
   "The whole project": "Todo el proyecto",
   "Type the project's exact name to confirm": "Escribí el nombre exacto del proyecto para confirmar",
   "Type {name} to confirm": "Escribí {name} para confirmar",

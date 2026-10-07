@@ -10,10 +10,21 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { envAt, CONFIG_FILE, type Env } from "../server/env.ts";
 import type { ModuleContext, ModuleServer } from "../server/module-api.ts";
 
+// Tests compare bytes: git must not turn LF into CRLF on checkout, whatever the machine's config (Windows runners set
+// core.autocrlf=true). Every git a test spawns inherits this.
+process.env.GIT_CONFIG_PARAMETERS = "'core.autocrlf=false' 'core.eol=lf'";
+
 /** A temporary folder, removed when the test file ends. */
 export function tempDir(prefix = "agent-os-test-"): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
-  after(() => rmSync(dir, { recursive: true, force: true }));
+  after(() => {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch (error) {
+      // Windows keeps files locked while a handle is open (a database, a child's cwd): the OS empties its temp later.
+      if (process.platform !== "win32") throw error;
+    }
+  });
   return dir;
 }
 

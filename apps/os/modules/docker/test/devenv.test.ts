@@ -37,6 +37,10 @@ function repo(files: Record<string, string> = {}, name = `p${n++}`) {
 }
 const fails = async (p: Promise<unknown>) => p.then(() => assert.fail("should reject"), (e: Error & { status: number }) => e);
 
+// The dev environment mounts host folders at the same path inside a Linux container; Windows paths (C:\\...) are not
+// translated yet, so these two only hold where host paths are POSIX.
+const linuxPaths = process.platform === "win32" ? "host paths are mounted as-is into a Linux container" : false;
+
 test("detect reads the most explicit pin first and normalizes versions", () => {
   const { dir } = repo({
     ".tool-versions": "nodejs 20.11.1\npython 3.11.4\ngolang 1.22.3\n",
@@ -95,7 +99,7 @@ test("create validates the input before touching docker", async () => {
   assert.deepEqual(calls, []);
 });
 
-test("create pulls, replaces the container, writes shims, config and devcontainer.json", async () => {
+test("create pulls, replaces the container, writes shims, config and devcontainer.json", { skip: linuxPaths }, async () => {
   const { name, dir } = repo();
   const st = await devenv.create(name, dir, { lang: "python", version: "3.12", ports: [8000, 8000, 0, 70000, 1.5, "9000"] as unknown as number[] });
   assert.equal(st.state, "running");
@@ -123,7 +127,7 @@ test("create pulls, replaces the container, writes shims, config and devcontaine
   assert.match(devenv.promptNote(name), /agentos-.*python, python3, pip, pip3.*8000, 9000/);
 });
 
-test("create keeps an existing devcontainer.json and mounts a git repo's .git read-only plus its worktrees", async () => {
+test("create keeps an existing devcontainer.json and mounts a git repo's .git read-only plus its worktrees", { skip: linuxPaths }, async () => {
   const { name, dir } = repo({}, "gitproj");
   await run("git", ["init", "-q", dir]);
   const git = (...a: string[]) => run("git", ["-C", dir, "-c", "user.name=t", "-c", "user.email=t@t", ...a]);

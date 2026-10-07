@@ -113,7 +113,7 @@ export function checkModules(appDir: string, only?: string): Finding[] {
         if (owner && !allowed.has(owner)) {
           add("M2", file, `imports "${spec}" from module "${owner}", which is not in dependsOn`, lineOf(text, hit.index!));
         }
-        if (!owner && !target.startsWith(appDir + sep)) add("M2", file, `imports "${spec}" from outside agent-os`, lineOf(text, hit.index!));
+        if (!owner && !target.startsWith(appDir + sep)) add("M2", file, `imports "${spec}" from outside agent-os-nexo`, lineOf(text, hit.index!));
       }
     }
 

@@ -8,8 +8,8 @@ const CODE_BIN = findBin("code", ["/var/lib/flatpak/exports/bin"]) ?? findBin("c
 
 /** A Marketplace id: publisher.name. */
 export const VSCODE_ID = /^[A-Za-z0-9][A-Za-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9._-]*$/;
-/** "agent-os.*" ids exist only in agent-os's own editor, never in VS Code. */
-export const isEditorOnly = (id: string) => id.startsWith("agent-os.");
+/** "agent-os-nexo.*" ids exist only in agent-os-nexo's own editor, never in VS Code. */
+export const isEditorOnly = (id: string) => id.startsWith("agent-os-nexo.");
 
 let installedCache: { at: number; ids: Set<string> | null } | null = null;
 export async function installed(bin = CODE_BIN): Promise<Set<string> | null> {

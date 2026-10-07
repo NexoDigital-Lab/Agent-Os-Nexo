@@ -14,7 +14,7 @@ export function TodayCost() {
   }, []);
   if (cost === null) return null;
   return (
-    <div className="cost" title={t("Spent today from agent-os")}>
+    <div className="cost" title={t("Spent today from agent-os-nexo")}>
       {t("today")}
       <b>{usd(cost)}</b>
     </div>

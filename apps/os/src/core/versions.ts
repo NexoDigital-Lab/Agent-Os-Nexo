@@ -20,7 +20,7 @@ export function listBuilds(osDir: string): string[] {
   return readdirSync(dir).filter((v) => SEMVER.test(v)).sort(compareVersions);
 }
 
-/** The build agent-os starts with: the pin in os/current, or the newest build. */
+/** The build agent-os-nexo starts with: the pin in os/current, or the newest build. */
 export function buildToLoad(osDir: string): string | null {
   const pin = join(osDir, "current");
   if (existsSync(pin)) {
@@ -32,7 +32,7 @@ export function buildToLoad(osDir: string): string | null {
 
 /**
  * The newer build to announce while running ("New version detected — restart to load it"), or null.
- * agent-os never restarts itself; this only drives the notification.
+ * agent-os-nexo never restarts itself; this only drives the notification.
  */
 export function newerBuild(osDir: string, running: string): string | null {
   const latest = listBuilds(osDir).at(-1);

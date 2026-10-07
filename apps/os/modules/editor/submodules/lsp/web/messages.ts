@@ -5,6 +5,6 @@ export const es: Record<string, string> = {
   "Language server on: completion, hover, F12 go to definition, Shift+F12 references, gofmt on save": "Language server activo: autocompletado, hover, F12 ir a la definición, Shift+F12 referencias, gofmt al guardar",
   "No language server for this language (TS/JS use Monaco's built-in one)": "Sin language server para este lenguaje (TS/JS usan el integrado de Monaco)",
   "The language server closed. Reload the tab to retry.": "El language server se cerró. Recargá la pestaña para reintentar.",
-  "pyright ships with agent-os: reinstall its dependencies (nexo os build)": "pyright viene con agent-os: reinstalá sus dependencias (nexo os build)",
+  "pyright ships with agent-os-nexo: reinstall its dependencies (nexo os build)": "pyright viene con agent-os-nexo: reinstalá sus dependencias (nexo os build)",
   "{name}: not installed": "{name}: no instalado"
 };

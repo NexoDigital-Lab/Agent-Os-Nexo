@@ -77,7 +77,7 @@ export function Docs() {
     <div className="page docs-page">
       <div className="docs-head">
         <h1><BookOpen size={20} /> {t("Documentation")}</h1>
-        <p className="sub">{t("How agent-os works, how to write and review modules, and how to install and run it.")}</p>
+        <p className="sub">{t("How agent-os-nexo works, how to write and review modules, and how to install and run it.")}</p>
       </div>
       {error && <p className="errline" role="alert">{t(error)}</p>}
       <div className="docs-cols">

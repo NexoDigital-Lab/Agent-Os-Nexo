@@ -1,4 +1,4 @@
-// Visual-bug gallery: screenshots pasted in agent-os, kept in one folder (os/data/visual-bugs) so an agent can
+// Visual-bug gallery: screenshots pasted in agent-os-nexo, kept in one folder (os/data/visual-bugs) so an agent can
 // read them all when asked to fix visual bugs. Images live as plain files; notes in index.json beside them.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";

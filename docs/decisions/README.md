@@ -22,5 +22,5 @@ any of them gets a new entry here, never a silent edit.
 | 15 | Sizes | `SKILL.md` ≤ 200 lines, environment `AGENTS.md` ≤ 120 lines |
 | 16 | Model ceiling | Configurable in `profile.json`; default haiku, max sonnet for subagents |
 | 17 | Git | English commits, author from profile, no AI co-author trailer by default, push/PR ask, force push to main deny |
-| 18 | agent-os | Modular (manifest per module, auto-detected, enable/disable); personal versions from `1.0.0`; major reserved to Nexo |
-| 19 | SSH | Lives in agent-os's encrypted vault; agents never use it on their own |
+| 18 | agent-os-nexo | Modular (manifest per module, auto-detected, enable/disable); personal versions from `1.0.0`; major reserved to Nexo |
+| 19 | SSH | Lives in agent-os-nexo's encrypted vault; agents never use it on their own |

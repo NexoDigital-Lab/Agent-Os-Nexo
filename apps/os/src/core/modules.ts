@@ -48,7 +48,7 @@ function subdirs(dir: string): string[] {
 
 /**
  * Finds every folder with a module.json under modules/ (and their submodules/, same shape), like
- * Odoo addons: dropping a folder with a manifest is all it takes for agent-os to see a module.
+ * Odoo addons: dropping a folder with a manifest is all it takes for agent-os-nexo to see a module.
  */
 export function discoverModules(modulesDir: string): Discovery {
   const modules: DiscoveredModule[] = [];

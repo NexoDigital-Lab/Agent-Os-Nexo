@@ -91,7 +91,7 @@ const ownOrigins = (port: number) => [`http://localhost:${port}`, `http://127.0.
 const ownHosts = (port: number) => [`localhost:${port}`, `127.0.0.1:${port}`];
 
 /**
- * WebSocket upgrades only from agent-os's own page, with this run's access token: another site must never get a
+ * WebSocket upgrades only from agent-os-nexo's own page, with this run's access token: another site must never get a
  * shell or a language server, and neither must another program on the machine.
  */
 export function sameOrigin(req: IncomingMessage, port: number): boolean {
@@ -115,18 +115,18 @@ export function guardRequest(port: number) {
       res.end(JSON.stringify({ error: "Origin not allowed" }));
       return;
     }
-    // nosniff: files we serve (screenshots, repo images) are never reinterpreted as HTML/script. X-Agent-OS lets a
+    // nosniff: files we serve (screenshots, repo images) are never reinterpreted as HTML/script. X-Agent-OS-Nexo lets a
     // launcher tell this server apart from any other program that happens to hold its port.
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Agent-OS", "1");
+    res.setHeader("X-Agent-OS-Nexo", "1");
     // The access link (?token=…) becomes a cookie, and the address bar loses the token.
-    const url = new URL(req.url ?? "/", "http://agent-os");
+    const url = new URL(req.url ?? "/", "http://agent-os-nexo");
     const offered = url.searchParams.get("token");
     if (offered !== null) {
       if (!validToken(port, offered)) {
         res.statusCode = 403;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        res.end("This access link is from an earlier run of agent-os. Open the current one with `nexo os open`.");
+        res.end("This access link is from an earlier run of agent-os-nexo. Open the current one with `nexo os open`.");
         return;
       }
       url.searchParams.delete("token");
@@ -139,7 +139,7 @@ export function guardRequest(port: number) {
     if (url.pathname.startsWith("/api/") && !OPEN_PATHS.has(url.pathname) && !hasAccess(req, port)) {
       res.statusCode = 401;
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ error: "agent-os needs its access link: run `nexo os open`", access: true }));
+      res.end(JSON.stringify({ error: "agent-os-nexo needs its access link: run `nexo os open`", access: true }));
       return;
     }
     next();

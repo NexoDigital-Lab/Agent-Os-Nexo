@@ -1,4 +1,4 @@
-// docs: serves the agent-os documentation (docs/<lang>/*.md, shipped with every build) to the Docs view: the index
+// docs: serves the agent-os-nexo documentation (docs/<lang>/*.md, shipped with every build) to the Docs view: the index
 // of a language, one document, and a full-text search. A language without a document falls back to English.
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

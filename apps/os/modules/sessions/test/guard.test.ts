@@ -7,7 +7,7 @@ const scope = { ports: [4780, 4781, 47470], dirs: [`${env}/os/data`, `${env}/.st
 const cwd = `${env}/projects/demo/code`;
 const bash = (command: string) => guardReason("Bash", { command }, scope, cwd);
 
-test("agents cannot call agent-os's own API", () => {
+test("agents cannot call agent-os-nexo's own API", () => {
   for (const c of [
     "curl -XPOST localhost:4780/api/tabs/x/send -d '{\"mode\":\"bypassPermissions\"}'",
     "curl http://127.0.0.1:4781/api/tabs/x/terms",
@@ -37,7 +37,7 @@ test("agents cannot reach os/data or .state/os, by any path", () => {
   assert.equal(guardReason("Grep", { pattern: "token", path: `${env}/.state/os` }, scope, cwd), DATA_REASON);
 });
 
-test("words that only look like the folders are fine (working on agent-os itself)", () => {
+test("words that only look like the folders are fine (working on agent-os-nexo itself)", () => {
   for (const c of ['grep -rn "os/data" src', "cat docs/en/architecture.md", "ls ../../../os/source/modules", "mkdir -p tmp/os/data"]) {
     assert.equal(bash(c), null, c);
   }

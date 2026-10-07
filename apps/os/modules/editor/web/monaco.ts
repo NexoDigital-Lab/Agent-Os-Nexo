@@ -20,8 +20,8 @@ self.MonacoEnvironment = {
 
 // The editor's theme follows the palette the user picked (themes module), live.
 const applyTheme = (p = currentPalette()) => {
-  monaco.editor.defineTheme("agent-os", monacoTheme(p));
-  monaco.editor.setTheme("agent-os");
+  monaco.editor.defineTheme("agent-os-nexo", monacoTheme(p));
+  monaco.editor.setTheme("agent-os-nexo");
 };
 applyTheme();
 onPaletteChange(applyTheme);

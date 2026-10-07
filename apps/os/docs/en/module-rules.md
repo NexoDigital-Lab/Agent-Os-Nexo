@@ -6,7 +6,7 @@ order: 3
 
 # Module rules
 
-The standard every agent-os module follows — Nexo's own, a contributor's, or the ones a user adds to their
+The standard every agent-os-nexo module follows — Nexo's own, a contributor's, or the ones a user adds to their
 personal copy. A review cites these rules by ID ("R4: writes JSON without tmp + rename") so whoever fixes
 it knows what is wrong and what right looks like. How to run a review: [review.md](review.md).
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "agent-os",
+  "productName": "agent-os-nexo",
   "version": "0.1.0",
-  "identifier": "lab.nexodigital.agent-os",
+  "identifier": "lab.nexodigital.agent-os-nexo",
   "build": {
     "frontendDist": "../splash"
   },
@@ -10,7 +10,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "agent-os",
+        "title": "agent-os-nexo",
         "width": 1440,
         "height": 900,
         "minWidth": 900,

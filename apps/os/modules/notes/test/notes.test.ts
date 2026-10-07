@@ -8,7 +8,7 @@ import { listFeatures } from "../../projects/server/features.ts";
 import { initProjects } from "../../projects/server/projects.ts";
 import { acceptProposals, deleteNote, initNotes, listDrafts, listNotes, promoteDrafts, saveNote, type Proposal } from "../server/notes.ts";
 
-const root = mkdtempSync(join(tmpdir(), "agent-os-notes-"));
+const root = mkdtempSync(join(tmpdir(), "agent-os-nexo-notes-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 const projects = join(root, "projects");
 mkdirSync(join(projects, "shop"), { recursive: true });

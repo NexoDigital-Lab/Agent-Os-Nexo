@@ -1,20 +1,20 @@
-// What an agent may never reach in agent-os itself, whatever its permission mode (a PreToolUse hook for every
-// session): agent-os's own API (it would let an agent start other agents, change permissions or open terminals
-// outside its own tools) and agent-os's private data (os/data: http tokens, notes, the ssh vault; .state/os:
+// What an agent may never reach in agent-os-nexo itself, whatever its permission mode (a PreToolUse hook for every
+// session): agent-os-nexo's own API (it would let an agent start other agents, change permissions or open terminals
+// outside its own tools) and agent-os-nexo's private data (os/data: http tokens, notes, the ssh vault; .state/os:
 // temporary keys, logs). Like the ssh guard it reads what the tool call says, so it stops the direct path, not a
 // determined obfuscation; the real boundary is what the user lets an agent run (library/permissions.json).
 import path from "node:path";
 import type { HookCallback, HookCallbackMatcher } from "@anthropic-ai/claude-agent-sdk";
 
 export interface GuardScope {
-  /** agent-os ports: the running one plus the defaults (app, preview, desktop). */
+  /** agent-os-nexo ports: the running one plus the defaults (app, preview, desktop). */
   ports: number[];
   /** Absolute folders: <env>/os/data and <env>/.state/os. */
   dirs: string[];
 }
 
-export const API_REASON = "agent-os's own API is only for its interface, not for agents (use your tools, or ask the user).";
-export const DATA_REASON = "agent-os's private data (os/data, .state/os) is not accessible to agents.";
+export const API_REASON = "agent-os-nexo's own API is only for its interface, not for agents (use your tools, or ask the user).";
+export const DATA_REASON = "agent-os-nexo's private data (os/data, .state/os) is not accessible to agents.";
 
 const LOOPBACK = String.raw`(?:localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[::1?\]|::1)`;
 

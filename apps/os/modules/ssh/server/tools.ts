@@ -1,4 +1,4 @@
-// What the agent can do with an SSH tab, as an in-process MCP server ("ssh"), plus the PreToolUse guard every agent-os
+// What the agent can do with an SSH tab, as an in-process MCP server ("ssh"), plus the PreToolUse guard every agent-os-nexo
 // query gets. The gating lives inside the tools: nothing here runs unless the user shares the console, and anything
 // that is not read-only needs a plan the user approved (that approval, not the permission mode, is what counts).
 import { createSdkMcpServer, tool, type HookCallback, type Options } from "@anthropic-ai/claude-agent-sdk";
@@ -194,7 +194,7 @@ export function createSshServer(tabId: string, emit: (ev: Ev) => void, signal: A
 export const sshNote = (hostName: string) =>
   `This tab has an SSH console to "${hostName}" shown to the user next to the chat. Tools: mcp__ssh__ssh_status, ssh_read, ssh_run, ssh_plan. They only work while the user shares the console ("The agent sees the console"); if a tool says it is not shared, ask the user to enable it. Rules: (1) read freely with ssh_read and read-only commands via ssh_run; (2) anything that changes the server goes in ONE plan via ssh_plan (summary + exact single-line steps) that the user approves once, then run each step with ssh_run verbatim; (3) you never see credentials: if a command needs a password (sudo...), ask the user in chat to type it in the console and then use ssh_read; never ask for a password or key in chat and never try to read key files, the vault or its API; (4) the sensitive files (.env, keys, shadow...) are off-limits; (5) do not run ssh/scp yourself, the console is the only way.`;
 
-/** PreToolUse for every agent-os query: denies tool calls that would reach credentials. Runs in bypass mode too. */
+/** PreToolUse for every agent-os-nexo query: denies tool calls that would reach credentials. Runs in bypass mode too. */
 const guard: HookCallback = async (input) => {
   if (input.hook_event_name !== "PreToolUse") return {};
   const reason = blockedToolUse(input.tool_name, input.tool_input);

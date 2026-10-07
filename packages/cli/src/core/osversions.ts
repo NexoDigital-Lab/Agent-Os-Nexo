@@ -20,7 +20,7 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
- * Next personal agent-os version: starts at 1.0.0, patch +1 per approved build, and after x.y.9
+ * Next personal agent-os-nexo version: starts at 1.0.0, patch +1 per approved build, and after x.y.9
  * comes x.(y+1).0. The major version is reserved for Nexo releases and never changes here.
  */
 export function nextVersion(latest: string | null): string {
@@ -34,7 +34,7 @@ export function listVersions(osDir: string): string[] {
   return listDir(join(osDir, "versions")).filter((v) => SEMVER.test(v)).sort(compareVersions);
 }
 
-/** The version agent-os loads: the pinned one if `os/current` exists, otherwise the newest. */
+/** The version agent-os-nexo loads: the pinned one if `os/current` exists, otherwise the newest. */
 export function activeVersion(osDir: string): string | null {
   const pin = join(osDir, "current");
   if (existsSync(pin)) {

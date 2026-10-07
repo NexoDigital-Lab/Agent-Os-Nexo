@@ -4,7 +4,7 @@ import { ago, usd } from "@os/lib/format";
 import { extApi as api, type Ext, type ExtOverview, type ProjectExt } from "./api";
 import { t } from "@os/i18n";
 
-const EDITOR_ONLY = (id: string) => id.startsWith("agent-os.");
+const EDITOR_ONLY = (id: string) => id.startsWith("agent-os-nexo.");
 const VSCODE_ID = /^[A-Za-z0-9][A-Za-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 /** Extensions: the general list (every project) and each project's own list + recommendations. You decide; nothing applies itself. */
@@ -146,7 +146,7 @@ function ExtRow({ id, ext, name, why, source, status, children }: {
           {source && <span className={`pill ${source === "ai" ? "info" : ""}`}>{source === "ai" ? <><Sparkles size={12} /> {t("AI")}</> : t("rules")}</span>}
         </div>
         <div className="ext-desc">{why ? <>→ {why.startsWith("found ") ? t("found {what}", { what: why.slice(6) }) : why}</> : ext?.desc ? t(ext.desc) : t("Not in the catalog.")}</div>
-        <div className="ext-id mono faint">{EDITOR_ONLY(id) ? t("only in agent-os's editor") : id}</div>
+        <div className="ext-id mono faint">{EDITOR_ONLY(id) ? t("only in agent-os-nexo's editor") : id}</div>
       </div>
       {status}
       <div className="ext-actions">{children}</div>
@@ -165,7 +165,7 @@ function ExtStatus({ id, ext, installed, busy, onInstall }: { id: string; ext?: 
       ) : installed ? (
         <button className="btn sm" disabled={busy} onClick={onInstall}>{busy ? <span className="spin" /> : <Download size={14} />} {t("Install")}</button>
       ) : null}
-      {ext?.editor ? <span className="pill accent" title={t("Works inside agent-os's editor")}>editor <Check size={12} /></span> : <span className="faint" title={t("No equivalent in agent-os's editor")}>editor —</span>}
+      {ext?.editor ? <span className="pill accent" title={t("Works inside agent-os-nexo's editor")}>editor <Check size={12} /></span> : <span className="faint" title={t("No equivalent in agent-os-nexo's editor")}>editor —</span>}
     </div>
   );
 }

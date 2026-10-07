@@ -6,7 +6,7 @@ order: 5
 
 # Módulos
 
-Todos los módulos de agent-os: qué hacen, de qué dependen, qué exponen y dónde guardan datos. Las rutas
+Todos los módulos de agent-os-nexo: qué hacen, de qué dependen, qué exponen y dónde guardan datos. Las rutas
 están bajo `/api`. Los módulos "core" no se pueden apagar. Cuando un módulo cambia, su entrada acá cambia en
 el mismo commit, en los dos idiomas (regla R11).
 
@@ -75,7 +75,7 @@ Página de inicio: proyectos, sesiones recientes, objetivos, una bandeja de entr
 ## editor
 Un editor completo en cada pestaña de proyecto: árbol de archivos, Monaco con temas según la paleta,
 buscar y reemplazar, un panel inferior con Problemas y Run, ajustes del editor y los equivalentes en
-agent-os de las extensiones de VS Code.
+agent-os-nexo de las extensiones de VS Code.
 - **Depende de:** themes, sessions, extensions. **Aporta:** `tab.views` (Editor).
 - **Código web compartido:** `web/bus.ts` (`openInEditor`, `usePanelHeight`).
 - **Rutas:** `GET/PUT /tabs/:id/file`, `GET /tabs/:id/files`, `GET /tabs/:id/image`,
@@ -152,13 +152,13 @@ Uso de tokens y costo estimado de cada sesión de IA, y los límites de uso del 
 
 ## extensions
 Extensiones de VS Code por proyecto (recomendadas por stack o por un agente, sincronizadas a
-`.vscode/extensions.json`) y sus equivalentes en el editor de agent-os.
+`.vscode/extensions.json`) y sus equivalentes en el editor de agent-os-nexo.
 - **Depende de:** shell, projects, sessions. **Vista:** Extensiones.
 - **Rutas:** `GET /extensions`, `PUT /extensions/general`, `POST /extensions/install`,
   `GET/PUT /projects/:id/extensions`, `POST /projects/:id/extensions/sync|recommend`.
 
 ## visual-bugs
-Una galería de capturas de lo que se ve mal en agent-os, con notas, para que un agente las lea y las arregle.
+Una galería de capturas de lo que se ve mal en agent-os-nexo, con notas, para que un agente las lea y las arregle.
 - **Depende de:** shell. **Vista:** Errores visuales.
 - **Rutas:** `GET/POST /visual-bugs` (el POST recibe la imagen cruda), `GET/PATCH/DELETE /visual-bugs/:name`.
   **Guarda:** data (imágenes + `index.json` con las notas).

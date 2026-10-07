@@ -6,14 +6,14 @@ order: 6
 
 # Instalar, compilar, ejecutar
 
-agent-os es opcional en un entorno Nexo. Todo lo de acá es un comando `nexo os`
+agent-os-nexo es opcional en un entorno Nexo. Todo lo de acá es un comando `nexo os`
 (`packages/cli/src/commands/os.ts`); la estructura del entorno está en [architecture.md](architecture.md).
 
 ## Instalar
 
 ```bash
 nexo init --os yes                              # al crear el entorno, o después:
-nexo os install                                 # desde npm (@nexodigital-lab/agent-os)
+nexo os install                                 # desde npm (@nexodigital-lab/agent-os-nexo)
 nexo os install --from <Agent-Os-Nexo>/apps/os  # desde un checkout (hasta que el paquete se publique)
 ```
 
@@ -84,7 +84,7 @@ Un source instalado antes de que existieran las actualizaciones no tiene histori
 | Síntoma | Causa y arreglo |
 |---|---|
 | `start` dice que terminó, con un pedazo del log | Leé el extracto: un puerto en uso (`--port`), un módulo que falló al compilar, un runtime que falta (`nexo os build`). |
-| `start` dice que otro agent-os responde en el puerto | Ya hay uno corriendo ahí (quizás de la app de escritorio o una vista previa): usalo, o `--port`. |
+| `start` dice que otro agent-os-nexo responde en el puerto | Ya hay uno corriendo ahí (quizás de la app de escritorio o una vista previa): usalo, o `--port`. |
 | Falta un módulo en la app | Ajustes → Módulos muestra si está apagado, esperando un reinicio, o si no cargó (con el error). |
 | La vista previa muestra tipografías de reemplazo | Un source viejo sin el runtime en la lista permitida de Vite: actualizá `vite.config.ts` desde una versión más nueva. |
 | `install` no puede descargar el paquete | Todavía no está publicado: `nexo os install --from <checkout>/apps/os`. |

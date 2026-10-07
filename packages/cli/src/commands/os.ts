@@ -47,10 +47,10 @@ export async function os(action: string | undefined, arg: string | undefined, op
       const preview = runningPid(stateDir, "preview");
       const lines = [
         versions.length
-          ? `agent-os ${active} (of ${versions.length} build(s)). Next build will be ${nextVersion(versions.at(-1) ?? null)}.`
+          ? `agent-os-nexo ${active} (of ${versions.length} build(s)). Next build will be ${nextVersion(versions.at(-1) ?? null)}.`
           : hasSource
-            ? "agent-os is copied into os/source but has no build yet: `nexo os build`."
-            : "agent-os is not installed: `nexo os install`.",
+            ? "agent-os-nexo is copied into os/source but has no build yet: `nexo os build`."
+            : "agent-os-nexo is not installed: `nexo os install`.",
       ];
       if (app) lines.push(`Running (pid ${app}) — log: ${logFile(stateDir, "app")}`);
       if (preview) lines.push(`Preview running (pid ${preview}) — log: ${logFile(stateDir, "preview")}`);
@@ -66,18 +66,18 @@ export async function os(action: string | undefined, arg: string | undefined, op
       if (!arg) throw new Error("Usage: nexo os use <x.y.z|latest>");
       if (arg === "latest") {
         pinVersion(osDir, null);
-        return `agent-os will load the newest build (${versions.at(-1) ?? "none yet"}) on next start.`;
+        return `agent-os-nexo will load the newest build (${versions.at(-1) ?? "none yet"}) on next start.`;
       }
       if (!versions.includes(arg)) throw new Error(`No build ${arg} in ${join(osDir, "versions")}.`);
       pinVersion(osDir, arg);
-      return `agent-os will load ${arg} on next start. Restart it yourself when ready.`;
+      return `agent-os-nexo will load ${arg} on next start. Restart it yourself when ready.`;
     }
     case "install": {
-      if (versions.length) throw new Error(`agent-os is already installed (${versions.length} build(s)). Use \`nexo os build\` for a new version.`);
+      if (versions.length) throw new Error(`agent-os-nexo is already installed (${versions.length} build(s)). Use \`nexo os build\` for a new version.`);
       // A previous install that copied the source but failed to build picks up where it stopped.
       const fetched = hasSource && !opts.from ? "resumed with the source already in os/source" : fetchSource(osDir, opts.from, run);
       const version = buildVersion(osDir, "First build", run);
-      const lines = [`agent-os installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."];
+      const lines = [`agent-os-nexo installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."];
       // Windows: a desktop shortcut to the desktop shell, so the app opens like any other program.
       const shortcut = osDeps.createDesktopShortcut(REPO_ROOT);
       if (shortcut) lines.push(`Desktop shortcut created: ${shortcut}`);
@@ -87,7 +87,7 @@ export async function os(action: string | undefined, arg: string | undefined, op
       const version = buildVersion(osDir, opts.notes ?? "", run);
       const running = runningPid(stateDir, "app");
       return running
-        ? `Built ${version}. The running agent-os will offer to restart into it; it never restarts on its own.`
+        ? `Built ${version}. The running agent-os-nexo will offer to restart into it; it never restarts on its own.`
         : `Built ${version}. Start it with \`nexo os start\`.`;
     }
     case "start":
@@ -96,13 +96,13 @@ export async function os(action: string | undefined, arg: string | undefined, op
       const { pid, version } = await startProcess(root, osDir, stateDir, which, port);
       const url = accessLink(stateDir, port ?? PORTS[which]);
       return which === "app"
-        ? `agent-os ${version} started (pid ${pid}) → ${url}\nLog: ${logFile(stateDir, which)}`
+        ? `agent-os-nexo ${version} started (pid ${pid}) → ${url}\nLog: ${logFile(stateDir, which)}`
         : `Preview of os/source started (pid ${pid}) → ${url} (reloads on every change)\nLog: ${logFile(stateDir, which)}`;
     }
     case "open": {
       // The running app's (or preview's) access link, opened in the browser: the way in after every restart.
       const which = opts.preview ? "preview" : "app";
-      if (!runningPid(stateDir, which)) throw new Error(`agent-os ${which === "app" ? "" : "preview "}is not running: \`nexo os ${which === "app" ? "start" : "preview"}\` first.`);
+      if (!runningPid(stateDir, which)) throw new Error(`agent-os-nexo ${which === "app" ? "" : "preview "}is not running: \`nexo os ${which === "app" ? "start" : "preview"}\` first.`);
       const link = accessLink(stateDir, runningPort(stateDir, which));
       const opener = openerFor();
       try {
@@ -113,9 +113,9 @@ export async function os(action: string | undefined, arg: string | undefined, op
       return `Opened ${link.replace(/token=\w+/, "token=…")}`;
     }
     case "stop": {
-      // Just the app by default: an agent stopping its preview must never take down the agent-os it runs in.
+      // Just the app by default: an agent stopping its preview must never take down the agent-os-nexo it runs in.
       const stopped = stopProcesses(stateDir, opts.all ? ["app", "preview"] : opts.preview ? ["preview"] : ["app"]);
-      return stopped.length ? `Stopped: ${stopped.join(", ")}.` : "agent-os was not running.";
+      return stopped.length ? `Stopped: ${stopped.join(", ")}.` : "agent-os-nexo was not running.";
     }
     case "update": {
       // A new Nexo release merged into the user's version (osupdate.ts): their changes stay, conflicts are shown.
@@ -130,18 +130,18 @@ export async function os(action: string | undefined, arg: string | undefined, op
       const r = withRelease(opts.from, run, (dir) => updateSource(source, dir));
       if (r.conflicts.length) {
         return [
-          `Merging agent-os ${r.to} into your version (${r.from}) left conflicts in:`,
+          `Merging agent-os-nexo ${r.to} into your version (${r.from}) left conflicts in:`,
           ...r.conflicts.map((f) => `  ${f}`),
           "Resolve them in os/source (or ask an agent: it keeps your change and takes Nexo's where they don't clash),",
           "then `nexo os update --continue` — or `nexo os update --abort` to leave your version as it was.",
         ].join("\n");
       }
-      return `Your version now has agent-os ${r.to} (was ${r.from}), your changes kept. Check it with \`nexo os check\`, look at it with \`nexo os preview\`, then \`nexo os build\`.`;
+      return `Your version now has agent-os-nexo ${r.to} (was ${r.from}), your changes kept. Check it with \`nexo os check\`, look at it with \`nexo os preview\`, then \`nexo os build\`.`;
     }
     case "check": {
       // The mechanical module rules (os/source/docs/en/module-rules.md), run by the source's own checker.
       const script = join(source, "scripts", "check-modules.ts");
-      if (!existsSync(script)) throw new Error("No agent-os source with a module checker in os/source. Run `nexo os install`.");
+      if (!existsSync(script)) throw new Error("No agent-os-nexo source with a module checker in os/source. Run `nexo os install`.");
       const r = spawnSync(process.execPath, [script, ...(opts.module ? [`--module=${opts.module}`] : [])], { cwd: source, encoding: "utf8" });
       const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
       if (r.status !== 0) throw new Error(out || `The module checker failed (exit ${r.status}).`);

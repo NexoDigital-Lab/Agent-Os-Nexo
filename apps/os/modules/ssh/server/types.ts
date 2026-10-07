@@ -12,7 +12,7 @@ export type SshHost = {
   auth: SshAuth;
   hasSecret: boolean; // a password / private key is stored (write-only: it is never sent back)
   hasPassphrase: boolean; // key auth: the key's passphrase is stored too
-  project: string | null; // optional agent-os project the session tab opens in
+  project: string | null; // optional agent-os-nexo project the session tab opens in
 };
 
 /** Body to create/update a host. `secret`/`passphrase`: omitted = keep the stored one, "" = clear it. */

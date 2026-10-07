@@ -11,7 +11,7 @@ export const es: Record<string, string> = {
   "off after restart": "apagado al reiniciar",
   "on": "activo",
   "on after restart": "activo al reiniciar",
-  "Restart agent-os to apply the changes.": "Reiniciá agent-os para aplicar los cambios.",
+  "Restart agent-os-nexo to apply the changes.": "Reiniciá agent-os-nexo para aplicar los cambios.",
   "State": "Estado",
   "Version": "Versión"
 };

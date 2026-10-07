@@ -1,4 +1,4 @@
-// Where agent-os finds its environment, and the small helpers every module's server shares.
+// Where agent-os-nexo finds its environment, and the small helpers every module's server shares.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";

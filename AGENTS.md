@@ -8,17 +8,17 @@ itself; the environment that Nexo installs has its own template at
 
 - `packages/cli/` — the `nexo` CLI (TypeScript, zero runtime dependencies) and `nexo_bases/`,
   the factory content copied into a user's environment.
-- `apps/os/` — agent-os. Modular: every sector is a module under `apps/os/modules/<name>/` with a
+- `apps/os/` — agent-os-nexo. Modular: every sector is a module under `apps/os/modules/<name>/` with a
   `module.json` manifest. Its documentation, in English and Spanish, is `apps/os/docs/` (index:
   `apps/os/docs/README.md`).
-- `apps/desktop/` — the optional Tauri window for agent-os (not an npm workspace).
+- `apps/desktop/` — the optional Tauri window for agent-os-nexo (not an npm workspace).
 - `docs/` — architecture (`docs/architecture.md`) and decisions (`docs/decisions/`).
 
 ## Commands
 
 - `npm install` once at the root (npm workspaces).
 - `npm run check` — typecheck + tests. Must pass before every commit.
-- `npm run coverage` — the tests under c8: every source file of the CLI and of agent-os's server needs 80% of
+- `npm run coverage` — the tests under c8: every source file of the CLI and of agent-os-nexo's server needs 80% of
   lines, statements and functions and 70% of branches. CI fails below that. Excluded in `apps/os/.c8rc.json`, and
   nothing else: UI code (`web/`, `.tsx`), type-only files (`host/server/module-api.ts`, `modules/*/server/types.ts`)
   and `host/server/main.ts` (reads the command line and listens; everything else is `app.ts`, tested). A new
@@ -27,7 +27,7 @@ itself; the environment that Nexo installs has its own template at
 
 ## Rules
 
-1. **English** for code, comments, docs and factory content (agent-os's own documentation also has a
+1. **English** for code, comments, docs and factory content (agent-os-nexo's own documentation also has a
    Spanish copy, kept in step: see below). Agents answer users in the language
    the user writes in.
 2. **Nothing personal in the repo.** No names, emails, paths like `/home/<user>`, client rules or
@@ -49,7 +49,7 @@ itself; the environment that Nexo installs has its own template at
 8. **Tests**: every CLI command has tests in `packages/cli/test/` (`node:test`). Bugs get a
    regression test.
 
-## agent-os modules
+## agent-os-nexo modules
 
 Any change to a module follows `apps/os/docs/en/module-rules.md` (M1–M6 checked by
 `node apps/os/scripts/check-modules.ts`, R1–R12 in review). Reviewing a module or a contribution —

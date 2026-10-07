@@ -34,8 +34,8 @@ environments/
 │   ├── profile.json          identity and preferences
 │   └── permissions.json      global allow / ask / deny
 ├── blueprints/<name>/        README.md, steps.md, files/, verify.md
-├── os/                       agent-os (optional: `nexo init --os yes` or `nexo os install`)
-│   ├── source/               the user's editable copy of agent-os
+├── os/                       agent-os-nexo (optional: `nexo init --os yes` or `nexo os install`)
+│   ├── source/               the user's editable copy of agent-os-nexo
 │   ├── versions/<x.y.z>/     builds; the newest (or the pin in `current`) is loaded at start
 │   ├── runtime/<hash>/       dependencies shared by every build with the same set
 │   └── data/                 prefs, notes, the SSH vault, modules.json — versions never touch it
@@ -54,7 +54,7 @@ environments/
 │       ├── context/          shared across parts
 │       └── <part>/{AGENTS.md, code/, context/, secrets/}
 └── .state/                   generated and disposable: logs, indexes, analysis detail, cache;
-                              .state/os/ holds agent-os's pid files, logs and per-module caches
+                              .state/os/ holds agent-os-nexo's pid files, logs and per-module caches
 ```
 
 ## Principles
@@ -71,10 +71,10 @@ environments/
 6. **The OS analysis never runs on its own**: `nexo doctor` recommends `nexo analyze` when it has
    never run or is older than 7 days.
 
-## agent-os
+## agent-os-nexo
 
-agent-os is a local app built from modules (see `apps/os/README.md`), distributed as its own npm
-package (`@nexodigital-lab/agent-os`) that `nexo os install` copies into `os/source`. Each user has a
+agent-os-nexo is a local app built from modules (see `apps/os/README.md`), distributed as its own npm
+package (`@nexodigital-lab/agent-os-nexo`) that `nexo os install` copies into `os/source`. Each user has a
 personal version history starting at `1.0.0`: a requested change is previewed in the browser
 (`nexo os preview`), built only on approval (`nexo os build`), and loaded on the next restart (the
 app detects the new build and asks to restart; agents never close it). Each run has its own access token (only the
@@ -96,4 +96,4 @@ and stopping on real conflicts.
 | `nexo-quick` | The light lane: ≤3 files, no risk signal, verified, no plan or panel |
 | `nexo-budget` | Size a nexo-dev run (risk signals, review set, model routing) and learn from it |
 | `nexo-infra` | How a project runs and builds, in `context/infra.md` |
-| `nexo-module-review` | Review an agent-os module against its rules |
+| `nexo-module-review` | Review an agent-os-nexo module against its rules |

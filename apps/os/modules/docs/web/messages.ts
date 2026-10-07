@@ -5,7 +5,7 @@ export const es: Record<string, string> = {
   "Docs": "Docs",
   "Documentation": "Documentación",
   "Documents": "Documentos",
-  "How agent-os works, how to write and review modules, and how to install and run it.": "Cómo funciona agent-os, cómo escribir y revisar módulos, y cómo instalarlo y ejecutarlo.",
+  "How agent-os-nexo works, how to write and review modules, and how to install and run it.": "Cómo funciona agent-os-nexo, cómo escribir y revisar módulos, y cómo instalarlo y ejecutarlo.",
   "No documentation in this build.": "Este build no tiene documentación.",
   "Not translated yet: shown in English.": "Todavía sin traducir: se muestra en inglés.",
   "Nothing matches “{q}”.": "Nada coincide con “{q}”.",

@@ -113,7 +113,7 @@ test("create pulls, replaces the container, writes shims, config and devcontaine
   assert.ok(runArgs.includes(`${dir}:${dir}`), "the repo is writable");
   assert.ok(!runArgs.some((a) => a.endsWith("/.git:ro")), "no .git here, nothing to protect");
   assert.ok(runArgs.includes("127.0.0.1:8000:8000") && runArgs.includes("127.0.0.1:9000:9000"));
-  assert.ok(runArgs.includes(`agent-os.project=${name}`));
+  assert.ok(runArgs.includes(`agent-os-nexo.project=${name}`));
   assert.deepEqual(runArgs.slice(-3), ["python:3.12-bookworm", "sleep", "infinity"]);
 
   const sd = devenv.shimDir(name);

@@ -1,6 +1,6 @@
-// agent-os desktop shell: runs the Nexo environment's active agent-os build (the same one `nexo os start` runs)
+// agent-os-nexo desktop shell: runs the Nexo environment's active agent-os-nexo build (the same one `nexo os start` runs)
 // on a dedicated port, shows a splash while it boots, then points the window at it. Closing the window stops
-// that server. An agent-os already answering on the port is reused, not duplicated.
+// that server. An agent-os-nexo already answering on the port is reused, not duplicated.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::env;
@@ -67,7 +67,7 @@ fn active_build(os_dir: &Path) -> Result<PathBuf, String> {
             .filter_map(|name| semver(&name).map(|v| (v, name)))
             .max()
             .map(|(_, name)| name)
-            .ok_or("agent-os has no builds yet. Run `nexo os install`.")?
+            .ok_or("agent-os-nexo has no builds yet. Run `nexo os install`.")?
     };
     let dir = os_dir.join("versions").join(&version);
     if dir.join("host/server/main.ts").is_file() {
@@ -108,9 +108,9 @@ fn is_listening(port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
 }
 
-/// True only if what answers on the port is agent-os: `GET /api/os/info` → 200 stamped `X-Agent-OS: 1`
+/// True only if what answers on the port is agent-os-nexo: `GET /api/os/info` → 200 stamped `X-Agent-OS-Nexo: 1`
 /// (host/server/http.ts). A bare "port is open" would happily load some other program's page into the window.
-fn is_agent_os(port: u16) -> bool {
+fn is_agent_os_nexo(port: u16) -> bool {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let Ok(mut s) = TcpStream::connect_timeout(&addr, Duration::from_millis(500)) else {
         return false;
@@ -125,7 +125,7 @@ fn is_agent_os(port: u16) -> bool {
     let text = String::from_utf8_lossy(&buf);
     let status_ok = text.lines().next().is_some_and(|l| l.split_whitespace().nth(1) == Some("200"));
     let head = text.split_once("\r\n\r\n").map_or(&*text, |(h, _)| h);
-    status_ok && head.lines().any(|l| l.to_ascii_lowercase().replace(' ', "") == "x-agent-os:1")
+    status_ok && head.lines().any(|l| l.to_ascii_lowercase().replace(' ', "") == "x-agent-os-nexo:1")
 }
 
 /// Windows process creation flag: start the child without a console window.
@@ -175,7 +175,7 @@ fn spawn_server(root: &Path, build: &Path, log_path: &Path, port: u16) -> Result
         // The server runs headless: no console window pops up next to the app.
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
-    cmd.spawn().map_err(|e| format!("Could not start the agent-os server: {e}"))
+    cmd.spawn().map_err(|e| format!("Could not start the agent-os-nexo server: {e}"))
 }
 
 fn stop_server(child: &mut Child) {
@@ -299,7 +299,7 @@ fn main() {
             let log_hint = log_path.display().to_string();
 
             if is_listening(port) {
-                if !is_agent_os(port) {
+                if !is_agent_os_nexo(port) {
                     show_error(&handle, &format!("Port {port} is used by another program. Close it or set NEXO_APP_PORT."));
                     return Ok(());
                 }
@@ -317,7 +317,7 @@ fn main() {
                 let started = Instant::now();
                 let mut warned = false;
                 loop {
-                    if is_listening(port) && is_agent_os(port) {
+                    if is_listening(port) && is_agent_os_nexo(port) {
                         let token = fs::read_to_string(&token_file).map(|t| t.trim().to_string()).unwrap_or_default();
                         let query = if token.is_empty() { String::new() } else { format!("/?token={token}") };
                         let url = Url::parse(&format!("http://127.0.0.1:{port}{query}")).unwrap();
@@ -333,7 +333,7 @@ fn main() {
                         .unwrap()
                         .as_mut()
                         .is_some_and(|c| matches!(c.try_wait(), Ok(Some(_))));
-                    let msg = format!("agent-os did not start. See the log:\n{log_hint}");
+                    let msg = format!("agent-os-nexo did not start. See the log:\n{log_hint}");
                     if exited {
                         show_error(&handle, &msg);
                         return;
@@ -353,7 +353,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error building agent-os")
+        .expect("error building agent-os-nexo")
         .run(|app, event| {
             if let RunEvent::Exit = event {
                 if let Some(mut child) = app.state::<Server>().0.lock().unwrap().take() {

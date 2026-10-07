@@ -1,5 +1,5 @@
 // File-based state behind Home, adapted from ECC's agentic-os skill (MIT, affaan-m/ECC): goals and an inbox
-// (os/data/home, the user's), plus an append-only daily log and per-day cost ledger of agent-os turns
+// (os/data/home, the user's), plus an append-only daily log and per-day cost ledger of agent-os-nexo turns
 // (.state/os/home, regenerable history). No database.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

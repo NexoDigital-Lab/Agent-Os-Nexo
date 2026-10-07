@@ -1,4 +1,4 @@
-// versions: your agent-os builds (Settings) and the "restart to load the new one" banner.
+// versions: your agent-os-nexo builds (Settings) and the "restart to load the new one" banner.
 import { defineModule } from "@os/registry";
 import type { BannerItem, SettingsSection } from "../../shell/web/slots";
 import { NewBuildBanner } from "./NewBuildBanner";

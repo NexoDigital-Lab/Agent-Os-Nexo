@@ -1,4 +1,4 @@
-// agent-os's own take on a few VS Code extensions, turned on per project from the Extensiones page.
+// agent-os-nexo's own take on a few VS Code extensions, turned on per project from the Extensiones page.
 // Monaco providers are global, so `applyPlugins` registers them for the editor on screen and returns the undo.
 import { emmetCSS, emmetHTML, emmetJSX } from "emmet-monaco-es";
 import { monaco } from "./monaco";

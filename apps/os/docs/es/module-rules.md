@@ -6,7 +6,7 @@ order: 3
 
 # Reglas de módulos
 
-El estándar que sigue todo módulo de agent-os: los de Nexo, los de un colaborador o los que un usuario
+El estándar que sigue todo módulo de agent-os-nexo: los de Nexo, los de un colaborador o los que un usuario
 agrega a su copia personal. Una revisión cita estas reglas por su ID ("R4: escribe JSON sin archivo
 temporal + rename") para que quien lo arregle sepa qué está mal y cómo se hace bien. Cómo hacer una
 revisión: [review.md](review.md).

@@ -67,7 +67,7 @@ export function DiffReview({ tab, path, original, modified, staged }: { tab: Tab
           original={original}
           modified={modified}
           language={languageOf(path)}
-          theme="agent-os"
+          theme="agent-os-nexo"
           onMount={onMount}
           options={{ readOnly: true, fontFamily: '"JetBrains Mono", monospace', fontSize: 13, minimap: { enabled: false }, renderSideBySide: true, scrollBeyondLastLine: false }}
         />

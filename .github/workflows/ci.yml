@@ -23,8 +23,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
-      # agent-os is built per version by `nexo os build`; this proves a build from this tree works.
-      - run: node apps/os/scripts/build.ts --out "${{ runner.temp }}/agent-os" --version 0.0.0
+      # agent-os-nexo is built per version by `nexo os build`; this proves a build from this tree works.
+      - run: node apps/os/scripts/build.ts --out "${{ runner.temp }}/agent-os-nexo" --version 0.0.0
 
   coverage:
     runs-on: ubuntu-latest

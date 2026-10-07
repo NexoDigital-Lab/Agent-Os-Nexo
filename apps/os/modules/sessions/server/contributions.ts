@@ -38,7 +38,7 @@ export interface SessionContribution {
   mcpServers?: (tab: TabContext, io: { emit: (ev: Ev) => void; signal: AbortSignal }) => Record<string, McpServerConfig> | null | undefined;
   /** Tools that never prompt the user here because they gate themselves. */
   autoAllow?: (tab: TabContext, tool: string) => boolean;
-  /** Hooks for every agent-os session (merged with the others'). */
+  /** Hooks for every agent-os-nexo session (merged with the others'). */
   hooks?: Partial<Record<HookEvent, HookCallbackMatcher[]>>;
   /** Every SDK message of every turn. */
   onMessage?: (tab: TabContext, msg: SDKMessage) => void;

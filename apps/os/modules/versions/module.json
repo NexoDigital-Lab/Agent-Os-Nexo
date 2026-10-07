@@ -1,7 +1,7 @@
 {
   "name": "versions",
   "version": "1.0.0",
-  "description": "Personal builds of agent-os: list them, choose the one to load, and get told when a newer one is ready",
+  "description": "Personal builds of agent-os-nexo: list them, choose the one to load, and get told when a newer one is ready",
   "owner": "nexo",
   "core": true,
   "dependsOn": ["shell"],

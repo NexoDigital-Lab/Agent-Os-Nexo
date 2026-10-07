@@ -11,7 +11,7 @@ import { loginWhich, sameOrigin } from "../../../../../host/server/http.ts";
 
 const require = createRequire(import.meta.url);
 
-/** pyright ships with agent-os as a dependency: its language server script, run with this Node. */
+/** pyright ships with agent-os-nexo as a dependency: its language server script, run with this Node. */
 function bundledPyright(): string | null {
   try {
     return require.resolve("pyright/langserver.index.js");
@@ -36,7 +36,7 @@ const SERVERS: Record<string, Spec> = {
     name: "pyright",
     find: async () => bundledPyright() ?? which("pyright-langserver"),
     args: ["--stdio"],
-    hint: "pyright ships with agent-os: reinstall its dependencies (nexo os build)",
+    hint: "pyright ships with agent-os-nexo: reinstall its dependencies (nexo os build)",
   },
 };
 
@@ -121,7 +121,7 @@ export function attachLsp(server: Server, port: number, cwdForTab: (id: string) 
         ws.close();
       });
       proc.on("error", () => ws.close());
-      proc.stdin!.on("error", () => ws.close()); // EPIPE when the server died: unhandled, it would crash agent-os
+      proc.stdin!.on("error", () => ws.close()); // EPIPE when the server died: unhandled, it would crash agent-os-nexo
       ws.on("message", (raw) => {
         if (proc.exitCode !== null || proc.killed) return;
         const body = Buffer.from(String(raw), "utf8");

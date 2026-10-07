@@ -1,4 +1,4 @@
-// The user's agent-os is a git repository (os/source): branch `base` holds Nexo's releases exactly as shipped,
+// The user's agent-os-nexo is a git repository (os/source): branch `base` holds Nexo's releases exactly as shipped,
 // `main` holds the user's version (base + their changes, one commit per build). Updating puts the new release on
 // `base` and merges it into `main`, so personal changes survive and real conflicts are shown, never overwritten.
 import { execFileSync } from "node:child_process";
@@ -24,7 +24,7 @@ export function initSourceRepo(source: string): void {
   writeText(join(source, ".gitignore"), IGNORE);
   git(source, ["init", "-q", "-b", "base"]);
   git(source, ["add", "-A"]);
-  git(source, ["commit", "-q", "-m", `agent-os ${versionOf(source)} (Nexo release)`], true);
+  git(source, ["commit", "-q", "-m", `agent-os-nexo ${versionOf(source)} (Nexo release)`], true);
   git(source, ["tag", `release-${versionOf(source)}`]);
   git(source, ["checkout", "-q", "-b", "main"]);
 }
@@ -74,7 +74,7 @@ export function updateSource(source: string, release: string): UpdateResult {
     rmSync(staged, { recursive: true, force: true });
     git(work, ["add", "-A"]);
     if (git(work, ["status", "--porcelain"])) {
-      git(work, ["commit", "-q", "-m", `agent-os ${to} (Nexo release)`], true);
+      git(work, ["commit", "-q", "-m", `agent-os-nexo ${to} (Nexo release)`], true);
       git(work, ["tag", "-f", `release-${to}`]);
     }
   } finally {
@@ -85,7 +85,7 @@ export function updateSource(source: string, release: string): UpdateResult {
     }
   }
   try {
-    git(source, ["merge", "--no-edit", "-m", `Update to agent-os ${to}`, "base"], true);
+    git(source, ["merge", "--no-edit", "-m", `Update to agent-os-nexo ${to}`, "base"], true);
   } catch {
     const left = conflicts(source);
     if (!left.length) throw new Error("The merge failed without conflicts; see `git -C os/source status`.");

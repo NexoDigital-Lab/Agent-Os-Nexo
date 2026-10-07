@@ -45,7 +45,7 @@ export function EditorArea({ tab, activeFile, open, diff, image, split, setSplit
           path={`file:///${activeFile.path}`}
           defaultValue={activeFile.content}
           language={languageOf(activeFile.path)}
-          theme="agent-os"
+          theme="agent-os-nexo"
           onMount={onMount}
           keepCurrentModel // the split pane may show the same file: models are disposed on close, not on unmount
           onChange={(v) => onChange(activeFile.path, v ?? "")}
@@ -67,7 +67,7 @@ export function EditorArea({ tab, activeFile, open, diff, image, split, setSplit
             path={`file:///${splitFile.path}`}
             defaultValue={splitFile.content}
             language={languageOf(splitFile.path)}
-            theme="agent-os"
+            theme="agent-os-nexo"
             keepCurrentModel
             onChange={(v) => onChange(splitFile.path, v ?? "")}
             options={{ ...options, glyphMargin: false }}

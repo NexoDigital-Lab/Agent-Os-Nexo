@@ -18,7 +18,7 @@ export const es: Record<string, string> = {
   "Save": "Guardar",
   "Today's log": "Registro de hoy",
   "Unknown document": "Documento desconocido",
-  "from agent-os": "desde agent-os",
+  "from agent-os-nexo": "desde agent-os-nexo",
   "live now · click to resume": "activa ahora · clic para retomar",
   "no code/ yet": "sin code/ todavía",
   "no commits": "sin commits",

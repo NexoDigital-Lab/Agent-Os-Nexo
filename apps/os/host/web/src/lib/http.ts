@@ -5,7 +5,7 @@ export type { HostInfo, ModuleRow, Prefs };
 /** An API error; `locked` is set when the SSH vault is locked (401 `{ locked: true }`). */
 export class ApiError extends Error {
   locked = false;
-  /** This browser has no access to this run of agent-os (open its access link: `nexo os open`). */
+  /** This browser has no access to this run of agent-os-nexo (open its access link: `nexo os open`). */
   access = false;
   status = 0;
 }

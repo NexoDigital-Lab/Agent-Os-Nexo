@@ -1,5 +1,5 @@
 // Token/cost monitor over Claude Code's own transcripts (~/.claude/projects/**.jsonl):
-// every session — CLI or agent-os tab — plus its subagent sidechains.
+// every session — CLI or agent-os-nexo tab — plus its subagent sidechains.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -117,7 +117,7 @@ export type SessionUsage = {
   cwd: string | null;
   project: string;
   title: string;
-  source: string; // cli | sdk-ts (agent-os) | ...
+  source: string; // cli | sdk-ts (agent-os-nexo) | ...
   start: string | null;
   end: string | null;
   active: boolean;

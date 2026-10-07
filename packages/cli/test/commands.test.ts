@@ -27,7 +27,7 @@ osDeps.createDesktopShortcut = () => null;
 
 const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
-/** A port the OS can assign right now, so tests never collide with a real agent-os. */
+/** A port the OS can assign right now, so tests never collide with a real agent-os-nexo. */
 function freePort(): Promise<number> {
   return new Promise((resolve) => {
     const srv = createServer();
@@ -238,20 +238,20 @@ test("os: versions, next and pinning", async () => {
   await assert.rejects(os("use", "3.0.0", { root }), /No build/);
 });
 
-// ── agent-os lifecycle: a fake source and a fake runner (no network, no real npm) ────────────────────────────────
+// ── agent-os-nexo lifecycle: a fake source and a fake runner (no network, no real npm) ────────────────────────────────
 
-// A server that answers like agent-os (200 + X-Agent-OS on /api/os/info), so start/stop can be tested for real.
+// A server that answers like agent-os-nexo (200 + X-Agent-OS-Nexo on /api/os/info), so start/stop can be tested for real.
 const FAKE_MAIN = `import http from "node:http";
 const port = Number(process.argv[process.argv.indexOf("--port") + 1]);
-http.createServer((_q, s) => { s.setHeader("X-Agent-OS", "1"); s.end("{}"); }).listen(port, "127.0.0.1");
+http.createServer((_q, s) => { s.setHeader("X-Agent-OS-Nexo", "1"); s.end("{}"); }).listen(port, "127.0.0.1");
 `;
 
 function fakeOsSource(deps: Record<string, string> = { express: "^5" }): string {
-  const src = join(tempDir(), "agent-os");
+  const src = join(tempDir(), "agent-os-nexo");
   mkdirSync(join(src, "modules", "shell"), { recursive: true });
   mkdirSync(join(src, "scripts"), { recursive: true });
   mkdirSync(join(src, "host", "server"), { recursive: true });
-  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os", dependencies: deps }));
+  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os-nexo", dependencies: deps }));
   writeFileSync(join(src, "scripts", "build.ts"), "// real builds run Vite; the fake runner stands in for it\n");
   writeFileSync(join(src, "host", "server", "main.ts"), FAKE_MAIN);
   for (const junk of ["node_modules/x", "dist/web", ".git"]) mkdirSync(join(src, junk), { recursive: true });
@@ -273,13 +273,13 @@ function fakeRunner(calls: string[][]): Runner {
   };
 }
 
-test("copySource leaves dependencies, builds and git out, and refuses what isn't agent-os", () => {
+test("copySource leaves dependencies, builds and git out, and refuses what isn't agent-os-nexo", () => {
   const src = fakeOsSource();
   const dst = join(tempDir(), "copy");
   copySource(src, dst);
   assert.ok(existsSync(join(dst, "modules", "shell")));
   for (const junk of ["node_modules", "dist", ".git"]) assert.ok(!existsSync(join(dst, junk)), junk);
-  assert.throws(() => copySource(tempDir(), join(tempDir(), "x")), /not an agent-os source/);
+  assert.throws(() => copySource(tempDir(), join(tempDir(), "x")), /not an agent-os-nexo source/);
 });
 
 test("runtimeHash depends on the dependency set, not on key order", () => {
@@ -308,16 +308,16 @@ test("os install copies the source, installs one shared runtime, and builds 1.0.
   assert.match(await os("build", undefined, { root, notes: "tweak" }, run), /Built 1\.0\.1/);
   assert.equal(calls.filter((c) => c[0] === "npm").length, 1);
   assert.ok(!existsSync(join(osDir, "versions", "1.0.1.building")));
-  assert.match(await os("status", undefined, { root }), /agent-os 1\.0\.1 \(of 2 build/);
+  assert.match(await os("status", undefined, { root }), /agent-os-nexo 1\.0\.1 \(of 2 build/);
 });
 
 test("os install names the desktop shortcut when it made one (Windows)", async () => {
   const root = await freshEnv();
   const seen: string[] = [];
-  osDeps.createDesktopShortcut = (repo) => (seen.push(repo), "C:\\Users\\me\\Desktop\\agent-os.lnk");
+  osDeps.createDesktopShortcut = (repo) => (seen.push(repo), "C:\\Users\\me\\Desktop\\agent-os-nexo.lnk");
   try {
     const out = await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
-    assert.match(out, /Desktop shortcut created: C:\\Users\\me\\Desktop\\agent-os\.lnk$/);
+    assert.match(out, /Desktop shortcut created: C:\\Users\\me\\Desktop\\agent-os-nexo\.lnk$/);
     assert.ok(existsSync(join(seen[0]!, "packages", "cli")), "it looks in this repository");
   } finally {
     osDeps.createDesktopShortcut = () => null;
@@ -342,24 +342,24 @@ test("os start runs the active build in the background and os stop ends it", asy
   const port = String(await freePort());
   const started = await os("start", undefined, { root, port });
   const pid = Number(/pid (\d+)/.exec(started)![1]);
-  assert.match(started, new RegExp(`agent-os 1\\.0\\.0 started .*localhost:${port}`));
+  assert.match(started, new RegExp(`agent-os-nexo 1\\.0\\.0 started .*localhost:${port}`));
   assert.doesNotThrow(() => process.kill(pid, 0));
   await assert.rejects(os("start", undefined, { root }), /already running/);
   assert.match(await os("status", undefined, { root }), /Running \(pid/);
-  assert.equal(await os("stop", undefined, { root, preview: true }), "agent-os was not running.", "--preview leaves the app alone");
+  assert.equal(await os("stop", undefined, { root, preview: true }), "agent-os-nexo was not running.", "--preview leaves the app alone");
   assert.doesNotThrow(() => process.kill(pid, 0));
   assert.equal(await os("stop", undefined, { root }), "Stopped: app.");
   for (let i = 0; i < 50 && isAlive(pid); i++) await new Promise((r) => setTimeout(r, 20));
   assert.ok(!isAlive(pid), "the process is gone");
-  assert.equal(await os("stop", undefined, { root }), "agent-os was not running.");
+  assert.equal(await os("stop", undefined, { root }), "agent-os-nexo was not running.");
 });
 
-test("init --os yes installs agent-os; the default leaves it for later", async () => {
+test("init --os yes installs agent-os-nexo; the default leaves it for later", async () => {
   const later = await freshEnv("claude");
   assert.ok(!existsSync(join(later, "os", "runtime")));
   const root = join(tempDir(), "env");
   const out = await init({ root, yes: true, tools: "claude", name: "T", email: "t@example.com", language: "en", os: "yes", from: fakeOsSource() }, fakeRunner([]));
-  assert.match(out, /agent-os installed .* built as 1\.0\.0/);
+  assert.match(out, /agent-os-nexo installed .* built as 1\.0\.0/);
   await assert.rejects(init({ root: join(tempDir(), "env"), yes: true, os: "maybe" }), /yes or no/);
 });
 
@@ -375,11 +375,11 @@ function isAlive(pid: number): boolean {
 test("a pid file whose pid now belongs to another program is not trusted (nor signaled)", async () => {
   const root = await freshEnv("claude");
   mkdirSync(join(root, ".state", "os"), { recursive: true });
-  writeFileSync(join(root, ".state", "os", "app.pid"), String(process.pid)); // this test runner: alive, not agent-os
-  assert.match(await os("status", undefined, { root }), /^agent-os is not installed/);
+  writeFileSync(join(root, ".state", "os", "app.pid"), String(process.pid)); // this test runner: alive, not agent-os-nexo
+  assert.match(await os("status", undefined, { root }), /^agent-os-nexo is not installed/);
   assert.ok(!existsSync(join(root, ".state", "os", "app.pid")), "the stale pid file is cleaned up");
   writeFileSync(join(root, ".state", "os", "app.pid"), String(process.pid));
-  assert.equal(await os("stop", undefined, { root }), "agent-os was not running.");
+  assert.equal(await os("stop", undefined, { root }), "agent-os-nexo was not running.");
 });
 
 test("an interrupted npm install is redone, and a failed install can be resumed", async () => {
@@ -416,7 +416,7 @@ test("os start fails loudly with the log when the server does not come up", asyn
   await os("install", undefined, { root, from: src }, fakeRunner([]));
   writeFileSync(join(root, "os", "versions", "1.0.0", "host", "server", "main.ts"), 'console.error("boom: port taken"); process.exit(1);\n');
   await assert.rejects(os("start", undefined, { root, port: "4798" }), /exited on port 4798[\s\S]*boom: port taken/);
-  assert.match(await os("status", undefined, { root }), /^agent-os 1\.0\.0/);
+  assert.match(await os("status", undefined, { root }), /^agent-os-nexo 1\.0\.0/);
   assert.doesNotMatch(await os("status", undefined, { root }), /Running/);
 });
 
@@ -452,7 +452,7 @@ test("os open opens the running app with its access link", async () => {
 
 function release(version: string, files: Record<string, string>): string {
   const src = fakeOsSource();
-  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os", version, dependencies: { express: "^5" } }));
+  writeFileSync(join(src, "package.json"), JSON.stringify({ name: "@nexodigital-lab/agent-os-nexo", version, dependencies: { express: "^5" } }));
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(join(src, rel, ".."), { recursive: true });
     writeFileSync(join(src, rel), text);
@@ -467,11 +467,11 @@ test("install starts the history and every build is a commit with its tag", asyn
   await os("install", undefined, { root, from: release("1.0.0", { "modules/shell/a.ts": "a1\n" }) }, run);
   const source = join(root, "os", "source");
   assert.equal(gitOut(source, "branch", "--show-current"), "main");
-  assert.match(gitOut(source, "log", "--format=%s", "base"), /agent-os 1\.0\.0 \(Nexo release\)/);
+  assert.match(gitOut(source, "log", "--format=%s", "base"), /agent-os-nexo 1\.0\.0 \(Nexo release\)/);
   assert.equal(gitOut(source, "check-ignore", "node_modules"), "node_modules", "the runtime link is never committed");
   writeFileSync(join(source, "modules/shell/a.ts"), "a1 mine\n");
   await os("build", undefined, { root, notes: "my tweak" }, run);
-  assert.match(gitOut(source, "log", "-1", "--format=%s"), /agent-os 1\.0\.1: my tweak/);
+  assert.match(gitOut(source, "log", "-1", "--format=%s"), /agent-os-nexo 1\.0\.1: my tweak/);
   assert.equal(gitOut(source, "tag", "--points-at", "HEAD"), "v1.0.1");
 });
 
@@ -482,7 +482,7 @@ test("update merges a new release and keeps the user's changes", async () => {
   const source = join(root, "os", "source");
   writeFileSync(join(source, "modules/shell/b.ts"), "b1 mine\n"); // the user's change, not even built yet
   const out = await os("update", undefined, { root, from: release("1.1.0", { "modules/shell/a.ts": "a2\n", "modules/shell/b.ts": "b1\n", "modules/new/c.ts": "c\n" }) }, run);
-  assert.match(out, /now has agent-os 1\.1\.0 \(was 1\.0\.0\), your changes kept/);
+  assert.match(out, /now has agent-os-nexo 1\.1\.0 \(was 1\.0\.0\), your changes kept/);
   assert.equal(readFileSync(join(source, "modules/shell/a.ts"), "utf8"), "a2\n", "Nexo's change arrives");
   assert.equal(readFileSync(join(source, "modules/shell/b.ts"), "utf8"), "b1 mine\n", "the user's change stays");
   assert.ok(existsSync(join(source, "modules/new/c.ts")), "new files arrive");
@@ -507,7 +507,7 @@ test("update stops on a real conflict; --continue needs it resolved, --abort und
   writeFileSync(join(source, "modules/shell/a.ts"), "line, both\n"); // resolved
   assert.match(await os("update", undefined, { root, continue: true }, run), /Update finished/);
   assert.equal(gitOut(source, "status", "--porcelain"), "");
-  assert.match(gitOut(source, "log", "-1", "--format=%s"), /Update to agent-os 1\.1\.0/);
+  assert.match(gitOut(source, "log", "-1", "--format=%s"), /Update to agent-os-nexo 1\.1\.0/);
 });
 
 test("nexo map indexes a project: overview, parts, routes, how they talk, symbols; and knows when it is stale", async () => {

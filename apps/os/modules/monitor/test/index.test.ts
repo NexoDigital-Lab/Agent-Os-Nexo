@@ -6,7 +6,7 @@ import { mkdirSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { mountModule, tempDir } from "../../../host/test/harness.ts";
 
-const home = tempDir("agent-os-home-");
+const home = tempDir("agent-os-nexo-home-");
 process.env.HOME = home; // os.homedir() reads HOME on POSIX and USERPROFILE on Windows
 process.env.USERPROFILE = home;
 const proj = join(home, ".claude", "projects", "-work-shop");

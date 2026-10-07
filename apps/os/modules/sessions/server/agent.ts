@@ -104,7 +104,7 @@ export function restoreTabs(tabsFile: string): void {
   for (const t of Array.isArray(saved) ? saved : []) {
     const file = t.sdkSessionId ? findTranscript(t.sdkSessionId) : null;
     const events: Ev[] = file
-      ? [...(transcriptEvents(file) as Ev[]), { kind: "note", text: "agent-os restarted. This is the saved history; the next message continues the conversation." }]
+      ? [...(transcriptEvents(file) as Ev[]), { kind: "note", text: "agent-os-nexo restarted. This is the saved history; the next message continues the conversation." }]
       : [];
     sessions.set(t.id, { ...fresh(), ...t, meta: t.meta ?? {}, worktree: t.worktree ?? null, events });
   }
@@ -234,7 +234,7 @@ function systemNote(s: Session, opts: SendOpts): string {
     : "The user approved no skills for this task. Do not invoke skills.";
   const work = opts.workMode ? WORK_MODE[opts.workMode] : "";
   const notes = contributions().map((c) => safely(() => c.promptNote?.(ctxOf(s)), null)).filter(Boolean);
-  return [`Session launched from agent-os (the Nexo web UI; ${where}). ${loadout}`, work, ...notes, WORK_NOTE].filter(Boolean).join("\n");
+  return [`Session launched from agent-os-nexo (the Nexo web UI; ${where}). ${loadout}`, work, ...notes, WORK_NOTE].filter(Boolean).join("\n");
 }
 
 export function send(id: string, opts: SendOpts): void {
@@ -368,7 +368,7 @@ export function answerPermission(id: string, permId: string, allow: boolean, alw
   p.resolve(
     allow
       ? { behavior: "allow", ...(always && p.suggestions.length ? { updatedPermissions: p.suggestions } : {}) }
-      : { behavior: "deny", message: "The user denied it from agent-os" },
+      : { behavior: "deny", message: "The user denied it from agent-os-nexo" },
   );
   emit(s, { kind: "perm_done", id: permId, allow });
   return true;

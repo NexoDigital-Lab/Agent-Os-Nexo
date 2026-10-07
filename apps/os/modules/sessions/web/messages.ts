@@ -132,7 +132,7 @@ export const es: Record<string, string> = {
   "You write the code: the agent prepares steps and hints, and checks your work": "Codeás vos: el agente arma pasos y pistas, y valida",
   "Yours": "Tuyas",
   "agent": "agente",
-  "agent-os restarted. This is the saved history; the next message continues the conversation.": "agent-os se reinició. Esto es el historial guardado; el próximo mensaje sigue la conversación.",
+  "agent-os-nexo restarted. This is the saved history; the next message continues the conversation.": "agent-os-nexo se reinició. Esto es el historial guardado; el próximo mensaje sigue la conversación.",
   "approved": "aprobado",
   "blocked": "bloqueado",
   "denied": "rechazado",

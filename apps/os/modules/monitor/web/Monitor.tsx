@@ -59,7 +59,7 @@ export function Monitor() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <h1>Monitor</h1>
-          <p className="sub">{t("Every Claude Code session (terminal and agent-os) with its subagents, read from the transcripts.")}</p>
+          <p className="sub">{t("Every Claude Code session (terminal and agent-os-nexo) with its subagents, read from the transcripts.")}</p>
         </div>
         <div className="seg">
           {[1, 7, 30].map((d) => (
@@ -164,7 +164,7 @@ export function Monitor() {
               <b>{s.project}</b> <span className="muted">· {s.title}</span>
             </span>
             <span className="mono faint" style={{ fontSize: 12 }}>
-              {s.source === "cli" ? t("terminal") : s.source.startsWith("sdk") ? "agent-os" : s.source} · {ago(s.end)}
+              {s.source === "cli" ? t("terminal") : s.source.startsWith("sdk") ? "agent-os-nexo" : s.source} · {ago(s.end)}
             </span>
             <span className="mono faint" style={{ fontSize: 12 }}>{t("{n} subagents", { n: s.agents.length })}</span>
             <span className="num muted" style={{ fontSize: 12.5 }}>{ktok(s.total.output)} out</span>

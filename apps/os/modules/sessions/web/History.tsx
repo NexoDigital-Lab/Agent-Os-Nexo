@@ -4,9 +4,9 @@ import type { HistoryItem, Tab } from "./api";
 import { StatusGlyph } from "./tabs/StatusGlyph";
 import { t } from "@os/i18n";
 
-const sourceLabel = (s: string) => (s === "cli" ? "terminal" : s.startsWith("sdk") ? "agent-os" : s);
+const sourceLabel = (s: string) => (s === "cli" ? "terminal" : s.startsWith("sdk") ? "agent-os-nexo" : s);
 
-/** Last AI sessions (terminal + agent-os). One click resumes one in a tab. */
+/** Last AI sessions (terminal + agent-os-nexo). One click resumes one in a tab. */
 export function History({
   items,
   onResume,

@@ -1,4 +1,4 @@
-// Builds one version of agent-os into --out: the web UI (Vite → dist/web) plus the server-side code it runs with
+// Builds one version of agent-os-nexo into --out: the web UI (Vite → dist/web) plus the server-side code it runs with
 // (host/server, src/, each module's module.json + server/), and build.json. No web sources, no tests. Dependencies
 // are not copied: the CLI links node_modules to the environment's shared runtime (os/runtime/<hash>).
 //   node scripts/build.ts --out <dir> --version <x.y.z> [--notes <text>] [--runtime <hash>] [--skip-web]
@@ -51,7 +51,7 @@ async function main() {
   const build = { version: values.version, builtAt: new Date().toISOString(), notes: values.notes, runtime: values.runtime };
   writeFileSync(join(out, "build.json"), JSON.stringify(build, null, 2) + "\n");
   const modules = readdirSync(join(out, "modules")).length;
-  console.log(`agent-os ${values.version} built (${modules} modules${values["skip-web"] ? ", no web UI" : ""})`);
+  console.log(`agent-os-nexo ${values.version} built (${modules} modules${values["skip-web"] ? ", no web UI" : ""})`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

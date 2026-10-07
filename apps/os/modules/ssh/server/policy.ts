@@ -243,7 +243,7 @@ export const isReadOnly = (cmd: string) => explainReadOnly(cmd) === null;
 /** Masks what looks like a secret in text that is about to reach the agent (the host's shared scrubber). */
 export { redact } from "../../../host/server/redact.ts";
 
-// ── barriers on the agent's own tools (PreToolUse, every agent-os session) ─────────────────────────────────────────
+// ── barriers on the agent's own tools (PreToolUse, every agent-os-nexo session) ─────────────────────────────────────────
 
 const SSH_BINS = new Set(["ssh", "scp", "sftp", "sshpass", "ssh-add", "ssh-agent", "ssh-copy-id", "autossh", "mosh", "mosh-client", "sshfs"]);
 const DEBUGGERS = new Set(["gdb", "strace", "ltrace", "lldb", "gcore"]);
@@ -259,7 +259,7 @@ const WRAPPERS: Record<string, string[]> = {
 const WHY = {
   ssh: "Direct ssh/scp/sftp are blocked for the agent: they would skip the approval. To work on a server use the tab's SSH console (ssh_run / ssh_plan).",
   vault: "The SSH vault and its credentials are not accessible to the agent.",
-  api: "The SSH vault API (/api/ssh) is only for the agent-os interface, not for the agent.",
+  api: "The SSH vault API (/api/ssh) is only for the agent-os-nexo interface, not for the agent.",
   key: "SSH private keys are not accessible to the agent (the public .pub is).",
   proc: "Other processes' memory and environment (/proc/<pid>/mem|environ|maps) are not accessible to the agent.",
   ptrace: "Attaching debuggers or using ptrace on other processes is blocked for the agent.",

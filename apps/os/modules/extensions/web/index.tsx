@@ -1,4 +1,4 @@
-// extensions: which VS Code extensions (and agent-os editor plugins) each project uses.
+// extensions: which VS Code extensions (and agent-os-nexo editor plugins) each project uses.
 import { Puzzle } from "lucide-react";
 import { defineModule } from "@os/registry";
 import { Extensions } from "./Extensions";

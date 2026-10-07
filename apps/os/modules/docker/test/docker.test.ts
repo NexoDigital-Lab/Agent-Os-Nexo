@@ -60,7 +60,7 @@ test("info reports version and context, or the error", async () => {
 
 test("containers parses the json lines and the project label", async () => {
   const row = (o: object) => JSON.stringify({ ID: "a".repeat(64), Names: "n", Image: "i", State: "running", Status: "Up", Ports: "", CreatedAt: "now", Labels: "", ...o });
-  reply = () => ({ stdout: `${row({ Labels: "x=1,agent-os.project=crm-ws/api,y=2" })}\n\n${row({ Names: "plain" })}\n` });
+  reply = () => ({ stdout: `${row({ Labels: "x=1,agent-os-nexo.project=crm-ws/api,y=2" })}\n\n${row({ Names: "plain" })}\n` });
   const list = await docker.containers();
   assert.equal(list.length, 2);
   assert.equal(list[0]!.id, "a".repeat(12));

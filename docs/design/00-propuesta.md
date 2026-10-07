@@ -2,7 +2,7 @@
 
 Oct 4, 2026
 
-agent-hub y agent-os pasan a ser una librería npm que instala un entorno de trabajo con agentes. Este doc junta lo acordado en la charla; todo lo demás es borrador. Solo local: sin GitHub todavía.
+agent-hub y agent-os-nexo pasan a ser una librería npm que instala un entorno de trabajo con agentes. Este doc junta lo acordado en la charla; todo lo demás es borrador. Solo local: sin GitHub todavía.
 
 ## Decisiones tomadas
 
@@ -12,7 +12,7 @@ Cuarenta y seis decisiones cerradas; la arquitectura de la raíz está terminada
 | --- | --- |
 | Distribución | Librería npm que instala el entorno. Lo diferencial es el entorno |
 | Relación con el v1 | Repo nuevo, trayendo muchas bases del v1 |
-| agent-os | Repo propio, con base y lógica propias; dentro del entorno va buildeado y versionado |
+| agent-os-nexo | Repo propio, con base y lógica propias; dentro del entorno va buildeado y versionado |
 | Workspace | Carpeta local separada, sin sync por ahora |
 | GitHub | Todavía no: ni repo ni remote |
 | Orden de trabajo | Primero la base completa, después el detalle de cada parte |
@@ -73,7 +73,7 @@ La raíz quedó en ocho piezas; lo de fábrica viene en `nexo_bases/` dentro del
 | `environment.config.json` | Flaco: versión y política de Nexo, raíz, tools, carpetas, resumen del OS |
 | `library/` | Lo del usuario: conventions, dictionary, commands, memory, skills, agents, hooks, connections, profile.json, permissions.json. Vacía al instalar, no se versiona |
 | `blueprints/` | Configs y bases de código reutilizables; arranca vacía, no se versiona |
-| `os/` | source/, versions/ y data/ del agent-os personal |
+| `os/` | source/, versions/ y data/ del agent-os-nexo personal |
 | `projects/` | `<nombre>-ws/<parte>/` o `<nombre>/`, cada uno con code/, context/, secrets/ y automations/ (futuro) |
 | `.state/` | Lo generado: logs, índices, cache; se regenera |
 
@@ -132,6 +132,6 @@ El v1 funciona, pero creció orgánico (79 commits en unas 6 semanas); esto es l
 | Backlog que funciona como diario | `agent-hub-backlog.md`, 265 líneas por fecha |
 | `AGENTS.md` cargado | Unos 700 tokens por turno |
 | Huérfanos | `Comands Mobile/`, `skills/.trash/`, `bin/opencode/` vacío |
-| agent-os dentro del hub | `os/` con server, web y desktop |
+| agent-os-nexo dentro del hub | `os/` con server, web y desktop |
 | Idioma mezclado | Skills en inglés, docs en español, `propuestas/` vs `proposals/` |
 | Multi-tool solo de nombre | Skills, hooks y agents cableados a Claude Code |

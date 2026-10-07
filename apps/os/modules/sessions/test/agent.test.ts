@@ -254,7 +254,7 @@ test("permission prompts: auto-allowed tools pass, others wait for the user (all
   assert.equal(answers[2].behavior, "allow");
   assert.equal(answers[2].updatedPermissions.length, 3, "setMode suggestions are never saved");
   assert.equal(answers[3].behavior, "deny");
-  assert.match(answers[3].message, /denied it from agent-os/);
+  assert.match(answers[3].message, /denied it from agent-os-nexo/);
   assert.ok((await events(id)).some((e) => e.kind === "perm_done" && e.id === first.id && e.allow));
   agent.closeTab(id);
 });
@@ -412,7 +412,7 @@ test("tabs are saved and restored with their history; uploads of closed tabs are
   agent.restoreTabs(file);
   const evs = await events(id);
   assert.equal(evs[0].text, "earlier question");
-  assert.ok(evs.some((e) => e.kind === "note" && /agent-os restarted/.test(e.text)));
+  assert.ok(evs.some((e) => e.kind === "note" && /agent-os-nexo restarted/.test(e.text)));
   writeFileSync(file, "{ not json");
   agent.restoreTabs(file); // a damaged file does not stop the app and keeps the tabs in memory
   assert.equal((await tab(id)).title, "kept");

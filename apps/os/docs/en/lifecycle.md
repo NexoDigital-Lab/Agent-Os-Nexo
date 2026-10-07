@@ -6,14 +6,14 @@ order: 6
 
 # Install, build, run
 
-agent-os is optional in a Nexo environment. Everything here is a `nexo os` command
+agent-os-nexo is optional in a Nexo environment. Everything here is a `nexo os` command
 (`packages/cli/src/commands/os.ts`); the environment layout is in [architecture.md](architecture.md).
 
 ## Install
 
 ```bash
 nexo init --os yes                              # while creating the environment, or later:
-nexo os install                                 # from npm (@nexodigital-lab/agent-os)
+nexo os install                                 # from npm (@nexodigital-lab/agent-os-nexo)
 nexo os install --from <Agent-Os-Nexo>/apps/os  # from a checkout (until the package is published)
 ```
 
@@ -82,7 +82,7 @@ A source installed before updates existed has no history: install it again to st
 | Symptom | Cause and fix |
 |---|---|
 | `start` says it exited, with a log excerpt | Read the excerpt: a port in use (`--port`), a module that failed to build, a missing runtime (`nexo os build`). |
-| `start` says another agent-os answers on the port | One is already running there (maybe from the desktop app or a preview): use it, or `--port`. |
+| `start` says another agent-os-nexo answers on the port | One is already running there (maybe from the desktop app or a preview): use it, or `--port`. |
 | A module is missing from the app | Settings → Modules shows whether it is off, waiting for a restart, or did not load (with the error). |
 | The preview shows fallback fonts | An old source without the runtime in Vite's allow list: update `vite.config.ts` from a newer release. |
 | `install` cannot download the package | Not published yet: `nexo os install --from <checkout>/apps/os`. |

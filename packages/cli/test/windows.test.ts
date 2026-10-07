@@ -131,9 +131,9 @@ function fakeWindows(files: string[], desktop: string | null, env: Record<string
 }
 
 const REPO = "C:\\src\\Agent-Os-Nexo";
-const USER_EXE = "C:\\Users\\me\\AppData\\Local\\agent-os\\agent-os.exe";
-const MACHINE_EXE = "C:\\Program Files\\agent-os\\agent-os-desktop.exe";
-const DEV_EXE = "C:\\src\\Agent-Os-Nexo\\apps\\desktop\\src-tauri\\target\\release\\agent-os-desktop.exe";
+const USER_EXE = "C:\\Users\\me\\AppData\\Local\\agent-os-nexo\\agent-os-nexo.exe";
+const MACHINE_EXE = "C:\\Program Files\\agent-os-nexo\\agent-os-nexo-desktop.exe";
+const DEV_EXE = "C:\\src\\Agent-Os-Nexo\\apps\\desktop\\src-tauri\\target\\release\\agent-os-nexo-desktop.exe";
 
 test("shortcut: the installed app comes first (per user, then per machine), then a build in the repository", () => {
   assert.equal(findDesktopExe(REPO, fakeWindows([USER_EXE, MACHINE_EXE, DEV_EXE], null)), USER_EXE);
@@ -153,17 +153,17 @@ test("shortcut: the desktop is the one Windows reports, else %USERPROFILE%\\Desk
 test("shortcut: the script quotes every path, so a quote in a folder name cannot break out", () => {
   assert.equal(psQuote("it's"), "'it''s'");
   assert.equal(psQuote("O\u2019Brien"), "'O\u2019\u2019Brien'", "PowerShell reads typographic quotes as quotes too");
-  const script = shortcutScript("C:\\Users\\o'neil\\Desktop\\agent-os.lnk", "C:\\Users\\o'neil\\agent-os\\agent-os.exe");
-  assert.match(script, /CreateShortcut\('C:\\Users\\o''neil\\Desktop\\agent-os\.lnk'\)/);
-  assert.match(script, /WorkingDirectory = 'C:\\Users\\o''neil\\agent-os'/);
-  assert.match(script, /IconLocation = 'C:\\Users\\o''neil\\agent-os\\agent-os\.exe,0'/);
+  const script = shortcutScript("C:\\Users\\o'neil\\Desktop\\agent-os-nexo.lnk", "C:\\Users\\o'neil\\agent-os-nexo\\agent-os-nexo.exe");
+  assert.match(script, /CreateShortcut\('C:\\Users\\o''neil\\Desktop\\agent-os-nexo\.lnk'\)/);
+  assert.match(script, /WorkingDirectory = 'C:\\Users\\o''neil\\agent-os-nexo'/);
+  assert.match(script, /IconLocation = 'C:\\Users\\o''neil\\agent-os-nexo\\agent-os-nexo\.exe,0'/);
   assert.doesNotMatch(script.replace(/'(?:[^']|'')*'/g, ""), /o.neil/, "no path outside a quoted string");
 });
 
 test("shortcut: written on Windows when there is an app and a desktop, skipped otherwise", () => {
   const win = fakeWindows([USER_EXE], "C:\\Users\\me\\Desktop");
-  assert.equal(createDesktopShortcut(REPO, win), "C:\\Users\\me\\Desktop\\agent-os.lnk");
-  assert.match(win.scripts.at(-1)!, /TargetPath = 'C:\\Users\\me\\AppData\\Local\\agent-os\\agent-os\.exe'/);
+  assert.equal(createDesktopShortcut(REPO, win), "C:\\Users\\me\\Desktop\\agent-os-nexo.lnk");
+  assert.match(win.scripts.at(-1)!, /TargetPath = 'C:\\Users\\me\\AppData\\Local\\agent-os-nexo\\agent-os-nexo\.exe'/);
   assert.equal(createDesktopShortcut(REPO, { ...fakeWindows([USER_EXE], "C:\\D"), platform: "linux" }), null);
   assert.equal(createDesktopShortcut(REPO, fakeWindows([], "C:\\D")), null, "no app to point at");
   assert.equal(createDesktopShortcut(REPO, fakeWindows([USER_EXE], null)), null, "no desktop");

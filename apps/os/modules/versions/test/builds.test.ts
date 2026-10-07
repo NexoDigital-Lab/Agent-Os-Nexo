@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildsState, pin } from "../server/builds.ts";
 
-const osDir = mkdtempSync(join(tmpdir(), "agent-os-versions-"));
+const osDir = mkdtempSync(join(tmpdir(), "agent-os-nexo-versions-"));
 after(() => rmSync(osDir, { recursive: true, force: true }));
 for (const v of ["1.0.0", "1.0.9", "1.1.0"]) mkdirSync(join(osDir, "versions", v), { recursive: true });
 writeFileSync(join(osDir, "versions", "1.1.0", "build.json"), JSON.stringify({ version: "1.1.0", builtAt: "2026-10-05T10:00:00Z", notes: "Themes" }));

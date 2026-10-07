@@ -19,7 +19,7 @@ user runs. This file is the single source of rules. Read it fully; read everythi
 | `library/permissions.json` | What you may do alone | Before any write, command or connection call |
 | `blueprints/` | Reusable setups (`index.json` first) | Setting up something already solved before |
 | `projects/<name>/` | Projects: `AGENTS.md`, `code/`, `context/`, `secrets/` | Working on that project |
-| `os/` | agent-os: `source/`, `versions/`, `data/` | The user asks to change agent-os |
+| `os/` | agent-os-nexo: `source/`, `versions/`, `data/` | The user asks to change agent-os-nexo |
 | `.state/` | Generated logs, indexes, cache | Never edit by hand |
 
 ## Loading rule
@@ -73,7 +73,7 @@ commit, read `library/conventions/git/` — not every convention.
 | `nexo-debug` | Find a root cause before fixing |
 | `nexo-blueprint` | Save something hard to set up as a reusable blueprint |
 | `nexo-onboard` | Fill a new project's `AGENTS.md` and `context/` |
-| `nexo-module-review` | Review an agent-os module against its rules and say what to fix |
+| `nexo-module-review` | Review an agent-os-nexo module against its rules and say what to fix |
 
 After finishing a feature that was hard to set up, **ask** whether to save it as a blueprint.
 
@@ -83,12 +83,12 @@ After finishing a feature that was hard to set up, **ask** whether to save it as
 `nexo analyze`, `nexo update`, `nexo os status|versions|preview|build`. If `nexo doctor` recommends `nexo analyze`,
 tell the user; never run the analysis on your own.
 
-## agent-os
+## agent-os-nexo
 
 - Change it only in `os/source/`. Show it with `nexo os preview` and stop it with
   `nexo os stop --preview`; build a new version (`nexo os build --notes "<what changed>"`) only after
   the user approves. Before building, `nexo os check` must report no findings.
-- Never close or restart agent-os (plain `nexo os stop`/`start` only when the user asks). It detects
+- Never close or restart agent-os-nexo (plain `nexo os stop`/`start` only when the user asks). It detects
   new builds and asks the user to restart.
 - Skip a skill the user turned off in `library/profile.json` (`skills.disabled`); always consider the
   pinned ones (`skills.pinned`).

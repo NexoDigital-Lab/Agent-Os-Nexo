@@ -8,7 +8,7 @@ import { initProjects, listProjects, projectDir, projectIds, projectPath, worktr
 import { featuresDir, listFeatures, nextFeatureId, parseFeature, readFeature, setFeatureField, writeFeature } from "../server/features.ts";
 import type { Env } from "../../../host/server/env.ts";
 
-const root = mkdtempSync(join(tmpdir(), "agent-os-projects-"));
+const root = mkdtempSync(join(tmpdir(), "agent-os-nexo-projects-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 const projects = join(root, "projects");
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "pipe" }).toString();
@@ -60,7 +60,7 @@ test("worktrees live in worktrees/<name> and must belong to the project's repo",
 });
 
 test("worktrees are found when the environment is reached through a symlink (macOS's /var → /private/var)", { skip: process.platform === "win32" ? "symlinks need admin on Windows" : false }, () => {
-  const linked = join(mkdtempSync(join(tmpdir(), "agent-os-link-")), "env");
+  const linked = join(mkdtempSync(join(tmpdir(), "agent-os-nexo-link-")), "env");
   symlinkSync(root, linked, "dir");
   try {
     initProjects({ projects: join(linked, "projects") } as Env);

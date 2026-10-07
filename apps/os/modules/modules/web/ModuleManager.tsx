@@ -26,7 +26,7 @@ export function ModuleManager() {
   const ordered = [...rows].sort((a, b) => a.id.localeCompare(b.id));
   return (
     <div className="modules">
-      {changed && <div className="pill accent">{t("Restart agent-os to apply the changes.")}</div>}
+      {changed && <div className="pill accent">{t("Restart agent-os-nexo to apply the changes.")}</div>}
       {error && <div className="pill bad" role="alert">{error}</div>}
       <table className="modules-table">
         <thead>

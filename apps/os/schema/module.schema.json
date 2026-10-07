@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/NexoDigital-Lab/Agent-Os-Nexo/apps/os/schema/module.schema.json",
-  "title": "agent-os module manifest (module.json)",
+  "title": "agent-os-nexo module manifest (module.json)",
   "type": "object",
   "required": ["name", "version", "description"],
   "additionalProperties": false,

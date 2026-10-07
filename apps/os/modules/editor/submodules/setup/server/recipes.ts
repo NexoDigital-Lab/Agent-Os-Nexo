@@ -79,7 +79,7 @@ export const RECIPES: Recipe[] = [
     }),
     deps: nodeDeps,
     run: [{ label: "npm run dev", cmd: "npm run dev" }, { label: "npm run build", cmd: "npm run build" }],
-    extensions: ["dsznajder.es7-react-js-snippets", "agent-os.next", "bradlc.vscode-tailwindcss", "dbaeumer.vscode-eslint"],
+    extensions: ["dsznajder.es7-react-js-snippets", "agent-os-nexo.next", "bradlc.vscode-tailwindcss", "dbaeumer.vscode-eslint"],
   },
   {
     id: "react-vite",

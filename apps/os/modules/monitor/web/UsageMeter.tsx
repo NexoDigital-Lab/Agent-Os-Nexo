@@ -65,7 +65,7 @@ export function UsageMeter() {
       setToast(msg);
       setTimeout(() => setToast(null), 12_000);
       try {
-        if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification("agent-os", { body: msg });
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification("agent-os-nexo", { body: msg });
       } catch {}
     }
     first.current = false;

@@ -1,11 +1,11 @@
-# agent-os desktop
+# agent-os-nexo desktop
 
-agent-os in its own window: a [Tauri 2](https://tauri.app) shell that runs the Nexo environment's
-**active agent-os build** (the same one `nexo os start` runs) on `127.0.0.1:47470`, shows a splash
+agent-os-nexo in its own window: a [Tauri 2](https://tauri.app) shell that runs the Nexo environment's
+**active agent-os-nexo build** (the same one `nexo os start` runs) on `127.0.0.1:47470`, shows a splash
 while it boots, then loads it. Closing the window stops that server and everything it started. If an
-agent-os already answers on the port, the window reuses it instead of starting another one.
+agent-os-nexo already answers on the port, the window reuses it instead of starting another one.
 
-Optional: agent-os works the same in a browser (`nexo os start`). Not an npm workspace, so a plain
+Optional: agent-os-nexo works the same in a browser (`nexo os start`). Not an npm workspace, so a plain
 `npm install` at the repository root never downloads the Tauri tooling.
 
 ## Build
@@ -17,7 +17,7 @@ Needs Rust (stable) and the Tauri system dependencies of your OS
 ```bash
 cd apps/desktop
 npm install
-npm run build:binary   # just the binary: src-tauri/target/release/agent-os-desktop
+npm run build:binary   # just the binary: src-tauri/target/release/agent-os-nexo-desktop
 npm run build          # binary + installers (deb, rpm, AppImage on Linux; dmg on macOS; nsis on Windows)
 npm run dev            # debug build, runs it
 ```
@@ -32,7 +32,7 @@ npm run dev            # debug build, runs it
 
 The server log goes to `.state/os/desktop.log` in the environment (the previous run's is kept as
 `desktop.log.1`). The window only loads the port if it answers `GET /api/os/info` with
-`X-Agent-OS: 1`, so another program on the port is never shown, and it enters with the run's access token
+`X-Agent-OS-Nexo: 1`, so another program on the port is never shown, and it enters with the run's access token
 (`.state/os/token-<port>`).
 
 The web UI talks to the shell through two permissions: native notifications (a tab finished or needs

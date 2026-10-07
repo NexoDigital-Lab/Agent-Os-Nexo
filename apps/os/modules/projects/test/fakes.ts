@@ -48,7 +48,7 @@ execFileSync("git", ["init", "-q", "-b", "main"], { cwd: join(dir, "code") });
 
 /** Fake gh/gio on PATH and a fake nexo CLI; returns where the call log and the trash are. Unix only. */
 export function installFakes(): { log: string; trash: string } {
-  const bin = tempDir("agent-os-fakebin-");
+  const bin = tempDir("agent-os-nexo-fakebin-");
   mkdirSync(bin, { recursive: true });
   for (const [name, src] of [["gh", GH], ["gio", GIO]] as const) {
     const f = join(bin, name);

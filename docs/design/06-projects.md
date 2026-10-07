@@ -69,7 +69,7 @@ projects/<name>/
 
 El agente encuentra el workspace desde adentro del repo por el registro de paths en `environment.config.json`. Si no lo encuentra, sube hasta `projects/<name>/` y lo busca ahí. Así el repo no necesita ningún archivo nuestro.
 
-SSH puede ser su propio proyecto (`projects/ssh/`) o quedar como hoy, con el vault cifrado de agent-os. Falta decidirlo.
+SSH puede ser su propio proyecto (`projects/ssh/`) o quedar como hoy, con el vault cifrado de agent-os-nexo. Falta decidirlo.
 
 Migración desde `Business/<p>/`: se mueve cada archivo a su lugar en el workspace y se rellena lo que falte según la estructura común. `secrets/` de la raíz se reparte por proyecto. La memoria de Claude Code de cada proyecto pasa a `workspace/memory/`.
 

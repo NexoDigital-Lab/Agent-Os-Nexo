@@ -16,6 +16,8 @@ export interface Env {
   data: string;
   /** <root>/.state/os: generated, safe to delete (logs, caches, search index, shims). */
   state: string;
+  /** environment.config.json `tools`: which AI CLIs the user enabled at init (Record<Tool, boolean>). */
+  tools: Record<string, boolean>;
 }
 
 interface Folders {
@@ -38,7 +40,7 @@ export function findEnvRoot(start: string): string | null {
 }
 
 export function envAt(root: string): Env {
-  const config = JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8")) as { folders?: Partial<Folders> };
+  const config = JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8")) as { folders?: Partial<Folders>; tools?: Record<string, boolean> };
   const f: Folders = { library: "library", blueprints: "blueprints", projects: "projects", os: "os", state: ".state", ...config.folders };
   const os = join(root, f.os);
   return {
@@ -49,6 +51,7 @@ export function envAt(root: string): Env {
     os,
     data: join(os, "data"),
     state: join(root, f.state, "os"),
+    tools: config.tools ?? {},
   };
 }
 

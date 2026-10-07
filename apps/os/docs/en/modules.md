@@ -52,6 +52,9 @@ and their features (`context/features/<slug>.md`).
 ## sessions
 AI session tabs: chat with the agent, its sub-agents, review of its changes, permissions, images,
 recent sessions and resume, full-text search over past sessions, skills and their recommendation.
+Sessions run through the AI provider chosen in Providers; Claude keeps the full SDK behavior (resume,
+hooks, permissions), while the other providers run headless CLI turns in the project folder, without
+resume or permission prompts.
 - **Depends on:** shell, projects. **View:** Tabs, Skills.
 - **Owns slots:** `tab.views`, `tab.side`, `tab.sideReplace`, `tab.overlay`, `chat.events`,
   `composer.actions`, `tab.badges` (`web/slots.ts`); owns `contributeToSessions`
@@ -64,6 +67,15 @@ recent sessions and resume, full-text search over past sessions, skills and thei
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
   `PUT /sessions/skills/prefs` (in `library/profile.json`), `POST /sessions/skills/recommend`.
 - **Stores:** data `tabs.json`; state `uploads/`, `search.db`.
+
+## providers
+Detects the AI CLIs installed on the machine (Claude, OpenCode, Codex, Antigravity/Google) and lets the
+user enable providers and pick the default; new sessions and one-shot calls follow that choice. Each CLI
+keeps its own login — the app never stores keys.
+- **Depends on:** nothing. **View:** Providers.
+- **Routes:** `GET /providers`, `POST /providers/enabled`, `POST /providers/test`.
+- **Stores:** `library/providers.json` (enabled providers + default; seeded from the environment's `tools`
+  when the file is missing).
 
 ## home
 Start page: projects, recent sessions, goals, an inbox and today's log.

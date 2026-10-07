@@ -150,7 +150,7 @@ Shared server code of other modules (import only what your `dependsOn` allows, M
 | `sessions/server/index.ts` | `tabOf(req)` → `{ id, cwd, dir, project, worktree, meta }` for `/tabs/:id/…` routes (404 otherwise) |
 | `sessions/server/agent.ts` | `openTab`, `closeTab`, `setTabMeta(id, key, value)`, `tabContext(id)`, `emitTo(id, ev)`, `onTabClose(fn)` |
 | `sessions/server/contributions.ts` | `contributeToSessions({...})` (below) |
-| `sessions/server/claude.ts` | `ask(prompt, system, cwd)`, `structured(prompt, cwd, schema)` — one-off agent calls |
+| `sessions/server/claude.ts` | `ask(prompt, system, cwd)`, `structured(prompt, cwd, schema)` — one-off agent calls; `ask` follows the active provider, `structured` needs Claude in this version |
 | `editor/submodules/terminal/server/terminal.ts` | `addShellProvider`, `createTerm`, `listTerms`, `killTerm`, `shellFor` |
 
 ### Taking part in AI sessions — `contributeToSessions`

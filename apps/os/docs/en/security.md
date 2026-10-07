@@ -46,6 +46,9 @@ in [module-rules.md](module-rules.md).
   tools that gate themselves (ssh) are the only ones auto-allowed.
 - **Text an agent receives** from a console or the session index goes through `redact`
   (`host/server/redact.ts`): private keys, tokens, passwords and credentials in URLs are masked.
+- **Claude sessions only.** `confineHook` path confinement and the Claude permission prompts apply to
+  Claude (SDK) sessions; a non-Claude provider runs its own CLI in the project directory with its own
+  permission model — the app does not mediate its tools in this version.
 
 ## SSH: the vault and the console
 

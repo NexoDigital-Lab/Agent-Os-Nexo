@@ -38,15 +38,10 @@ const DAEMON_DOWN = /Cannot connect to the Docker daemon|docker daemon is not ru
 
 const daemonDownMessage = () => {
   if (dockerSys.platform !== "win32") return "Docker is not running (open Docker Desktop or start the daemon)";
-  return dockerSys.desktop
-    ? "Docker is not running. Open Docker Desktop to start the engine; the Docker CLI connects once it is up."
-    : "Docker is not running. Start your Docker daemon — this app talks to it through the Docker CLI.";
+  return "Docker is not running. The Docker CLI is installed — start Docker Desktop or your Docker daemon to use containers.";
 };
 
-const missingCliMessage = () =>
-  dockerSys.platform === "win32"
-    ? "The Docker CLI was not found. On Windows, install Docker Desktop (it includes the Docker CLI) from https://docs.docker.com/desktop/setup/install/windows-install/."
-    : "The Docker CLI was not found. Install Docker and make sure docker is on PATH.";
+const missingCliMessage = () => "The Docker CLI was not found.";
 
 export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
   return new Promise((resolve, reject) =>
@@ -72,29 +67,39 @@ export type Image = { id: string; repo: string; tag: string; size: string; creat
 
 export type DockerAction = "open-desktop" | "install-cli" | null;
 
-export async function info(): Promise<{
-  ok: boolean; version?: string; context?: string; error?: string;
-  action?: DockerAction; installHint?: string;
-}> {
-  try {
-    const [version, context] = await Promise.all([dockerRun(["version", "--format", "{{.Server.Version}}"], 8000), dockerRun(["context", "show"], 8000)]);
-    return { ok: true, version: version.trim(), context: context.trim() };
-  } catch (e) {
-    const error = (e as Error).message;
-    // Missing CLI: tell the user how to install. Daemon down but Desktop installed: offer to open it. Otherwise just the message.
-    const action: DockerAction = /CLI was not found|spawn .*ENOENT/i.test(error)
-      ? "install-cli"
-      : dockerSys.desktop
-        ? "open-desktop"
-        : null;
+export type DockerCliInfo = { found: boolean; version: string | null };
+
+export type DockerInfo = {
+  ok: boolean; // daemon answering
+  cli: DockerCliInfo;
+  version?: string; // SERVER version, only when ok
+  context?: string; // only when ok
+  error?: string; // when !ok
+  action?: DockerAction;
+  installHint?: string; // only when action === "install-cli"
+};
+
+/** Probes the CLI first (works with the daemon down), then the daemon itself. */
+export async function info(): Promise<DockerInfo> {
+  const cliLine = await dockerRun(["--version"], 8000).then((o) => o.trim().split("\n")[0] ?? "", () => null);
+  const cli: DockerCliInfo = cliLine ? { found: true, version: cliLine } : { found: false, version: null };
+  if (!cli.found) {
     return {
       ok: false,
-      error,
-      action,
-      ...(action === "install-cli"
-        ? { installHint: dockerSys.platform === "win32" ? "winget install Docker.DockerDesktop" : "https://docs.docker.com/get-docker/" }
-        : {}),
+      cli,
+      error: "The Docker CLI was not found.",
+      action: "install-cli",
+      installHint: dockerSys.platform === "win32" ? "winget install Docker.DockerDesktop" : "https://docs.docker.com/get-docker/",
     };
+  }
+  try {
+    const [version, context] = await Promise.all([
+      dockerRun(["version", "--format", "{{.Server.Version}}"], 8000),
+      dockerRun(["context", "show"], 8000),
+    ]);
+    return { ok: true, cli, version: version.trim(), context: context.trim() };
+  } catch (e) {
+    return { ok: false, cli, error: (e as Error).message, action: dockerSys.desktop ? "open-desktop" : null };
   }
 }
 

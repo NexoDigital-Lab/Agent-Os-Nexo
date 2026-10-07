@@ -17,6 +17,7 @@ beforeEach(() => {
   calls = [];
   reply = () => ({ stdout: "" });
   docker.dockerSys.platform = process.platform;
+  docker.dockerSys.desktop = null;
   docker.dockerExec.execFile = ((_f: string, args: string[], _o: unknown, cb: (e: unknown, o: string, s: string) => void) => {
     calls.push(args);
     const r = reply(args);
@@ -51,6 +52,17 @@ test("a dead daemon is a 503 with a readable error", async () => {
   const r = await m.get("/docker/containers");
   assert.equal(r.status, 503);
   assert.match(r.body.error, /Docker is not running/);
+});
+
+test("info failure carries the action, and opening the Desktop without one is a 400", async () => {
+  reply = () => ({ err: true, stderr: "Cannot connect to the Docker daemon" });
+  const r = await m.get("/docker/info");
+  assert.equal(r.body.ok, false);
+  assert.match(r.body.error, /Docker is not running/);
+  assert.equal(r.body.action, null, "no Desktop installed: nothing to open");
+  const open = await m.call("POST", "/docker/desktop/open");
+  assert.equal(open.status, 400);
+  assert.match(open.body.error, /not installed/);
 });
 
 test("container actions: unknown action 400, bad id 400, rm forgets the project's shims", async () => {

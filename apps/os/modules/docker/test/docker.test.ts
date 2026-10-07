@@ -6,11 +6,17 @@ import * as docker from "../server/docker.ts";
 type Reply = { stdout?: string; stderr?: string; err?: Partial<Error & { killed: boolean; code: string }> };
 let calls: { file: string; args: string[]; timeout: number }[] = [];
 let reply: (args: string[]) => Reply = () => ({ stdout: "" });
+let spawnCalls: string[] = [];
 
 beforeEach(() => {
   calls = [];
   reply = () => ({ stdout: "" });
+  spawnCalls = [];
   docker.dockerSys.platform = process.platform;
+  docker.dockerSys.desktop = null;
+  docker.dockerSys.spawnDesktop = (exe) => {
+    spawnCalls.push(exe);
+  };
   docker.dockerExec.execFile = ((file: string, args: string[], opts: { timeout: number }, cb: (e: unknown, o: string, s: string) => void) => {
     calls.push({ file, args, timeout: opts.timeout });
     const r = reply(args);
@@ -87,6 +93,50 @@ test("info reports version and context, or the error", async () => {
   const r = await docker.info();
   assert.equal(r.ok, false);
   assert.match(String(r.error), /not running/);
+});
+
+test("info offers to open Docker Desktop when the daemon is down but Desktop is installed", async () => {
+  docker.dockerSys.desktop = "C:\\Docker\\Docker Desktop.exe";
+  reply = () => ({ err: {}, stderr: "Cannot connect to the Docker daemon at unix:///x" });
+  const r = await docker.info();
+  assert.equal(r.ok, false);
+  assert.equal(r.action, "open-desktop");
+  assert.match(String(r.error), /not running/);
+  assert.equal(r.installHint, undefined);
+});
+
+test("info offers no action when the daemon is down and Desktop is not installed", async () => {
+  docker.dockerSys.desktop = null;
+  reply = () => ({ err: {}, stderr: "Cannot connect to the Docker daemon at unix:///x" });
+  const r = await docker.info();
+  assert.equal(r.ok, false);
+  assert.equal(r.action, null);
+});
+
+test("info hints winget when the CLI is missing on Windows", async () => {
+  docker.dockerSys.platform = "win32";
+  reply = () => ({ err: { code: "ENOENT", message: "spawn docker ENOENT" } });
+  const r = await docker.info();
+  assert.equal(r.ok, false);
+  assert.equal(r.action, "install-cli");
+  assert.equal(r.installHint, "winget install Docker.DockerDesktop");
+});
+
+test("info hints the docs URL when the CLI is missing on Linux", async () => {
+  docker.dockerSys.platform = "linux";
+  reply = () => ({ err: { code: "ENOENT", message: "spawn docker ENOENT" } });
+  const r = await docker.info();
+  assert.equal(r.ok, false);
+  assert.equal(r.action, "install-cli");
+  assert.equal(r.installHint, "https://docs.docker.com/get-docker/");
+});
+
+test("openDockerDesktop refuses without an installed Desktop, else launches it", () => {
+  docker.dockerSys.desktop = null;
+  assert.throws(() => docker.openDockerDesktop(), (e: Error & { status: number }) => e.status === 400 && /not installed/.test(e.message));
+  docker.dockerSys.desktop = "C:\\Docker\\Docker Desktop.exe";
+  assert.deepEqual(docker.openDockerDesktop(), { ok: true, path: "C:\\Docker\\Docker Desktop.exe" });
+  assert.deepEqual(spawnCalls, ["C:\\Docker\\Docker Desktop.exe"], "goes through the injectable launcher, never a real spawn");
 });
 
 test("containers parses the json lines and the project label", async () => {

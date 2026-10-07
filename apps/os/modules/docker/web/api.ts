@@ -7,7 +7,12 @@ export type { Container, ContainerAction, Image } from "../server/docker.ts";
 export type { DevEnvConfig, DevEnvStatus, Lang, Detected } from "../server/devenv.ts";
 
 export const dockerApi = {
-  info: () => call<{ ok: boolean; version?: string; context?: string; error?: string }>("GET", "/api/docker/info"),
+  info: () =>
+    call<{ ok: boolean; version?: string; context?: string; error?: string; action?: "open-desktop" | "install-cli" | null; installHint?: string }>(
+      "GET",
+      "/api/docker/info",
+    ),
+  openDesktop: () => call<{ ok: boolean; path?: string; error?: string }>("POST", "/api/docker/desktop/open"),
   containers: () => call<Container[]>("GET", "/api/docker/containers"),
   images: () => call<Image[]>("GET", "/api/docker/images"),
   containerAction: (id: string, action: ContainerAction) => call("POST", `/api/docker/containers/${encodeURIComponent(id)}/${action}`),

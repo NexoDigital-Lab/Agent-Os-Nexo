@@ -102,20 +102,21 @@ export function DockerView() {
             ) : (
               <div className="sub">
                 <div className="errline">{t("Docker is not reachable: {error}", { error: info.error ?? "" })}</div>
-                {!info.ok && info.action === "open-desktop" && (
-                  <button
-                    className="btn sm"
-                    style={{ marginTop: 8 }}
-                    disabled={refreshing}
-                    onClick={() => api.openDesktop().then(() => refreshAll(), (e) => fail((e as Error).message))}
-                  >
-                    {t("Open Docker Desktop")}
-                  </button>
-                )}
-                {!info.ok && info.action === "install-cli" && (
-                  <div className="faint" style={{ marginTop: 8 }}>{t("Install Docker with: {command}", { command: info.installHint ?? "" })}</div>
-                )}
-                <button className="btn sm" style={{ marginTop: 8 }} disabled={refreshing} onClick={refreshAll}>{t("Retry")}</button>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  {!info.ok && info.action === "open-desktop" && (
+                    <button
+                      className="btn sm"
+                      disabled={refreshing}
+                      onClick={() => api.openDesktop().then(() => refreshAll(), (e) => fail((e as Error).message))}
+                    >
+                      {t("Open Docker Desktop")}
+                    </button>
+                  )}
+                  {!info.ok && info.action === "install-cli" && (
+                    <div className="faint">{t("Install Docker with: {command}", { command: info.installHint ?? "" })}</div>
+                  )}
+                  <button className="btn sm" disabled={refreshing} onClick={refreshAll}>{t("Retry")}</button>
+                </div>
               </div>
             )}
           </div>

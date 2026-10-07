@@ -36,10 +36,12 @@ export const dockerSys: {
 
 const DAEMON_DOWN = /Cannot connect to the Docker daemon|docker daemon is not running|error during connect|failed to connect to the docker API/i;
 
-const daemonDownMessage = () =>
-  dockerSys.platform === "win32"
-    ? "Docker is not running. On Windows, install Docker Desktop (it includes the Docker CLI) from https://docs.docker.com/desktop/setup/install/windows-install/ and start it."
-    : "Docker is not running (open Docker Desktop or start the daemon)";
+const daemonDownMessage = () => {
+  if (dockerSys.platform !== "win32") return "Docker is not running (open Docker Desktop or start the daemon)";
+  return dockerSys.desktop
+    ? "Docker is not running. Open Docker Desktop to start the engine; the Docker CLI connects once it is up."
+    : "Docker is not running. Start your Docker daemon — this app talks to it through the Docker CLI.";
+};
 
 const missingCliMessage = () =>
   dockerSys.platform === "win32"

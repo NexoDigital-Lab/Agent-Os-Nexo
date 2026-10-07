@@ -57,16 +57,22 @@ test("dockerRun maps a timeout, a dead daemon, a missing binary and plain failur
   assert.equal((await fails(docker.dockerRun(["ps"]))).message, "docker failed", "never an empty message");
 });
 
-test("dockerRun maps Windows npipe daemon-down and missing CLI to install guidance", async () => {
+test("dockerRun maps Windows daemon-down to Desktop or CLI guidance, and a missing CLI to install guidance", async () => {
   docker.dockerSys.platform = "win32";
+  docker.dockerSys.desktop = "C:\\Docker\\Docker Desktop.exe";
   reply = () => ({
     err: {},
     stderr: "failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.",
   });
   let e = await fails(docker.dockerRun(["ps"]));
   assert.equal(e.status, 503);
-  assert.match(e.message, /Docker Desktop/);
-  assert.match(e.message, /install/i);
+  assert.match(e.message, /Docker is not running/);
+  assert.match(e.message, /Open Docker Desktop to start the engine/);
+  docker.dockerSys.desktop = null;
+  e = await fails(docker.dockerRun(["ps"]));
+  assert.equal(e.status, 503);
+  assert.match(e.message, /Docker is not running/);
+  assert.match(e.message, /Start your Docker daemon/);
   reply = () => ({ err: { code: "ENOENT", message: "spawn docker ENOENT" } });
   e = await fails(docker.dockerRun(["ps"]));
   assert.equal(e.status, 503);

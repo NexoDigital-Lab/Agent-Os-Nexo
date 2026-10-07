@@ -16,6 +16,13 @@ test("on Windows the module's folders are guarded whatever the case, slashes or 
       "cat /SRV/RUN-DIR/key",
     ]) assert.ok(blockedToolUse("Bash", { command }), command);
     assert.equal(blockedToolUse("Bash", { command: "type C:\\Users\\Me\\env\\notes.txt" }), null);
+    // Tool paths are literal: the backslashes are separators, not shell escapes.
+    for (const file_path of ["C:\\Users\\Me\\env\\os\\data\\ssh\\vault\\vault.json", "c:\\users\\me\\env\\os\\data\\ssh\\vault\\vault.json"]) {
+      assert.ok(blockedToolUse("Read", { file_path }), file_path);
+      assert.ok(blockedToolUse("Edit", { file_path }), file_path);
+    }
+    assert.ok(blockedToolUse("Grep", { path: "C:\\Users\\Me\\env\\os\\data", pattern: "x" }), "a search rooted at the modules' data");
+    assert.equal(blockedToolUse("Read", { file_path: "C:\\Users\\Me\\env\\notes.txt" }), null);
   } finally {
     guardDirs(["/srv/vault-dir", "/srv/run-dir"]);
   }

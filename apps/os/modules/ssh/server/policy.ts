@@ -378,7 +378,7 @@ let caseless = false;
 export function guardDirs(dirs: string[], platform: NodeJS.Platform = process.platform): void {
   caseless = platform === "win32";
   guardedDirs = dirs.flatMap((d) => {
-    if (!caseless) return [path.resolve(d)];
+    if (!caseless) return [path.posix.resolve(d)];
     // Forward slashes, lower case, and Git Bash's spelling of the drive (C:\x is also /c/x).
     const abs = (d.startsWith("/") ? d : path.win32.resolve(d)).replace(/\\/g, "/").toLowerCase();
     const drive = /^([a-z]):\//.exec(abs);
@@ -439,7 +439,8 @@ function blockedBash(command: string): string | null {
 function blockedPaths(values: unknown[], tool: string): string | null {
   for (const raw of values) {
     if (typeof raw !== "string" || !raw) continue;
-    const norm = path.posix.normalize(flatten(raw));
+    // A tool's path is literal, not shell text: a backslash is a Windows separator, never an escape for flatten to drop.
+    const norm = path.posix.normalize(flatten(raw.replace(/\\/g, "/")));
     if (touchesDataDir(norm, true)) return WHY.vault;
     if (privateKeyIn(norm) || ((tool === "Grep" || tool === "Glob") && /(^|\/)\.ssh\/?$/.test(norm))) return WHY.key;
     if (PROC.test(norm)) return WHY.proc;

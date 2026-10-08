@@ -24,6 +24,8 @@ export interface EnvironmentConfig {
   system: SystemSummary | null;
   /** Factory items this environment takes (`nexo init --factory`); missing means "all". */
   factory?: FactorySet;
+  /** The environment's default method (a framework name); missing means "nexo", Nexo's own method. */
+  framework?: string;
 }
 
 export const DEFAULT_FOLDERS: EnvironmentConfig["folders"] = {

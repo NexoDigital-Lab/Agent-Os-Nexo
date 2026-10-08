@@ -46,13 +46,15 @@ Usage: nexo <command> [options]
   connect [name] --command <cmd> [--args a,b] [--env K=V] [--remote]
               [--description <d>] [--tools claude,gemini]
                                     Add a connection; without a name, list them
-  framework [list]                  Third-party agent frameworks in frameworks/ (never touch permissions)
-  framework add <npm:pkg@x.y.z|path:dir> [--name <n>] [--project <id>]
-                                    Install (exact version, no install scripts) or reference one
+  framework [list] [--json]         Third-party agent frameworks in frameworks/ (never touch permissions)
+  framework add <npm:pkg@x.y.z|path:dir> [--name <n>]
+                                    Install (exact version, no install scripts) or reference one; adds it off
   framework remove <name>           npm: delete its folder; path: only forget it
-  framework enable|disable <name> [--project <id>]
+  framework enable|disable <name>   Make it available to pick (methods) / switch it on (tools)
   framework enable|disable <name> --hooks
                                     Approve / withdraw its hooks (off until you approve them)
+  framework default <name|nexo>     The environment's default method (nexo = Nexo's own, no framework)
+  framework plugin <name>           Build its Claude Code plugin folder and print the path (used by agent-os)
   os [status|versions|next|use <x.y.z|latest>]
                                     agent-os-nexo builds
   os install [--from <dir>]         Copy agent-os-nexo into os/source, install its runtime, build 1.0.0

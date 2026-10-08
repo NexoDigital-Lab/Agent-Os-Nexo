@@ -7,7 +7,7 @@ import { parseFrontmatter } from "./frontmatter.ts";
 import { toClaudePermissions, type Permissions } from "./permissions.ts";
 import { CODEX_HEADER, codexConfig, codexRules, geminiAllowed, opencodeMcp, opencodePermission } from "./aitools.ts";
 import { asObj, Ledger, mergeHooks, mergeKeys, withAgentsPointer } from "./coexist.ts";
-import { FRAMEWORK_MARKER, loadFrameworks, projectIdOf, resolveContributions, type Named, type Resolved } from "./frameworks.ts";
+import { defaultFramework, FRAMEWORK_MARKER, loadFrameworks, projectIdOf, resolveContributions, type Named, type Resolved } from "./frameworks.ts";
 
 const CLAUDE_EVENTS: Record<string, string> = {
   "pre-tool": "PreToolUse",
@@ -142,11 +142,11 @@ function takenNames(libraryDir: string, connections: { name: string }[]) {
   return { skills: listDir(join(libraryDir, "skills")), agents, commands: [], connections: connections.map((c) => c.name) };
 }
 
-/** The contributions of the frameworks enabled for this target (the root, or one project). */
-export function frameworkContributions(root: string, config: EnvironmentConfig, targetDir: string): Resolved {
+/** What the files for terminal AIs get from frameworks: the default method and the enabled tools (same for every target). */
+export function frameworkContributions(root: string, config: EnvironmentConfig): Resolved {
   const libraryDir = folder(root, config, "library");
   const { frameworks } = loadFrameworks(root, config);
-  return resolveContributions(frameworks, projectIdOf(root, config, targetDir), takenNames(libraryDir, listConnections(libraryDir)));
+  return resolveContributions(frameworks, defaultFramework(config), takenNames(libraryDir, listConnections(libraryDir)));
 }
 
 /**
@@ -161,7 +161,7 @@ export function generateAdapters(
 ): string[] {
   const written: string[] = [];
   const libraryDir = folder(root, config, "library");
-  const fw = frameworkContributions(root, config, targetDir);
+  const fw = frameworkContributions(root, config);
   const id = projectIdOf(root, config, targetDir);
   // Local MCP servers of enabled frameworks go next to the library's connections, for every AI.
   const connections = [...listConnections(libraryDir), ...fw.connections];

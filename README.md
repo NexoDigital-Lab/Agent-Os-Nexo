@@ -57,7 +57,7 @@ replaces items marked `owner: nexo`; anything you mark `owner: user` is yours.
 | `nexo index` | Rebuild `library/index.json` |
 | `nexo permissions [show]` · `allow\|ask\|deny\|remove\|set …` | Read or change one permission rule, validated; every AI's files follow |
 | `nexo dict [list\|show\|add\|rm]` | Your dictionary of concepts in `library/dictionary/`, listed in the index for agents |
-| `nexo framework add\|list\|remove\|enable\|disable` | Install or reference third-party agent frameworks in `frameworks/` (pinned npm or a `path:`); hooks stay off until approved |
+| `nexo framework add\|list\|remove\|enable\|disable\|default\|plugin` | Third-party agent frameworks in `frameworks/` (pinned npm or a `path:`), chosen per tab like an AI or set as the environment default; off until enabled, hooks off until approved |
 | `nexo import <claude\|codex\|gemini\|opencode> [--apply]` | Bring another AI's MCP servers and permissions into the library; never weakens a rule |
 | `nexo connect <name> --command <cmd>` | Add a connection (MCP) and regenerate each AI's config |
 | `nexo clone <repo> [--ws <name>]` · `nexo new <name>` | Bring in a project (or start one) with its context ready and indexed |

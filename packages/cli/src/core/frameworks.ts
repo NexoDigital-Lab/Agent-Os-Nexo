@@ -1,6 +1,7 @@
 // Third-party agent frameworks (a company's npm package, a community orchestrator, ...) managed from frameworks/.
-// Each lives in frameworks/<name>/ with a framework.json that says where it came from, who manages it, where it is
-// enabled and what it contributes. Nothing here writes outside frameworks/: generateAdapters (adapters.ts) reads the
+// Each lives in frameworks/<name>/ with a framework.json that says where it came from, who manages it, whether it is
+// available (enabled) and what it contributes. Like the AI providers: a framework is configured once for the
+// environment, chosen per tab in agent-os, and one of the methods can be the environment default (config.framework). Nothing here writes outside frameworks/: generateAdapters (adapters.ts) reads the
 // resolved contributions and puts them next to Nexo's own, through the merge rules of coexist.ts.
 //
 // Rules that hold for every framework: it never touches permissions.json; its hooks stay off until approved
@@ -37,13 +38,20 @@ export interface FrameworkManifest {
   license: string;
   /** `nexo`: Nexo installed it and may update it. `external`: someone else manages it; Nexo only references it. */
   managed: "nexo" | "external";
-  /** Where it is active: everywhere, or only in these projects (ids under projects/). */
-  enabled: { global: boolean; projects: string[] };
+  /**
+   * `method`: a way of working the user picks per tab (instructions, agents, commands, skills). `tool`: only adds MCP
+   * servers / hooks, always on while enabled and never picked.
+   */
+  kind: Kind;
+  /** Available to pick (methods) / active (tools). Adding a framework does not enable it. */
+  enabled: boolean;
   hooksApproved: boolean;
   /** The folder with the framework's files: relative to frameworks/<name>/ (npm) or absolute (path). */
   root: string;
   contributes: Contributes;
 }
+
+export type Kind = "method" | "tool";
 
 export interface Framework extends FrameworkManifest {
   /** frameworks/<name>/ */
@@ -72,22 +80,30 @@ const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is
 const inside = (v: unknown): string[] =>
   strings(v).filter((p) => p.trim() !== "" && !isAbsolute(p) && !/^[A-Za-z]:/.test(p) && !p.split(/[\\/]/).includes(".."));
 
+/** Instructions, agents, commands or skills make a method; MCP servers and hooks alone make a tool. */
+export function kindOf(contributes: Contributes, declared?: unknown): Kind {
+  if (declared === "method" || declared === "tool") return declared;
+  const c = contributes;
+  return c.instructions.length || c.agents.length || c.commands.length || c.skills.length ? "method" : "tool";
+}
+
 function normalize(raw: Record<string, unknown>, dir: string): Framework {
   const c = asObj(raw.contributes);
-  const en = asObj(raw.enabled);
   const rootDir = String(raw.root ?? ".");
   const hooks: Record<string, unknown[]> = {};
   for (const [event, list] of Object.entries(asObj(c.hooks))) if (Array.isArray(list)) hooks[event] = list;
+  const contributes: Contributes = { skills: inside(c.skills), agents: inside(c.agents), commands: inside(c.commands), hooks, mcpServers: asObj(c.mcpServers), instructions: inside(c.instructions) };
   return {
     name: String(raw.name ?? ""),
     source: String(raw.source ?? ""),
     version: String(raw.version ?? "unknown"),
     license: String(raw.license ?? "unknown"),
     managed: raw.managed === "nexo" ? "nexo" : "external",
-    enabled: { global: en.global === true, projects: strings(en.projects) },
+    kind: kindOf(contributes, raw.kind),
+    enabled: raw.enabled === true || asObj(raw.enabled).global === true, // the object form is what earlier builds wrote
     hooksApproved: raw.hooksApproved === true,
     root: rootDir,
-    contributes: { skills: inside(c.skills), agents: inside(c.agents), commands: inside(c.commands), hooks, mcpServers: asObj(c.mcpServers), instructions: inside(c.instructions) },
+    contributes,
     dir,
     contentRoot: isAbsolute(rootDir) ? rootDir : resolve(dir, rootDir),
   };
@@ -200,9 +216,15 @@ export function detectContributions(contentRoot: string): Contributes {
   };
 }
 
-/** Is this framework active in the project (null = the environment root)? */
-export function isEnabled(fw: Framework, projectId: string | null): boolean {
-  return fw.enabled.global || (projectId !== null && fw.enabled.projects.includes(projectId));
+/** The kind a framework's own framework.json declares (top level `kind`), if any. */
+export function declaredKind(contentRoot: string): unknown {
+  return jsonIn(join(contentRoot, "framework.json")).kind;
+}
+
+/** The environment's default method: `framework` in environment.config.json; missing or "nexo" means Nexo's own. */
+export const NEXO_METHOD = "nexo";
+export function defaultFramework(config: EnvironmentConfig): string {
+  return typeof config.framework === "string" && config.framework ? config.framework : NEXO_METHOD;
 }
 
 /** A project id as the user writes it ("shop", "api-ws/web"): the path under projects/. */
@@ -245,11 +267,14 @@ export interface Taken {
   connections: string[];
 }
 
+/** Wired into the files generated for terminal AIs: every enabled tool, and the environment's default method. */
+export const isWired = (fw: Framework, defaultName: string): boolean => fw.enabled && (fw.kind === "tool" || fw.name === defaultName);
+
 /**
- * The contributions of the frameworks enabled for `projectId`. A name that is already taken (by the library or by an
+ * The contributions of the frameworks wired for the AIs used in a terminal (see isWired). A name that is already taken (by the library or by an
  * earlier framework) is prefixed `<framework>-`, and reported in `clashes`.
  */
-export function resolveContributions(frameworks: Framework[], projectId: string | null, taken: Taken): Resolved {
+export function resolveContributions(frameworks: Framework[], defaultName: string, taken: Taken): Resolved {
   const out: Resolved = { skills: [], agents: [], commands: [], connections: [], hooks: {}, instructions: [], clashes: [], pendingHooks: {} };
   const used = { skills: new Set(taken.skills), agents: new Set(taken.agents), commands: new Set(taken.commands), connections: new Set(taken.connections) };
   const claim = (kind: keyof typeof used, fw: string, name: string): string => {
@@ -261,7 +286,7 @@ export function resolveContributions(frameworks: Framework[], projectId: string 
     used[kind].add(final);
     return final;
   };
-  for (const fw of frameworks.filter((f) => isEnabled(f, projectId))) {
+  for (const fw of frameworks.filter((f) => isWired(f, defaultName))) {
     const at = (rel: string) => join(fw.contentRoot, rel);
     for (const rel of fw.contributes.skills) {
       if (isDir(at(rel))) out.skills.push({ framework: fw.name, name: claim("skills", fw.name, rel.split("/").pop()!), path: at(rel) });

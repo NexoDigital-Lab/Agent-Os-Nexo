@@ -13,7 +13,8 @@ nexo doctor                             # check everything; never changes anythi
 nexo dict add "Active customer" --summary "Bought in the last 90 days"   # a concept every agent reads
 nexo permissions allow commands "npm run test*"                         # one rule, validated, every AI updated
 nexo os desktop                         # the desktop app installer for this OS (checksum-verified)
-nexo framework add npm:@corp/agents@1.4.0   # a third-party framework: pinned, no install scripts, hooks off
+nexo framework add npm:@corp/agents@1.4.0   # a third-party framework: pinned, no install scripts, off until enabled
+nexo framework enable agents && nexo framework default agents   # pick it per tab in agent-os, or make it the default
 nexo import opencode --apply            # bring another AI's MCP servers and permissions into the library
 ```
 

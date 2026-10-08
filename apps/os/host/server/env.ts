@@ -53,6 +53,19 @@ export function envAt(root: string): Env {
 }
 
 /**
+ * environment.config.json `tools`: the AI CLIs the user enabled (Record<Tool, boolean>), read on each call so a
+ * change made with the nexo CLI applies without restarting. Unreadable config: none.
+ */
+export function envTools(root: string): Record<string, boolean> {
+  try {
+    const tools = (JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8")) as { tools?: unknown }).tools;
+    return tools && typeof tools === "object" && !Array.isArray(tools) ? (tools as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
  * The environment to serve: NEXO_ROOT when set, otherwise the one this copy of agent-os-nexo lives in
  * (a build sits at <root>/os/versions/<x.y.z>, the editable copy at <root>/os/source).
  */

@@ -6,12 +6,32 @@ import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { HookCallbackMatcher } from "@anthropic-ai/claude-agent-sdk";
 import { httpError } from "../../../host/server/http.ts";
+import type { ProviderId, ProvidersFile } from "../../../host/server/providers.ts";
 
 export const READ_ONLY = ["Read", "Glob", "Grep"];
 export const MODEL = "sonnet";
 
 /** The SDK's query function; the callers below take it as a parameter so tests can pass a fake stream. */
 export type QueryFn = typeof query;
+
+// The default provider for new tabs and the providers a tab may route through: library/providers.json, read when
+// asked (not cached at boot), so a change in the Providers view applies to the next turn without a restart.
+// sessions/server/index.ts points it at the file.
+const CLAUDE_ONLY: ProvidersFile = { enabled: ["claude"], default: "claude" };
+let providersFile: string | null = null;
+let readProviders: (file: string) => ProvidersFile = () => CLAUDE_ONLY;
+export function useProvidersFile(file: string, read: (file: string) => ProvidersFile): void {
+  providersFile = file;
+  readProviders = read;
+}
+const currentProviders = (): ProvidersFile => (providersFile ? readProviders(providersFile) : CLAUDE_ONLY);
+export function getActiveProviderId(): ProviderId | null {
+  return currentProviders().default;
+}
+/** Whether a tab may route through this provider now (enabled, and for a CLI governed by the environment). */
+export function isProviderEnabled(id: ProviderId): boolean {
+  return currentProviders().enabled.includes(id);
+}
 
 // Real path when it exists, else the real path of the nearest existing ancestor + the rest (so a symlink can't smuggle a path out).
 function realOrAncestor(abs: string): string {
@@ -83,7 +103,9 @@ const baseOptions = (cwd: string, extraDirs: string[] = []) => ({
   hooks: { PreToolUse: [confineHook(cwd, extraDirs)] },
 });
 
-/** Runs the prompt and returns the model's output validated by `schema` (json_schema output format). */
+/** Runs the prompt and returns the model's output validated by `schema` (json_schema output format).
+ *  Always the bundled SDK, whatever the default chat provider: these one-shot helpers (notes, skills, extensions)
+ *  are read-only by design (confineHook), and a CLI agent would run with its full tools. */
 export async function structured<T>(prompt: string, cwd: string, schema: Record<string, unknown>, extraDirs: string[] = [], run: QueryFn = query) {
   let out: T | null = null;
   let cost = 0;
@@ -99,7 +121,8 @@ export async function structured<T>(prompt: string, cwd: string, schema: Record<
   return { out, cost };
 }
 
-/** Same read-only query, but free text: `system` is the whole system prompt (no Claude Code preset). */
+/** Same read-only query, but free text: `system` is the whole system prompt (no Claude Code preset).
+ *  Always the bundled SDK, for the same reason as structured(): a one-shot must stay read-only. */
 export async function ask(prompt: string, system: string, cwd: string, run: QueryFn = query) {
   let text = "";
   let cost = 0;

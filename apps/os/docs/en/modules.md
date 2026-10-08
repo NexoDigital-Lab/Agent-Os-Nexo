@@ -52,6 +52,9 @@ and their features (`context/features/<slug>.md`).
 ## sessions
 AI session tabs: chat with the agent, its sub-agents, review of its changes, permissions, images,
 recent sessions and resume, full-text search over past sessions, skills and their recommendation.
+Sessions run through the AI provider chosen in Providers; Claude keeps the full SDK behavior (resume,
+hooks, permissions), while the other providers run headless CLI turns in the project folder, without
+resume or permission prompts.
 - **Depends on:** shell, projects. **View:** Tabs, Skills.
 - **Owns slots:** `tab.views`, `tab.side`, `tab.sideReplace`, `tab.overlay`, `chat.events`,
   `composer.actions`, `tab.badges` (`web/slots.ts`); owns `contributeToSessions`
@@ -64,6 +67,25 @@ recent sessions and resume, full-text search over past sessions, skills and thei
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
   `PUT /sessions/skills/prefs` (in `library/profile.json`), `POST /sessions/skills/recommend`.
 - **Stores:** data `tabs.json`; state `uploads/`, `search.db`.
+
+## providers
+Detects the AI CLIs installed on the machine (Claude, OpenCode, Codex, Gemini CLI) and lets
+the user enable providers and pick the default for new sessions; one-shot calls always use the bundled SDK.
+A CLI can only be enabled when the environment enables it too (`environment.config.json` → `tools`), because
+only then does `nexo update` write that CLI's permission files; a CLI turned off there never runs. Each
+CLI keeps its own login — the app never stores keys. It also answers the chat composer's agent and model
+pickers for the providers that expose them, one source per provider:
+- **OpenCode:** `opencode agent list` and `opencode models`, run in the project folder.
+- **Codex:** a scan of `$CODEX_HOME` (default `~/.codex`) for `<name>.config.toml` profiles plus the legacy
+  `[profiles.<name>]` tables inside `config.toml`. No CLI is spawned, so a missing folder is just an empty
+  list; models stay free text (Codex has no list-models command).
+- **Gemini CLI:** lists extensions as agents with `gemini -l` and takes the model as free text.
+Lists are cached 60 s per provider and project; empty or failed answers are never cached, and output that
+looks like a log line, a sentence or a table degrades to an empty list instead of a wrong name.
+- **Depends on:** projects (the choices run in the project folder). **View:** Providers.
+- **Routes:** `GET /providers` (with `governed`: the providers this environment may run), `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices`.
+- **Stores:** `library/providers.json` (enabled providers + default; seeded from the environment's `tools`
+  when the file is missing).
 
 ## home
 Start page: projects, recent sessions, goals, an inbox and today's log.

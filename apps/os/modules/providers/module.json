@@ -1,0 +1,9 @@
+{
+  "name": "providers",
+  "version": "1.0.0",
+  "description": "AI providers: detect installed CLIs and choose which ones agent-os-nexo uses",
+  "owner": "nexo",
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Providers", "icon": "bot", "order": 62 },
+  "dependsOn": ["projects"]
+}

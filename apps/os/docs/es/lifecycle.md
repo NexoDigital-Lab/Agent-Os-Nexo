@@ -17,6 +17,10 @@ nexo os install                                 # desde npm (@nexodigital/agent-
 nexo os install --from <Agent-Os-Nexo>/apps/os  # desde un checkout (hasta que el paquete se publique)
 ```
 
+`nexo init` también pregunta qué CLIs de IA habilitar y los registra como `tools` en la configuración
+del entorno; agent-os-nexo lee esas elecciones, y la vista Providers es donde viven la detección, el
+habilitado y el proveedor predeterminado.
+
 1. El paquete se copia en `os/source/` (sin `node_modules`, `dist`, `.git`). Desde ahí es la copia propia
    del usuario; install se niega a pisarla.
 2. Un chequeo previo revisa esta máquina: un SO y CPU soportados (Linux, macOS, Windows; x64, arm64) y la

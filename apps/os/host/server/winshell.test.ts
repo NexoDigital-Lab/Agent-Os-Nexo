@@ -3,8 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join, win32 } from "node:path";
-import { tempDir } from "../../../host/test/harness.ts";
-import { CMD_META, cmdShimTargets } from "../server/winshell.ts";
+import { tempDir } from "../test/harness.ts";
+import { CMD_META, cmdShimTargets } from "./winshell.ts";
 
 test("cmdShimTargets reads a real shim file and resolves %~dp0 and %dp0% paths", () => {
   const dir = tempDir();

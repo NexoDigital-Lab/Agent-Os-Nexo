@@ -11,7 +11,8 @@ import { tempDir, tempEnv, mountModule } from "../../../host/test/harness.ts";
 const home = tempDir("agent-home-");
 process.env.HOME = home;
 process.env.USERPROFILE = home;
-const env = tempEnv();
+// The CLIs the routing tests use are enabled in the environment (a CLI it does not enable never runs).
+const env = tempEnv({ tools: { claude: true, opencode: true, codex: true } });
 mkdirSync(join(env.projects, "shop", "code"), { recursive: true });
 writeFileSync(join(env.projects, "shop", "AGENTS.md"), "# shop");
 writeFileSync(join(env.projects, "shop", "code", "a.txt"), "hello");
@@ -536,4 +537,200 @@ test("search routes: query, project filter, and id validation for 'around'", asy
   assert.equal((await m.get("/sessions/not-an-id/around")).status, 400);
   const around = await m.get(`/sessions/${SID}/around?at=2026-01-01T10:00:00Z&n=1`);
   assert.equal(around.status, 200);
+});
+
+// ---- provider routing (T2) ---------------------------------------------------------------------
+const providersHost = await import("../../../host/server/providers.ts");
+const { parseSendBody } = await import("../server/sendBody.ts");
+
+test("parseSendBody: a registry provider id passes; an unknown one is a 400", () => {
+  assert.equal(parseSendBody({ prompt: "x" }).provider, undefined);
+  assert.equal(parseSendBody({ prompt: "x", provider: "opencode" }).provider, "opencode");
+  assert.throws(() => parseSendBody({ prompt: "x", provider: "bogus" }), (e: any) => e.status === 400 && /provider/i.test(e.message));
+  assert.throws(() => parseSendBody({ prompt: "x", provider: 42 }), (e: any) => e.status === 400);
+});
+
+test("send with a CLI provider: the same chat events, headless argv, no SDK call; the provider sticks", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  const askCalls: { cmd: string; args: string[] }[] = [];
+  // A plain binary on every platform: routing is under test here; Windows shims are covered in providers.test.ts.
+  providersHost.providerExec.find = (n: string) => (n === "opencode" ? "/fake/opencode" : null);
+  providersHost.providerExec.run = ((cmd: string, args: string[]) => {
+    askCalls.push({ cmd, args });
+    return Promise.resolve({ stdout: "  CLI answer one\n", stderr: "" });
+  }) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const id = await open("cli tab");
+    const sdkBefore = calls.length;
+    assert.equal((await send(id, { provider: "opencode" })).status, 200);
+    await idle(id);
+    const evs = await events(id);
+    // The same machinery as the claude path: status, user, the answer as text, result, activity, status.
+    assert.deepEqual(evs.map((e) => e.kind), ["status", "user", "text", "result", "activity", "status", "status", "replay_done"]);
+    assert.equal(evs[1].text, "go");
+    assert.equal(evs[2].text, "CLI answer one");
+    assert.equal(evs[2].sub, false);
+    assert.equal(evs[3].ok, true);
+    assert.equal(evs[3].cost, 0);
+    assert.equal(evs[3].turns, 1);
+    assert.equal(calls.length, sdkBefore, "the SDK query never ran");
+    assert.deepEqual(askCalls[0].args, ["run", "go"]);
+    const t = await tab(id);
+    assert.equal(t.provider, "opencode");
+    assert.equal(t.sdkSessionId, null);
+    // A second send without a provider keeps the session's provider and prefixes the transcript.
+    providersHost.providerExec.run = ((cmd: string, args: string[]) => {
+      askCalls.push({ cmd, args });
+      return Promise.resolve({ stdout: "CLI answer two", stderr: "" });
+    }) as unknown as typeof providersHost.providerExec.run;
+    assert.equal((await send(id, { prompt: "second" })).status, 200);
+    await idle(id);
+    assert.equal(askCalls.length, 2);
+    assert.equal(askCalls[1].cmd, "/fake/opencode");
+    assert.deepEqual(
+      askCalls[1].args,
+      ["run", "User: go\nAssistant: CLI answer one\n\nsecond"],
+    );
+    agent.closeTab(id);
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});
+
+test("a CLI provider failure emits the same error shape as the claude path and ends the turn as error", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  providersHost.providerExec.find = (n: string) => (n === "codex" ? "/fake/codex" : null);
+  providersHost.providerExec.run = (() =>
+    Promise.reject(Object.assign(new Error("Command failed"), { stderr: "login required\n", stdout: "" }))) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const id = await open();
+    const sdkBefore = calls.length;
+    assert.equal((await send(id, { provider: "codex" })).status, 200);
+    await idle(id);
+    const evs = await events(id);
+    assert.ok(evs.some((e) => e.kind === "error" && /login required/.test(e.text)));
+    assert.equal((await tab(id)).status, "error");
+    assert.equal(calls.length, sdkBefore, "the SDK path was not touched");
+    agent.closeTab(id);
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});
+
+test("a tab opens with the active provider as its default; an invalid provider id is refused before the turn", async () => {
+  const id = await open();
+  assert.equal((await tab(id)).provider, "claude");
+  assert.equal((await send(id, { provider: "nope" })).status, 400);
+  assert.equal((await tab(id)).status, "idle", "the 400 never starts a turn");
+  agent.closeTab(id);
+});
+
+test("a CLI the environment does not enable in tools never runs, even when a body or a saved tab names it", async () => {
+  const realFind = providersHost.providerExec.find;
+  providersHost.providerExec.find = () => assert.fail("no CLI is spawned for an ungoverned provider");
+  const id = await open();
+  try {
+    const r = await send(id, { provider: "gemini" }); // installed or not, gemini is off in this environment's tools
+    assert.equal(r.status, 400);
+    assert.match(r.body.error, /Gemini CLI is not enabled/);
+    assert.equal((await tab(id)).status, "idle");
+    assert.equal((await tab(id)).provider, "claude", "the refused provider does not stick to the tab");
+  } finally {
+    agent.closeTab(id);
+    providersHost.providerExec.find = realFind;
+  }
+});
+
+// ---- T3: CLI model/agent selection ------------------------------------------------------------
+test("CLI turn: --model and --agent appear in argv when set; providerAgent sticks across turns", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  const askCalls: { cmd: string; args: string[] }[] = [];
+  // A plain binary on every platform: routing is under test here; Windows shims are covered in providers.test.ts.
+  providersHost.providerExec.find = (n: string) => (n === "opencode" ? "/fake/opencode" : null);
+  providersHost.providerExec.run = ((cmd: string, args: string[]) => {
+    askCalls.push({ cmd, args });
+    return Promise.resolve({ stdout: "answer", stderr: "" });
+  }) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const id = await open("cli agent tab");
+    // First turn: explicit model + agent
+    assert.equal((await send(id, { provider: "opencode", model: "opencode/mimo-v2.6-pro", agent: "build" })).status, 200);
+    await idle(id);
+    assert.deepEqual(
+      askCalls[0].args,
+      ["run", "--model", "opencode/mimo-v2.6-pro", "--agent", "build", "go"],
+    );
+    assert.equal((await tab(id)).providerAgent, "build");
+    // Second turn: no agent in body — the sticky providerAgent is used; no model (model does not stick)
+    assert.equal((await send(id, { prompt: "second" })).status, 200);
+    await idle(id);
+    assert.deepEqual(
+      askCalls[1].args,
+      ["run", "--agent", "build", "User: go\nAssistant: answer\n\nsecond"],
+    );
+    // Third turn: a different agent overrides the sticky one
+    assert.equal((await send(id, { prompt: "third", agent: "explore" })).status, 200);
+    await idle(id);
+    assert.deepEqual(
+      askCalls[2].args,
+      ["run", "--agent", "explore", "User: go\nAssistant: answer\nUser: second\nAssistant: answer\n\nthird"],
+    );
+    assert.equal((await tab(id)).providerAgent, "explore");
+    agent.closeTab(id);
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});
+
+test("CLI turn: the composer's mode reaches the CLI, and Stop kills it instead of letting it keep editing", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  const calls: { args: string[]; signal?: AbortSignal; timeout?: number }[] = [];
+  providersHost.providerExec.find = (n: string) => (n === "codex" ? "/fake/codex" : null);
+  providersHost.providerExec.run = ((_cmd: string, args: string[], opts: { signal?: AbortSignal; timeout?: number }) => {
+    calls.push({ args, signal: opts.signal, timeout: opts.timeout });
+    return new Promise((_r, reject) => opts.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))));
+  }) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const id = await open("cli stop tab");
+    assert.equal((await send(id, { provider: "codex", mode: "acceptEdits" })).status, 200);
+    await until(async () => calls.length === 1, "the CLI to start");
+    assert.deepEqual(calls[0]!.args.slice(0, 3), ["exec", "--sandbox", "workspace-write"]);
+    assert.ok((calls[0]!.timeout ?? 0) >= 30 * 60_000, "a coding turn gets real time, not two minutes");
+    assert.equal((await m.call("POST", `/tabs/${id}/interrupt`)).status, 200);
+    await idle(id);
+    assert.equal(calls[0]!.signal?.aborted, true, "the child process was told to stop");
+    agent.closeTab(id);
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});
+
+test("CLI turn without model/agent: argv stays clean (no --model, no --agent)", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  const askCalls: { cmd: string; args: string[] }[] = [];
+  providersHost.providerExec.find = (n: string) => (n === "codex" ? "/fake/codex" : null);
+  providersHost.providerExec.run = ((cmd: string, args: string[]) => {
+    askCalls.push({ cmd, args });
+    return Promise.resolve({ stdout: "ok", stderr: "" });
+  }) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const id = await open("cli clean tab");
+    assert.equal((await send(id, { provider: "codex" })).status, 200);
+    await idle(id);
+    assert.deepEqual(askCalls[0].args, ["exec", "--sandbox", "read-only", "go"]);
+    assert.equal((await tab(id)).providerAgent, null, "no agent set");
+    agent.closeTab(id);
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
 });

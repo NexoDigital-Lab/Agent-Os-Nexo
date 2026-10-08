@@ -150,7 +150,7 @@ Código de servidor compartido de otros módulos (importá solo lo que tu `depen
 | `sessions/server/index.ts` | `tabOf(req)` → `{ id, cwd, dir, project, worktree, meta }` para rutas `/tabs/:id/…` (404 si no existe) |
 | `sessions/server/agent.ts` | `openTab`, `closeTab`, `setTabMeta(id, key, value)`, `tabContext(id)`, `emitTo(id, ev)`, `onTabClose(fn)` |
 | `sessions/server/contributions.ts` | `contributeToSessions({...})` (abajo) |
-| `sessions/server/claude.ts` | `ask(prompt, system, cwd)`, `structured(prompt, cwd, schema)` — llamadas sueltas a un agente |
+| `sessions/server/claude.ts` | `ask(prompt, system, cwd)`, `structured(prompt, cwd, schema)` — llamadas sueltas a un agente; `ask` sigue el proveedor activo, `structured` necesita Claude en esta versión |
 | `editor/submodules/terminal/server/terminal.ts` | `addShellProvider`, `createTerm`, `listTerms`, `killTerm`, `shellFor` |
 
 ### Participar en las sesiones de IA — `contributeToSessions`

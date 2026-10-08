@@ -17,6 +17,10 @@ nexo os install                                 # from npm (@nexodigital/agent-o
 nexo os install --from <Agent-Os-Nexo>/apps/os  # from a checkout (until the package is published)
 ```
 
+`nexo init` also asks which AI CLIs to enable and records them as `tools` in the environment config;
+agent-os-nexo reads those choices, and the Providers view is where detection, enable and the default
+provider live.
+
 1. The package is copied into `os/source/` (without `node_modules`, `dist`, `.git`). This is the user's
    own copy from now on; install refuses to overwrite it.
 2. A preflight checks this machine: a supported OS and CPU (Linux, macOS, Windows; x64, arm64) and the Node

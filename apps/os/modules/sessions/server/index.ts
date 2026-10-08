@@ -3,11 +3,14 @@
 import express, { type Request } from "express";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { envTools } from "../../../host/server/env.ts";
 import { h, httpError, ok } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
+import { readProvidersFile } from "../../../host/server/providers.ts";
 import { addProjectHooks } from "../../projects/server/hooks.ts";
 import { projectDiff, projectDir, projectOfPath, projectPath, worktreePath } from "../../projects/server/projects.ts";
 import * as agent from "./agent.ts";
+import { useProvidersFile } from "./claude.ts";
 import { parseSendBody } from "./sendBody.ts";
 import { contributeToSessions } from "./contributions.ts";
 import { osGuard } from "./guard.ts";
@@ -39,6 +42,9 @@ const register: ModuleServer = (ctx) => {
   setUploadsDir(join(ctx.stateDir, "uploads"));
   setSearchDb(join(ctx.stateDir, "search.db"));
   initSkills(ctx.env);
+  // New tabs follow the default provider in library/providers.json (seeded from the CLI's tools map when the
+  // file is missing), read when a tab opens; a CLI the environment does not enable in tools is never run. One-shot helpers always use the bundled SDK (claude.ts).
+  useProvidersFile(join(ctx.env.library, "providers.json"), (file) => readProvidersFile(file, envTools(ctx.env.root)));
   agent.restoreTabs(agent.tabsFileName(ctx.dataDir));
   // Every agent session: no reaching agent-os-nexo's own API or private data (guard.ts).
   contributeToSessions({
@@ -102,7 +108,9 @@ const register: ModuleServer = (ctx) => {
   });
   api.delete("/tabs/:id/uploads/:name", h((req) => (deleteUpload(String(req.params.id), String(req.params.name)), ok)));
 
-  // Recent sessions (terminal and agent-os-nexo), resumable in a tab with one click.
+  // Recent sessions (terminal and agent-os-nexo), resumable in a tab with one click. Claude-transcript-only
+  // in v1: CLI-provider sessions never write ~/.claude/projects transcripts, so they never appear in this
+  // history and a resume attempt for one 404s honestly ("Session not found") — resumeTab also forces claude.
   api.get("/sessions/history", h((req) =>
     listSessions(30)
       .slice(0, Number(req.query.limit ?? 10))

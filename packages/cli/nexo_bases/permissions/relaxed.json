@@ -9,7 +9,8 @@
       "deny": [
         "library/connections/**/*.secret*",
         "projects/**/secrets/**",
-        "os/data/vault/**"
+        "os/data/vault/**",
+        ".state/**"
       ]
     },
     "edit": {

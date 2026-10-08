@@ -53,9 +53,12 @@ R9 en [module-rules.md](module-rules.md).
   carpeta del proyecto con su propio modelo de permisos — la app no media sus herramientas en esta
   versión. Lo que la app sí hace cumplir: el modo del composer pasa a ser el del CLI (Codex:
   `--sandbox read-only` salvo que se acepten ediciones, nunca `danger-full-access`; OpenCode: `--auto` solo en
-  bypass), Detener mata al CLI, los archivos de IA generados del proyecto (permisos, `.state/**` ilegible) aplican
-  porque el CLI corre en la carpeta del proyecto, y las consultas sueltas (notas, skills, extensiones) usan siempre
-  el SDK incluido, de solo lectura, sea cual sea el proveedor por defecto.
+  bypass; Gemini: `--approval-mode plan` en modo plan, `auto_edit` al aceptar ediciones, nunca `yolo`), Detener
+  mata al CLI, los archivos de IA generados del proyecto (permisos, `.state/**` ilegible) aplican porque el CLI corre
+  en la carpeta del proyecto, solo corren los CLIs habilitados en `tools` del entorno, y las consultas sueltas
+  (notas, extensiones) usan siempre el SDK incluido, de solo lectura. La recomendación de skills puede pasar por el
+  CLI de la pestaña solo si tiene un modo de solo lectura documentado (Codex, Gemini) y solo en la carpeta del
+  proyecto; si no, también usa el SDK.
 - **Lanzadores en Windows.** Un shim `.cmd` de npm corre su script con node, nunca por `cmd.exe`, que ejecutaría
   `& | < > ^ % ! "` dentro de un prompt; a un lanzador que no es de npm se le rechaza cualquier argumento con esos
   caracteres.

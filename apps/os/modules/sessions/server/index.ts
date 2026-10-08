@@ -6,11 +6,11 @@ import { join } from "node:path";
 import { envTools } from "../../../host/server/env.ts";
 import { h, httpError, ok } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
-import { readProvidersFile } from "../../../host/server/providers.ts";
+import { providerById, READ_ONLY_ONE_SHOT, readProvidersFile } from "../../../host/server/providers.ts";
 import { addProjectHooks } from "../../projects/server/hooks.ts";
 import { projectDiff, projectDir, projectOfPath, projectPath, worktreePath } from "../../projects/server/projects.ts";
 import * as agent from "./agent.ts";
-import { useProvidersFile } from "./claude.ts";
+import { isProviderEnabled, useProvidersFile } from "./claude.ts";
 import { parseSendBody } from "./sendBody.ts";
 import { contributeToSessions } from "./contributions.ts";
 import { osGuard } from "./guard.ts";
@@ -137,7 +137,24 @@ const register: ModuleServer = (ctx) => {
     writePrefs({ disabled: req.body.disabled ?? [], pinned: req.body.pinned ?? [] });
     return readPrefs();
   }));
-  api.post("/sessions/skills/recommend", h((req) => recommendSkills(String(req.body.task ?? ""), req.body.project ?? null)));
+  // The tab's provider answers when it is a CLI the environment enables and that has a read-only mode
+  // (READ_ONLY_ONE_SHOT), run in the project's code; otherwise, the bundled SDK with tools off.
+  api.post("/sessions/skills/recommend", h((req) => {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    if (b.task !== undefined && typeof b.task !== "string") throw httpError(400, "task must be text");
+    const task = String(b.task ?? "");
+    if (task.length > 20_000) throw httpError(400, "task is at most 20000 characters");
+    const project = typeof b.project === "string" && b.project ? b.project : null;
+    const id = b.provider === undefined || b.provider === null || b.provider === "" ? "claude" : String(b.provider);
+    const meta = providerById(id);
+    if (!meta) throw httpError(400, `Unknown provider: ${id}`);
+    if (meta.id === "claude") return recommendSkills(task, project);
+    if (!isProviderEnabled(meta.id)) throw httpError(400, `${meta.label} is not enabled for this environment`);
+    const cwd = project ? projectPath(project) : null;
+    if (!READ_ONLY_ONE_SHOT.has(meta.id) || !cwd) return recommendSkills(task, project);
+    const model = typeof b.model === "string" && b.model ? b.model : undefined; // shape-checked by askWithProvider
+    return recommendSkills(task, project, undefined, { provider: meta.id, model, cwd });
+  }));
 
   // Full-text search over past sessions
   api.get("/sessions/search", h((req) => {

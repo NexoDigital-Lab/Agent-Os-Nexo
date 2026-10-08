@@ -50,9 +50,12 @@ in [module-rules.md](module-rules.md).
   Claude (SDK) sessions; a non-Claude provider runs its own CLI in the project directory with its own
   permission model — the app does not mediate its tools in this version. What the app does enforce:
   the composer's mode becomes the CLI's own (Codex: `--sandbox read-only` unless edits are accepted, never
-  `danger-full-access`; OpenCode: `--auto` only on bypass), Stop kills the CLI, the project's generated AI files
-  (permissions, `.state/**` unreadable) apply because the CLI runs in the project folder, and one-shot helpers
-  (notes, skills, extensions) always use the bundled SDK, read-only, whatever the default provider.
+  `danger-full-access`; OpenCode: `--auto` only on bypass; Gemini: `--approval-mode plan` in plan mode, `auto_edit`
+  when edits are accepted, never `yolo`), Stop kills the CLI, the project's generated AI files (permissions,
+  `.state/**` unreadable) apply because the CLI runs in the project folder, only CLIs enabled in the environment's
+  `tools` run at all, and one-shot helpers (notes, extensions) always use the bundled SDK, read-only. The skill
+  recommendation may run through the tab's CLI only when it has a documented read-only mode (Codex, Gemini) and
+  only in the project's folder; otherwise it uses the SDK too.
 - **Windows launchers.** An npm `.cmd` shim runs its script with node, never through `cmd.exe`, which would run
   `& | < > ^ % ! "` inside a prompt; a launcher that is not npm's is refused any argument with those characters.
 

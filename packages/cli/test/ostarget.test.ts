@@ -89,9 +89,9 @@ test("doctor flags an active build installed for another machine; an unknown tar
   const root = await freshEnv("claude");
   await os("install", undefined, { root, from: fakeSource(SERVE()) }, runner(SERVE()));
   const runtime = join(root, "os", "runtime", readdirSync(join(root, "os", "runtime"))[0]!);
-  writeFileSync(join(runtime, TARGET_FILE), "win32-x64-node127\n");
+  writeFileSync(join(runtime, TARGET_FILE), "plan9-mips-node1\n"); // a target no CI machine can be
   const finding = diagnose(root).find((f) => f.area === "agent-os-nexo");
-  assert.match(finding?.message ?? "", /installed for win32-x64-node127, this machine is .*: run `nexo os build`/);
+  assert.match(finding?.message ?? "", /installed for plan9-mips-node1, this machine is .*: run `nexo os build`/);
   writeFileSync(join(runtime, TARGET_FILE), "");
   assert.equal(buildTarget(join(root, "os"), "9.9.9"), null, "a version that is not there");
   // A build without build.json (older ones): found through its node_modules link instead.

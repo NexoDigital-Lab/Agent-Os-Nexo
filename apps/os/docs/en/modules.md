@@ -71,9 +71,10 @@ resume or permission prompts.
 ## providers
 Detects the AI CLIs installed on the machine (Claude, OpenCode, Codex, Antigravity/Google) and lets the
 user enable providers and pick the default; new sessions and one-shot calls follow that choice. Each CLI
-keeps its own login — the app never stores keys.
-- **Depends on:** nothing. **View:** Providers.
-- **Routes:** `GET /providers`, `POST /providers/enabled`, `POST /providers/test`.
+keeps its own login — the app never stores keys. It also answers the chat composer's agent and model
+pickers for the providers that expose them (OpenCode: agent and model; Codex: model).
+- **Depends on:** projects (the choices run in the project folder). **View:** Providers.
+- **Routes:** `GET /providers`, `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices`.
 - **Stores:** `library/providers.json` (enabled providers + default; seeded from the environment's `tools`
   when the file is missing).
 

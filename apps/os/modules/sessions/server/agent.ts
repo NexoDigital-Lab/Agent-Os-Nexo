@@ -34,6 +34,8 @@ type Session = TabContext & {
   sdkSessionId?: string;
   /** Which registry provider this tab routes through; claude is the SDK path, the rest are headless CLIs. */
   provider?: ProviderId;
+  /** CLI agent name (--agent) for this tab; sticks per session like provider. null/absent = provider default. */
+  providerAgent?: string | null;
   events: Ev[];
   clients: Set<Response>;
   running: boolean;
@@ -89,12 +91,12 @@ class Inbox implements AsyncIterable<SDKUserMessage> {
 
 const sessions = new Map<string, Session>();
 
-type SavedTab = TabContext & { sdkSessionId?: string; provider?: ProviderId; cost: number; forkNext?: boolean; work?: WorkStatus | null };
+type SavedTab = TabContext & { sdkSessionId?: string; provider?: ProviderId; providerAgent?: string | null; cost: number; forkNext?: boolean; work?: WorkStatus | null };
 
 const ctxOf = (s: Session): TabContext => ({ id: s.id, title: s.title, project: s.project, dir: s.dir, cwd: s.cwd, worktree: s.worktree, meta: s.meta });
 
 function persist() {
-  const tabs: SavedTab[] = [...sessions.values()].map((s) => ({ ...ctxOf(s), sdkSessionId: s.sdkSessionId, provider: s.provider, cost: s.cost, forkNext: s.forkNext, work: s.work }));
+  const tabs: SavedTab[] = [...sessions.values()].map((s) => ({ ...ctxOf(s), sdkSessionId: s.sdkSessionId, provider: s.provider, providerAgent: s.providerAgent ?? null, cost: s.cost, forkNext: s.forkNext, work: s.work }));
   writeJson(TABS_FILE, tabs);
 }
 
@@ -178,7 +180,7 @@ export function setTabMeta(id: string, key: string, value: unknown): void {
 export function listTabs() {
   return [...sessions.values()].map((s) => {
     const status = refresh(s);
-    return { ...ctxOf(s), running: s.running, cost: s.cost, sdkSessionId: s.sdkSessionId ?? null, provider: s.provider ?? null, status, statusSince: s.st.since, workStatus: s.work ?? null };
+    return { ...ctxOf(s), running: s.running, cost: s.cost, sdkSessionId: s.sdkSessionId ?? null, provider: s.provider ?? null, providerAgent: s.providerAgent ?? null, status, statusSince: s.st.since, workStatus: s.work ?? null };
   });
 }
 
@@ -223,7 +225,7 @@ export function emitTo(id: string, ev: Ev): void {
 }
 
 export type WorkMode = "relax" | "focus" | "practice";
-type SendOpts = { prompt: string; skills: string[]; images: string[]; mode: PermissionMode; model?: string; workMode?: WorkMode; provider?: ProviderId };
+type SendOpts = { prompt: string; skills: string[]; images: string[]; mode: PermissionMode; model?: string; agent?: string; workMode?: WorkMode; provider?: ProviderId };
 
 // The work-mode dial, per message (see the nexo-dev skill).
 const WORK_MODE: Record<WorkMode, string> = {
@@ -258,12 +260,14 @@ function transcriptPrefix(s: Session): string {
 /** One headless CLI turn: the same chat events the claude path emits (user → text → result → activity →
  *  status), without the SDK. Cost is unknown → 0; usage.ts reads Claude transcripts only, so CLI turns
  *  are never recorded there (nothing to corrupt). Mid-turn quick prompts queue via afterRun; interrupt
- *  cannot kill the child process in v1, but an aborted turn still ends quietly like the claude path. */
+ *  cannot kill the child process in v1, but an aborted turn still ends quietly like the claude path.
+ *  `opts.model`/`opts.agent` carry the CLI selection flags (provider/model id, agent name). */
 async function runCliTurn(s: Session, provider: ProviderId, opts: SendOpts, transcript: string, ctx: TabContext, signal: AbortSignal): Promise<void> {
   const started = Date.now();
   let ok = false;
   try {
-    const { text } = await askWithProvider(provider, transcript + opts.prompt, { cwd: s.dir });
+    const agentName = opts.agent ?? s.providerAgent ?? undefined;
+    const { text } = await askWithProvider(provider, transcript + opts.prompt, { cwd: s.dir, model: opts.model, agent: agentName });
     if (signal.aborted) return;
     emit(s, { kind: "text", text, sub: false });
     emit(s, { kind: "result", cost: 0, turns: 1, ms: Date.now() - started, ok: true, text });
@@ -300,6 +304,11 @@ export function send(id: string, opts: SendOpts): void {
     s.provider = opts.provider;
     persist();
   }
+  // The CLI agent sticks the same way as the provider: body's choice wins, else the session's.
+  if (opts.agent) {
+    s.providerAgent = opts.agent;
+    persist();
+  }
   const provider = opts.provider ?? s.provider ?? getActiveProviderId() ?? "claude";
   // v1 has no resume for CLI providers: prefix prior turns as a short transcript BEFORE this turn's
   // user event is appended, so the prompt never duplicates the message being sent.
@@ -313,7 +322,7 @@ export function send(id: string, opts: SendOpts): void {
   const images = opts.images.filter((n) => uploadPath(id, n));
   emit(s, { kind: "user", text: opts.prompt, skills: opts.skills, images: images.map((n) => `/api/tabs/${id}/uploads/${n}`) });
 
-  s.last = { skills: opts.skills, mode: opts.mode, model: opts.model, workMode: opts.workMode, provider };
+  s.last = { skills: opts.skills, mode: opts.mode, model: opts.model, agent: opts.agent, workMode: opts.workMode, provider };
   const ctx = ctxOf(s);
   const signal = s.abort.signal;
 

@@ -6,12 +6,14 @@ import type { ModuleServer } from "../../../host/server/module-api.ts";
 import {
   detectAll,
   detectProvider,
+  listProviderChoices,
   providerById,
   readProvidersFile,
   writeProvidersFile,
   type DetectedProvider,
   type ProviderId,
 } from "../../../host/server/providers.ts";
+import { projectPath } from "../../projects/server/projects.ts";
 
 const CACHE_MS = 20_000; // detection is cheap but not free: like docker info, cache it briefly
 
@@ -27,6 +29,17 @@ const register: ModuleServer = (ctx) => {
 
   const api = ctx.api;
   api.get("/providers", h(() => snapshot()));
+
+  // Agent/model lists for the chat Composer. id must expose supports.agent|model; project resolves to its code/ dir.
+  api.get("/providers/choices", h((req) => {
+    const id = String(req.query.id ?? "");
+    const meta = providerById(id);
+    if (!meta || !(meta.supports.agent || meta.supports.model)) throw httpError(400, `No choices for provider: ${id}`);
+    const project = String(req.query.project ?? "");
+    const cwd = projectPath(project);
+    if (!cwd) throw httpError(404, `Unknown project: ${project}`);
+    return listProviderChoices(meta.id, cwd);
+  }));
 
   // enabled: array of registry ids (unknowns dropped, must stay non-empty); default: an id in enabled, or null.
   api.post("/providers/enabled", h((req) => {

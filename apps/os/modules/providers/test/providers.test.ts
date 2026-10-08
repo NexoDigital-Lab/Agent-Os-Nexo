@@ -2,9 +2,9 @@
 // /api/providers routes. Every process call is faked — no real CLIs, no network.
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { mountModule, tempDir } from "../../../host/test/harness.ts";
+import { mountModule, tempDir, tempEnv } from "../../../host/test/harness.ts";
 import * as providers from "../../../host/server/providers.ts";
 import register from "../server/index.ts";
 
@@ -16,6 +16,7 @@ beforeEach(() => {
   findHits = {};
   runReply = () => ({ stdout: "" });
   runCalls = [];
+  providers.clearChoicesCache();
   providers.providerExec.find = (name: string) => findHits[name] ?? null;
   providers.providerExec.run = ((_cmd: string, args: string[]) => {
     runCalls.push(args);
@@ -236,4 +237,120 @@ test("askWithProvider: non-zero exit is a 502 carrying a trimmed stderr tail; em
 
 test("askWithProvider: claude is refused (SDK path), not spawned headless", async () => {
   await assert.rejects(providers.askWithProvider("claude", "x", { cwd: "/tmp" }), (e: any) => e.status === 502 && /SDK/.test(e.message));
+});
+
+// ---- T3: model/agent selection ---------------------------------------------------------------
+test("headlessArgs argv carries --model/--agent for opencode and --model for codex; antigravity never gets --model", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = () => ({ stdout: "ok" });
+  await providers.askWithProvider("opencode", "fix", { cwd: "/tmp", model: "opencode/mimo-v2.6-pro", agent: "build" });
+  assert.deepEqual(runCalls.at(-1), ["run", "--model", "opencode/mimo-v2.6-pro", "--agent", "build", "fix"]);
+
+  await providers.askWithProvider("opencode", "fix", { cwd: "/tmp", model: "opencode/mimo" });
+  assert.deepEqual(runCalls.at(-1), ["run", "--model", "opencode/mimo", "fix"]);
+
+  await providers.askWithProvider("opencode", "fix", { cwd: "/tmp", agent: "build" });
+  assert.deepEqual(runCalls.at(-1), ["run", "--agent", "build", "fix"]);
+
+  findHits = { codex: "/usr/local/bin/codex" };
+  await providers.askWithProvider("codex", "do", { cwd: "/tmp", model: "gpt-5" });
+  assert.deepEqual(runCalls.at(-1), ["exec", "--model", "gpt-5", "do"]);
+
+  await providers.askWithProvider("codex", "do", { cwd: "/tmp" });
+  assert.deepEqual(runCalls.at(-1), ["exec", "do"]);
+
+  findHits = { agy: "/usr/bin/agy" };
+  await providers.askWithProvider("antigravity", "hi", { cwd: "/tmp", model: "should-be-ignored" });
+  assert.deepEqual(runCalls.at(-1), ["-p", "hi"]);
+});
+
+test("askWithProvider rejects malformed model/agent with 400 before spawning", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = () => ({ stdout: "ok" });
+  await assert.rejects(
+    providers.askWithProvider("opencode", "x", { cwd: "/tmp", model: "bad model!" }),
+    (e: any) => e.status === 400 && /Invalid model/.test(e.message),
+  );
+  await assert.rejects(
+    providers.askWithProvider("opencode", "x", { cwd: "/tmp", agent: "bad agent!" }),
+    (e: any) => e.status === 400 && /Invalid agent/.test(e.message),
+  );
+  assert.equal(runCalls.length, 0, "nothing was spawned");
+  // Valid shapes pass through
+  await providers.askWithProvider("opencode", "x", { cwd: "/tmp", model: "opencode/mimo-v2.6-pro", agent: "sdd-orchestador" });
+  assert.equal(runCalls.length, 1);
+});
+
+test("listProviderChoices parses opencode agent-list and models output, and caches per id+cwd", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = (args) => {
+    if (args.includes("agent")) return { stdout: "build (primary)\nexplore (subagent)\ngentle-ai-worker (subagent)\n" };
+    if (args.includes("models")) return { stdout: "opencode/mimo-v2.6-flash-free\nopencode/mimo-v2.6-pro\n" };
+    return { stdout: "" };
+  };
+  const r1 = await providers.listProviderChoices("opencode", "/proj");
+  assert.deepEqual(r1, { agents: ["build", "explore", "gentle-ai-worker"], models: ["opencode/mimo-v2.6-flash-free", "opencode/mimo-v2.6-pro"] });
+  assert.equal(runCalls.length, 2);
+  // Second call within TTL is cached: no additional CLI calls
+  const r2 = await providers.listProviderChoices("opencode", "/proj");
+  assert.deepEqual(r2, r1);
+  assert.equal(runCalls.length, 2, "second call is cached");
+  // Different cwd: cache miss
+  await providers.listProviderChoices("opencode", "/other");
+  assert.equal(runCalls.length, 4);
+  // clearChoicesCache forces a fresh call
+  providers.clearChoicesCache();
+  await providers.listProviderChoices("opencode", "/proj");
+  assert.equal(runCalls.length, 6);
+});
+
+test("listProviderChoices: failures return empty lists; non-opencode ids return empty without spawning", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = () => ({ err: true });
+  assert.deepEqual(await providers.listProviderChoices("opencode", "/proj"), { agents: [], models: [] });
+  assert.equal(runCalls.length, 2, "both opencode commands were attempted before the catch");
+  const before = runCalls.length;
+  assert.deepEqual(await providers.listProviderChoices("codex", "/proj"), { agents: [], models: [] });
+  assert.deepEqual(await providers.listProviderChoices("claude", "/proj"), { agents: [], models: [] });
+  assert.deepEqual(await providers.listProviderChoices("antigravity", "/proj"), { agents: [], models: [] });
+  assert.equal(runCalls.length, before, "non-opencode ids never spawn a CLI");
+});
+
+// ---- choices route (T3) --------------------------------------------------------------------------
+const { initProjects } = await import("../../projects/server/projects.ts");
+const projectsEnv = tempEnv();
+mkdirSync(join(projectsEnv.projects, "shop", "code"), { recursive: true });
+writeFileSync(join(projectsEnv.projects, "shop", "AGENTS.md"), "# shop");
+initProjects(projectsEnv);
+
+test("GET /providers/choices: 400 for unknown id or id without supports; 404 for unknown project", async () => {
+  assert.equal((await m.get("/providers/choices?id=bogus&project=shop")).status, 400);
+  assert.equal((await m.get("/providers/choices?id=antigravity&project=shop")).status, 400, "antigravity has supports={}");
+  assert.equal((await m.get("/providers/choices?id=opencode&project=nope")).status, 404);
+});
+
+test("GET /providers/choices: claude has supports.model but listProviderChoices returns empty (not opencode)", async () => {
+  const r = await m.get("/providers/choices?id=claude&project=shop");
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { agents: [], models: [] });
+});
+
+test("GET /providers/choices: opencode returns parsed choices from the project cwd", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = (args) => {
+    if (args.includes("agent")) return { stdout: "build (primary)\nexplore (subagent)\n" };
+    if (args.includes("models")) return { stdout: "opencode/mimo-a\n" };
+    return { stdout: "" };
+  };
+  providers.clearChoicesCache();
+  const r = await m.get("/providers/choices?id=opencode&project=shop");
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { agents: ["build", "explore"], models: ["opencode/mimo-a"] });
+});
+
+test("ProviderMeta carries supports; registry marks claude model-only, opencode agent+model, codex model-only, antigravity none", () => {
+  assert.deepEqual(providers.providerById("claude")!.supports, { model: true });
+  assert.deepEqual(providers.providerById("opencode")!.supports, { agent: true, model: true });
+  assert.deepEqual(providers.providerById("codex")!.supports, { model: true });
+  assert.deepEqual(providers.providerById("antigravity")!.supports, {});
 });

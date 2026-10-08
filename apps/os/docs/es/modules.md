@@ -71,9 +71,11 @@ turnos CLI en modo headless en la carpeta del proyecto, sin retomar ni pedidos d
 ## providers
 Detecta los CLIs de IA instalados en la máquina (Claude, OpenCode, Codex, Antigravity/Google) y deja al
 usuario habilitar proveedores y elegir el predeterminado; las sesiones nuevas y las llamadas sueltas
-siguen esa elección. Cada CLI conserva su propio login: la app nunca guarda claves.
-- **Depende de:** nada. **Vista:** Providers.
-- **Rutas:** `GET /providers`, `POST /providers/enabled`, `POST /providers/test`.
+siguen esa elección. Cada CLI conserva su propio login: la app nunca guarda claves. También responde a
+los selectores de agente y modelo del composer del chat para los proveedores que los exponen (OpenCode:
+agente y modelo; Codex: modelo).
+- **Depende de:** projects (las opciones se ejecutan en la carpeta del proyecto). **Vista:** Providers.
+- **Rutas:** `GET /providers`, `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices`.
 - **Guarda:** `library/providers.json` (proveedores habilitados + predeterminado; se siembra desde el
   `tools` del entorno cuando el archivo no existe).
 

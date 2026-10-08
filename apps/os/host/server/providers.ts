@@ -15,6 +15,8 @@ export interface ProviderMeta {
   binaries: string[];
   install: { win32: string; posix: string };
   loginHint: string;
+  /** What the chat Composer can offer for this provider: agent picker and/or model picker. */
+  supports: { agent?: boolean; model?: boolean };
 }
 
 export interface DetectedProvider {
@@ -26,6 +28,7 @@ export interface DetectedProvider {
   version: string | null;
   install: string;
   loginHint: string;
+  supports: { agent?: boolean; model?: boolean };
 }
 
 /** What a headless provider run produced: the trimmed answer text and the raw stdout. */
@@ -46,6 +49,7 @@ export const PROVIDERS: ProviderMeta[] = [
       posix: "npm install -g @anthropic-ai/claude-code",
     },
     loginHint: "Sign in with the claude CLI, or use the app's bundled SDK session.",
+    supports: { model: true }, // the SDK model dropdown already exists in the Composer
   },
   {
     id: "opencode",
@@ -57,6 +61,7 @@ export const PROVIDERS: ProviderMeta[] = [
       posix: "npm install -g opencode-ai",
     },
     loginHint: "Run opencode once and complete its login.",
+    supports: { agent: true, model: true },
   },
   {
     id: "codex",
@@ -68,6 +73,7 @@ export const PROVIDERS: ProviderMeta[] = [
       posix: "npm install -g @openai/codex",
     },
     loginHint: "Run codex login.",
+    supports: { model: true },
   },
   {
     id: "antigravity",
@@ -79,6 +85,7 @@ export const PROVIDERS: ProviderMeta[] = [
       posix: "curl -fsSL https://antigravity.google/cli/install.sh | bash (legacy: npm install -g @google/gemini-cli)",
     },
     loginHint: "Run agy once and complete its Google sign-in.",
+    supports: {}, // model flag unverified — do not pass one
   },
 ];
 
@@ -117,11 +124,25 @@ export function resolveCli(
   return null;
 }
 
+/**
+ * Shared shape validator for model/agent values that reach a CLI spawn. Provider/model ids contain `/`
+ * and `:` (e.g. `opencode/mimo-v2.6-pro`, `gpt-5:mini`); agent names are a subset without those chars.
+ * Exported so sendBody.ts can reuse the same bound at the HTTP layer.
+ */
+export const CHOICE_RE = /^[A-Za-z0-9._:/-]{1,100}$/;
+
 /** Headless argv per CLI provider, prompt as ONE argument (verified where possible: opencode run, codex exec, agy -p). */
-function headlessArgs(id: ProviderId, prompt: string): string[] {
-  if (id === "opencode") return ["run", prompt]; // `opencode run [message..]` (v1.18.29)
-  if (id === "codex") return ["exec", prompt]; // `codex exec "…"`
-  if (id === "antigravity") return ["-p", prompt]; // `agy -p "…"`; legacy `gemini -p "…"` shares the flag
+function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; agent?: string }): string[] {
+  if (id === "opencode") {
+    return [
+      "run",
+      ...(opts?.model ? ["--model", opts.model] : []),
+      ...(opts?.agent ? ["--agent", opts.agent] : []),
+      prompt,
+    ];
+  }
+  if (id === "codex") return ["exec", ...(opts?.model ? ["--model", opts.model] : []), prompt]; // `codex exec -m <id> "…"`
+  if (id === "antigravity") return ["-p", prompt]; // `agy -p "…"`; legacy `gemini -p "…"` shares the flag; model unverified
   throw httpError(502, `Provider ${id} runs through the Claude SDK, not a headless CLI`);
 }
 
@@ -129,18 +150,22 @@ function headlessArgs(id: ProviderId, prompt: string): string[] {
  * Runs a CLI provider headless in `cwd`. stdout is the answer text (trimmed). Throws httpError(502, …)
  * on a non-zero exit (with a trimmed stderr/stdout tail, docker.ts style) or empty output; a killed
  * process (our own timeout) is a 504, same as docker. claude is not handled here — it is the SDK path.
+ * `model`/`agent` are optional CLI selection flags (opencode --model/--agent, codex --model); both are
+ * shape-validated before spawning.
  */
 export async function askWithProvider(
   id: ProviderId,
   prompt: string,
-  opts: { cwd: string; timeoutMs?: number },
+  opts: { cwd: string; timeoutMs?: number; model?: string; agent?: string },
 ): Promise<AskResult> {
   const meta = providerById(id);
   if (!meta) throw httpError(502, `Unknown provider: ${id}`);
   if (meta.kind !== "cli") throw httpError(502, `Provider ${id} runs through the Claude SDK, not a headless CLI`);
+  if (opts.model !== undefined && !CHOICE_RE.test(opts.model)) throw httpError(400, "Invalid model");
+  if (opts.agent !== undefined && !CHOICE_RE.test(opts.agent)) throw httpError(400, "Invalid agent");
   const cli = resolveCli(meta.binaries, process.platform, providerExec.find);
   if (!cli) throw httpError(502, `${meta.label} is not installed (or not on PATH)`);
-  const argv = headlessArgs(id, prompt);
+  const argv = headlessArgs(id, prompt, opts);
   const timeout = opts.timeoutMs ?? 120_000;
   try {
     const out = await providerExec.run(cli.cmd, [...cli.pre, ...argv], { timeout, cwd: opts.cwd });
@@ -158,6 +183,51 @@ export async function askWithProvider(
       .join("\n")
       .trim();
     throw httpError(502, `${meta.label} failed: ${tail || "no output"}`);
+  }
+}
+
+// ---- provider choices (agent/model lists for the Composer) ------------------------------------
+const choicesCache = new Map<string, { at: number; agents: string[]; models: string[] }>();
+const CHOICES_TTL = 60_000;
+const AGENT_LINE = /^(\S+)\s+\([^)]+\)\s*$/; // "build (primary)" → "build"
+
+/** Empties the choices cache; tests call this between runs. */
+export function clearChoicesCache(): void {
+  choicesCache.clear();
+}
+
+/**
+ * Agent and model lists for one provider in a project cwd. OpenCode only (agent list + models); every
+ * other id returns empty lists. Failures also return empty lists — never throw. Cached 60 s per id+cwd.
+ */
+export async function listProviderChoices(id: ProviderId, cwd: string): Promise<{ agents: string[]; models: string[] }> {
+  if (id !== "opencode") return { agents: [], models: [] };
+  const key = `${id}\0${cwd}`;
+  const hit = choicesCache.get(key);
+  if (hit && Date.now() - hit.at < CHOICES_TTL) return { agents: hit.agents, models: hit.models };
+  const empty = { agents: [], models: [] };
+  try {
+    const cli = resolveCli(["opencode"], process.platform, providerExec.find);
+    if (!cli) return empty;
+    const [agentsOut, modelsOut] = await Promise.all([
+      providerExec.run(cli.cmd, [...cli.pre, "agent", "list"], { timeout: 15_000, cwd }),
+      providerExec.run(cli.cmd, [...cli.pre, "models"], { timeout: 15_000, cwd }),
+    ]);
+    const agents = (agentsOut.stdout ?? "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line)
+      .map((line) => AGENT_LINE.exec(line)?.[1])
+      .filter((name): name is string => !!name);
+    const models = (modelsOut.stdout ?? "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line);
+    const result = { agents, models };
+    choicesCache.set(key, { at: Date.now(), ...result });
+    return result;
+  } catch {
+    return empty;
   }
 }
 
@@ -185,7 +255,7 @@ export async function detectProvider(
   const find = deps?.find ?? providerExec.find;
   const runFn = deps?.run ?? providerExec.run;
   const install = meta.install[platform === "win32" ? "win32" : "posix"];
-  const base = { id: meta.id, label: meta.label, kind: meta.kind, install, loginHint: meta.loginHint };
+  const base = { id: meta.id, label: meta.label, kind: meta.kind, install, loginHint: meta.loginHint, supports: meta.supports };
   if (meta.kind === "sdk") return { ...base, found: true, path: null, version: sdkVersion() };
   const cli = resolveCli(meta.binaries, platform, find);
   if (!cli) return { ...base, found: false, path: null, version: null };

@@ -34,6 +34,7 @@ export const es: Record<string, string> = {
 
   // Card summaries (summaries.ts).
   "Each project's architecture, followed by its agents": "La arquitectura de cada proyecto, respetada por sus agentes",
+  "A project's AGENTS.md and context/, editable in its tab": "El AGENTS.md y context/ de un proyecto, editables en su pestaña",
   "Your concepts, so no agent asks twice": "Tus conceptos, para que ningún agente pregunte dos veces",
   "Containers, images and a dev container per project": "Contenedores, imágenes y un entorno de desarrollo por proyecto",
   "agent-os-nexo's documentation, searchable": "La documentación de agent-os-nexo, con búsqueda",

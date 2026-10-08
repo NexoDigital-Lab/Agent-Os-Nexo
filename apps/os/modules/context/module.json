@@ -1,0 +1,8 @@
+{
+  "name": "context",
+  "version": "1.0.0",
+  "description": "A project's context (AGENTS.md and context/: features, specs, decisions, proposals, the code map) in its tab: browse, edit, and open in VS Code",
+  "owner": "nexo",
+  "dependsOn": ["projects", "sessions"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

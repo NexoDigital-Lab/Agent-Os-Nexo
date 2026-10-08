@@ -117,6 +117,16 @@ written atomically — and every AI's files are regenerated, so it applies to th
 - **Depends on:** shell, projects. **Contributes:** `settings.sections`.
 - **Routes:** `GET /permissions?project=`, `POST /permissions/rule`, `POST /permissions/setting`. **Stores:** library, project context.
 
+## context
+A project's context in its tab (Context view): AGENTS.md and every text document under `context/` — features,
+specs, decisions, proposals, the code map — in a tree, with an editor, a Markdown preview, Ctrl+S, and one click to
+open a document or the whole folder in VS Code. Only those two places (never `secrets/` or `code/`, no symlinks),
+saves are atomic and refused when the file changed on disk meanwhile, and `context/permissions.json` is read-only
+(Settings → Agent permissions edits it). The tab's agents get a one-line note pointing at the context.
+- **Depends on:** projects, sessions. **Contributes:** `tab.views` (Context), a session prompt note.
+- **Routes:** `GET /projects/:id/context`, `GET/PUT /projects/:id/context/file`, `POST /projects/:id/context/open`.
+  **Stores:** the project's context/.
+
 ## docker
 The engine's containers, images, logs and shells; and a mirror dev container per project whose tools
 (python, node, go…) the tab's terminals and agent use first.

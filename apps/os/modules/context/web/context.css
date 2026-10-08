@@ -1,0 +1,31 @@
+.ctx { display: grid; grid-template-columns: 260px 1fr; flex: 1; min-height: 0; }
+.ctx-side { display: flex; flex-direction: column; gap: 8px; padding: 12px 10px; border-right: 1px solid var(--line); min-height: 0; background: var(--bg-2); }
+.ctx-side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+.ctx-side-actions { display: inline-flex; gap: 2px; }
+.ctx-new input.field, .ctx-search input.field { font-size: 12.5px; padding: 6px 8px; }
+.ctx-search { position: relative; display: flex; align-items: center; color: var(--text-3); }
+.ctx-search svg { position: absolute; left: 9px; pointer-events: none; }
+.ctx-search input.field { padding-left: 28px; }
+.ctx-tree { overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.ctx-empty { padding: 20px 6px; font-size: 12.5px; text-align: center; }
+.ctx-group { display: flex; flex-direction: column; gap: 1px; }
+.ctx-folder { font-size: 11px; color: var(--text-3); padding: 2px 6px; }
+.ctx-file {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; text-align: left; border: 0; background: none;
+  color: var(--text-2); font-size: 12.5px; padding: 4px 8px; border-radius: 6px; cursor: pointer;
+}
+.ctx-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-file:hover { background: var(--panel); color: var(--text); }
+.ctx-file.on { background: var(--panel-2); color: var(--text); }
+.ctx-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.ctx-error { padding: 8px 14px; }
+.ctx-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.ctx-path { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.ctx-dirty { color: var(--accent-text); }
+.ctx-bar-actions { display: inline-flex; gap: 6px; }
+.ctx-preview { overflow: auto; flex: 1; max-width: 900px; }
+.ctx-editor {
+  flex: 1; resize: none; border: 0; outline: none; padding: 16px 20px; background: var(--bg); color: var(--text);
+  font-size: 13px; line-height: 1.6; tab-size: 2;
+}
+@media (max-width: 860px) { .ctx { grid-template-columns: 1fr; } .ctx-side { max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--line); } }

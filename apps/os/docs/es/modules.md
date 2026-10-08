@@ -119,6 +119,17 @@ cada IA, así aplica desde la próxima acción.
 - **Depende de:** shell, projects. **Aporta:** `settings.sections`.
 - **Rutas:** `GET /permissions?project=`, `POST /permissions/rule`, `POST /permissions/setting`. **Guarda:** library, contexto del proyecto.
 
+## context
+El contexto de un proyecto en su pestaña (vista Contexto): AGENTS.md y cada documento de texto de `context/` —
+features, specs, decisiones, propuestas, el mapa del código — en un árbol, con editor, vista previa de Markdown,
+Ctrl+S, y un clic para abrir un documento o la carpeta entera en VS Code. Solo esos dos lugares (nunca `secrets/` ni
+`code/`, sin enlaces simbólicos), los guardados son atómicos y se rechazan si el archivo cambió en disco mientras
+tanto, y `context/permissions.json` es de solo lectura (lo edita Ajustes → Permisos de los agentes). Los agentes de
+la pestaña reciben una línea que les indica dónde está el contexto.
+- **Depende de:** projects, sessions. **Aporta:** `tab.views` (Contexto), una nota en el prompt de la sesión.
+- **Rutas:** `GET /projects/:id/context`, `GET/PUT /projects/:id/context/file`, `POST /projects/:id/context/open`.
+  **Guarda:** el context/ del proyecto.
+
 ## docker
 Los contenedores, imágenes, logs y shells del motor; y un contenedor de desarrollo espejo por proyecto
 cuyas herramientas (python, node, go…) usan primero las terminales y el agente de la pestaña.

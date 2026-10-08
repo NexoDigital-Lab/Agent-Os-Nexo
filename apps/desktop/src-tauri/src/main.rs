@@ -320,6 +320,12 @@ fn exit_on_signals(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Err
 }
 
 fn main() {
+    // WebKitGTK's DMA-BUF renderer leaves the window blank or invisible on many Linux setups (Wayland, some GPU
+    // drivers). Off unless the user set the variable themselves; set before any thread starts.
+    #[cfg(target_os = "linux")]
+    if env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
     let port = port_from_env();
     let root = env_root();
 

@@ -36,6 +36,7 @@ export const seg = (s: string) => encodeURIComponent(s);
 export const hostApi = {
   info: () => call<HostInfo>("GET", "/api/os/info"),
   modules: () => call<ModuleRow[]>("GET", "/api/os/modules"),
+  restart: () => call<{ ok: true; boot: string }>("POST", "/api/os/restart"),
   setModule: (id: string, enabled: boolean) => call<{ ok: true; restart: true }>("PUT", "/api/os/modules", { id, enabled }),
   prefs: () => call<Prefs>("GET", "/api/os/prefs"),
   savePrefs: (patch: Prefs) => call<Prefs>("PUT", "/api/os/prefs", patch),

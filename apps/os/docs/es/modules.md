@@ -24,18 +24,18 @@ El marco de la app: el riel, la vista activa, Ajustes, avisos y banners.
 ## themes — core
 Ocho paletas (Nexo por defecto; Night, Amber, Aurora, Ocean, Synthwave, Nexo Light, High contrast) y
 tipografías incluidas, aplicadas como tokens CSS en `:root`; deriva los temas de Monaco, xterm y el grafo de git.
-- **Depende de:** shell. **Aporta:** `settings.sections` (selector de paleta).
+- **Depende de:** shell. **Aporta:** una vista en la barra lateral (Módulos) (selector de paleta).
 - **Guarda:** la elección en `os/data/prefs.json` (`theme`) a través del host, más una caché del navegador
   para el primer pintado.
 
 ## modules — core
 Prender y apagar módulos con chequeo de dependencias (se aplica en el próximo arranque); muestra por qué
 un módulo no cargó.
-- **Depende de:** shell. **Aporta:** `settings.sections`. **Usa:** `GET/PUT /api/os/modules`.
+- **Depende de:** shell. **Aporta:** una vista en la barra lateral (Módulos). **Usa:** `GET/PUT /api/os/modules`.
 
 ## versions — core
 Builds personales: los lista, fija cuál cargar y avisa cuando hay uno más nuevo.
-- **Depende de:** shell. **Aporta:** `settings.sections`, `shell.banners` ("Nueva versión detectada").
+- **Depende de:** shell. **Aporta:** una vista en la barra lateral (Módulos), `shell.banners` ("Nueva versión detectada").
 - **Rutas:** `GET /versions`, `PUT /versions/pin` (escribe `os/current`).
 
 ## projects — core
@@ -101,6 +101,34 @@ Notas libres por proyecto que un agente convierte en features; un tablero de las
 - **Depende de:** shell, projects, sessions. **Vista:** Notas.
 - **Rutas:** `GET/POST /notes`, `PUT/DELETE /notes/:id`, `POST /notes/analyze|accept`,
   `GET /notes/drafts`, `DELETE /notes/drafts/:id`, `POST /notes/drafts/promote`. **Guarda:** data (notas, borradores).
+
+## dictionary
+Tus conceptos (clientes, productos, jerga), un archivo por término en `library/dictionary/`, así ningún agente
+pregunta dos veces qué significa una palabra. Los agentes ven cada término con su resumen en
+`library/index.json` y guardan los nuevos con `nexo dict add` (skill de fábrica `nexo-dictionary`). Lee y escribe
+con `nexo dict`, así el formato y el índice son los mismos desde acá, un agente o una terminal.
+- **Depende de:** shell, projects. **Vista:** Diccionario.
+- **Rutas:** `GET/POST /dictionary`, `GET/PUT/DELETE /dictionary/:term` (PUT puede renombrar). **Guarda:** library (dictionary/).
+
+## permissions
+Lo que los agentes pueden hacer solos, en Ajustes → Permisos de los agentes: las reglas globales
+(`library/permissions.json`) o las de un proyecto encima de ellas (`context/permissions.json`), en columnas
+permitir / preguntar / nunca por área, más las decisiones sueltas (por defecto, generar versión, reiniciar, la bóveda
+SSH). Cada cambio pasa por `nexo permissions` — validado, escrito de forma atómica — y se regeneran los archivos de
+cada IA, así aplica desde la próxima acción.
+- **Depende de:** shell, projects. **Aporta:** `settings.sections`.
+- **Rutas:** `GET /permissions?project=`, `POST /permissions/rule`, `POST /permissions/setting`. **Guarda:** library, contexto del proyecto.
+
+## context
+El contexto de un proyecto en su pestaña (vista Contexto): AGENTS.md y cada documento de texto de `context/` —
+features, specs, decisiones, propuestas, el mapa del código — en un árbol, con editor, vista previa de Markdown,
+Ctrl+S, y un clic para abrir un documento o la carpeta entera en VS Code. Solo esos dos lugares (nunca `secrets/` ni
+`code/`, sin enlaces simbólicos), los guardados son atómicos y se rechazan si el archivo cambió en disco mientras
+tanto, y `context/permissions.json` es de solo lectura (lo edita Ajustes → Permisos de los agentes). Los agentes de
+la pestaña reciben una línea que les indica dónde está el contexto.
+- **Depende de:** projects, sessions. **Aporta:** `tab.views` (Contexto), una nota en el prompt de la sesión.
+- **Rutas:** `GET /projects/:id/context`, `GET/PUT /projects/:id/context/file`, `POST /projects/:id/context/open`.
+  **Guarda:** el context/ del proyecto.
 
 ## docker
 Los contenedores, imágenes, logs y shells del motor; y un contenedor de desarrollo espejo por proyecto

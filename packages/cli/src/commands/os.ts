@@ -6,7 +6,8 @@ import { findRoot } from "../core/paths.ts";
 import { folder, readConfig } from "../core/config.ts";
 import { activeVersion, listVersions, nextVersion, pinVersion } from "../core/osversions.ts";
 import { abortUpdate, continueUpdate, updateSource } from "../core/osupdate.ts";
-import { accessLink, buildVersion, defaultRunner, fetchSource, logFile, withRelease, openerFor, PORTS, runningPid, runningPort, startProcess, stopProcesses, type Runner } from "../core/osruntime.ts";
+import { downloadDesktop } from "../core/desktop.ts";
+import { accessLink, buildVersion, defaultRunner, fetchSource, logFile, withRelease, openerFor, PORTS, runningPid, runningPort, smokeTest, startProcess, stopProcesses, type Runner } from "../core/osruntime.ts";
 import { createDesktopShortcut } from "../core/desktopShortcut.ts";
 
 export interface OsOptions {
@@ -22,12 +23,13 @@ export interface OsOptions {
 }
 
 /** What install reaches outside the environment. Tests replace it so no real shortcut lands on a desktop. */
-export const osDeps = { createDesktopShortcut };
+/** Swappable for tests: the Windows shortcut, and the test start of a fresh build (osruntime.ts smokeTest). */
+export const osDeps = { createDesktopShortcut, smoke: smokeTest, downloadDesktop };
 
 /** The repository this CLI runs from (packages/cli/{src,dist}/commands → four up), where a desktop build may live. */
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
-const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], open [--preview], check [--module <id>], update [--from <dir>|--continue|--abort].";
+const USAGE = "Use: status, versions, next, use <x.y.z|latest>, install [--from <dir>], desktop [<tag>], build [--notes <text>], start [--port <n>], preview [--port <n>], stop [--preview|--all], open [--preview], check [--module <id>], update [--from <dir>|--continue|--abort].";
 
 export async function os(action: string | undefined, arg: string | undefined, opts: OsOptions, run: Runner = defaultRunner): Promise<string> {
   const root = findRoot(opts.root);
@@ -76,7 +78,7 @@ export async function os(action: string | undefined, arg: string | undefined, op
       if (versions.length) throw new Error(`agent-os-nexo is already installed (${versions.length} build(s)). Use \`nexo os build\` for a new version.`);
       // A previous install that copied the source but failed to build picks up where it stopped.
       const fetched = hasSource && !opts.from ? "resumed with the source already in os/source" : fetchSource(osDir, opts.from, run);
-      const version = buildVersion(osDir, "First build", run);
+      const version = await buildVersion(osDir, "First build", run, osDeps.smoke);
       const lines = [`agent-os-nexo installed (${fetched}) and built as ${version}.`, "Start it with `nexo os start`."];
       // Windows: a desktop shortcut to the desktop shell, so the app opens like any other program.
       const shortcut = osDeps.createDesktopShortcut(REPO_ROOT);
@@ -84,7 +86,7 @@ export async function os(action: string | undefined, arg: string | undefined, op
       return lines.join("\n");
     }
     case "build": {
-      const version = buildVersion(osDir, opts.notes ?? "", run);
+      const version = await buildVersion(osDir, opts.notes ?? "", run, osDeps.smoke);
       const running = runningPid(stateDir, "app");
       return running
         ? `Built ${version}. The running agent-os-nexo will offer to restart into it; it never restarts on its own.`
@@ -122,6 +124,11 @@ export async function os(action: string | undefined, arg: string | undefined, op
       // Just the app by default: an agent stopping its preview must never take down the agent-os-nexo it runs in.
       const stopped = stopProcesses(stateDir, opts.all ? ["app", "preview"] : opts.preview ? ["preview"] : ["app"]);
       return stopped.length ? `Stopped: ${stopped.join(", ")}.` : "agent-os-nexo was not running.";
+    }
+    case "desktop": {
+      // The desktop app's installer for this machine, from the GitHub releases, checksum-verified (desktop.ts).
+      const got = await osDeps.downloadDesktop({ dir: join(osDir, "desktop"), tag: arg });
+      return [`Downloaded agent-os-nexo desktop ${got.version} → ${got.file}`, `SHA-256 ${got.sha256} (matches the release).`, got.hint].join("\n");
     }
     case "update": {
       // A new Nexo release merged into the user's version (osupdate.ts): their changes stay, conflicts are shown.

@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { basesDir, CONFIG_FILE, defaultRoot, expandHome } from "../core/paths.ts";
+import { onPath } from "../core/exec.ts";
 import { DEFAULT_FOLDERS, TOOLS, writeConfig, type EnvironmentConfig, type Tool } from "../core/config.ts";
 import { copyFileSync } from "node:fs";
 import { ensureDir, readJson, writeJson, writeText } from "../core/fsx.ts";
@@ -38,7 +39,9 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
     if (existsSync(join(root, CONFIG_FILE))) {
       throw new Error(`${root} already holds a Nexo environment. Use \`nexo update\` instead.`);
     }
-    const toolList = (opts.tools ?? (await asker.ask(`AIs to enable (${TOOLS.join(", ")})`, "claude")))
+    // Offer the AIs this machine already has (not everyone uses Claude); Claude when none is found.
+    const installed = TOOLS.filter((t) => onPath(t));
+    const toolList = (opts.tools ?? (await asker.ask(`AIs to enable (${TOOLS.join(", ")})`, installed.join(",") || "claude")))
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
@@ -73,7 +76,7 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
     writeJson(join(library, "memory", "index.json"), []);
     writeText(
       join(library, "dictionary", "README.md"),
-      "# dictionary\n\nOne file per term or name of your domain (clients, products, jargon). Agents read it when a term is unclear.",
+      "# dictionary\n\nYour concepts, one file per term (clients, products, jargon), so no agent asks twice. Save one with\n`nexo dict add <term> --summary <s>`, or tell an agent \"guardá este concepto\". Agents see every term in\nlibrary/index.json and open the file when they need the details.",
     );
     const profile = readJson<Record<string, unknown>>(join(basesDir, "library", "profile.json"));
     writeJson(join(library, "profile.json"), { ...profile, identity: { name, email }, language });

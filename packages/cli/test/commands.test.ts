@@ -130,11 +130,13 @@ test("init refuses an existing environment and unknown options", async () => {
   await assert.rejects(init({ root: join(tempDir(), "y"), yes: true, preset: "yolo" }), /Unknown preset/);
 });
 
-test("doctor: a fresh environment only asks for an OS analysis", async () => {
+test("doctor: a fresh environment only asks for an OS analysis, and says what Gemini cannot enforce", async () => {
   const root = await freshEnv();
   const findings = diagnose(root);
-  assert.deepEqual(findings.map((f) => f.area), ["analysis"]);
-  assert.equal(findings[0]?.level, "warn");
+  assert.deepEqual(findings.map((f) => f.area), ["gemini", "analysis"]);
+  assert.ok(findings.every((f) => f.level === "warn"));
+  assert.match(findings[0]!.message, /^not enforced by gemini: command deny rules/);
+  assert.deepEqual(diagnose(await freshEnv("claude")).map((f) => f.area), ["analysis"], "Claude enforces every rule");
 });
 
 test("doctor: flags broken skills and agents above the model ceiling", async () => {
@@ -163,7 +165,7 @@ test("analyze records the OS summary and clears the doctor warning", async () =>
   const system = readConfig(root).system;
   assert.ok(system);
   assert.equal(system.toolchains.node, process.versions.node);
-  assert.deepEqual(diagnose(root), []);
+  assert.deepEqual(diagnose(root).filter((f) => f.area !== "gemini"), [], "only Gemini's known gaps remain");
 });
 
 test("update keeps user-owned items and restores factory ones", async () => {
@@ -352,6 +354,35 @@ test("os start runs the active build in the background and os stop ends it", asy
   for (let i = 0; i < 50 && isAlive(pid); i++) await new Promise((r) => setTimeout(r, 20));
   assert.ok(!isAlive(pid), "the process is gone");
   assert.equal(await os("stop", undefined, { root }), "agent-os-nexo was not running.");
+});
+
+test("os start still recognizes a pre-rename build, which stamps only X-Agent-OS", async () => {
+  const root = await freshEnv("claude");
+  await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
+  writeFileSync(join(root, "os", "versions", "1.0.0", "host", "server", "main.ts"), FAKE_MAIN.replace("X-Agent-OS-Nexo", "X-Agent-OS"));
+  const port = String(await freePort());
+  try {
+    assert.match(await os("start", undefined, { root, port }), /agent-os-nexo 1\.0\.0 started/);
+  } finally {
+    await os("stop", undefined, { root });
+  }
+});
+
+test("os start tells the server its pid file and log, so a restart it does itself stays stoppable", async () => {
+  const root = await freshEnv("claude");
+  await os("install", undefined, { root, from: fakeOsSource() }, fakeRunner([]));
+  const seen = join(root, "seen.json");
+  writeFileSync(join(root, "os", "versions", "1.0.0", "host", "server", "main.ts"),
+    `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(seen)}, JSON.stringify({ pid: process.env.NEXO_PID_FILE, log: process.env.NEXO_LOG_FILE }));\n${FAKE_MAIN}`);
+  const port = String(await freePort());
+  try {
+    await os("start", undefined, { root, port });
+    const env = JSON.parse(readFileSync(seen, "utf8")) as { pid: string; log: string };
+    assert.equal(env.pid, join(root, ".state", "os", "app.pid"));
+    assert.equal(env.log, join(root, ".state", "os", "app.log"));
+  } finally {
+    await os("stop", undefined, { root });
+  }
 });
 
 test("init --os yes installs agent-os-nexo; the default leaves it for later", async () => {

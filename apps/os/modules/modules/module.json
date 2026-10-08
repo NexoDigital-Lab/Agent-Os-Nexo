@@ -9,5 +9,10 @@
   ],
   "entry": {
     "web": "web/index.tsx"
+  },
+  "nav": {
+    "label": "Modules",
+    "icon": "blocks",
+    "order": 95
   }
 }

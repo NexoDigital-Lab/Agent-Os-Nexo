@@ -7,10 +7,11 @@ import { pathToFileURL } from "node:url";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { activeModules, discoverModules, readState } from "../../src/core/modules.ts";
 import type { Env } from "./env.ts";
-import { issueAccess } from "./access.ts";
+import { issueAccess, takeInheritedToken } from "./access.ts";
 import { guardRequest } from "./http.ts";
 import type { ModuleContext, ModuleServer } from "./module-api.ts";
 import { mountModules } from "./mount.ts";
+import { exitForRestart, relaunchPlan, startRelaunch } from "./restart.ts";
 import { hostRoutes } from "./routes.ts";
 
 export interface AppOptions {
@@ -23,6 +24,8 @@ export interface AppOptions {
   version: string;
   /** Where problems found while loading are reported. */
   warn?: (message: string) => void;
+  /** What POST /api/os/restart does; tests pass a fake so nothing exits. Default: relaunch and exit (restart.ts). */
+  restart?: () => void;
 }
 
 export interface App {
@@ -42,7 +45,7 @@ export async function createAgentOsNexo(opts: AppOptions): Promise<App> {
   const active = activeModules(discovery.modules, readState(modulesFile));
 
   const app = express();
-  const token = issueAccess(env.state, port);
+  const token = issueAccess(env.state, port, takeInheritedToken());
   app.use(guardRequest(port)); // before everything, Vite's middleware included
   app.use(express.json({ limit: "2mb" }));
   const api = express.Router();
@@ -50,7 +53,8 @@ export async function createAgentOsNexo(opts: AppOptions): Promise<App> {
   const server = createServer(app);
 
   const failed = new Map<string, string>();
-  api.use(hostRoutes({ env, appDir, version, dev, discovery, active, modulesFile, failed }));
+  const restart = opts.restart ?? (() => (startRelaunch(relaunchPlan({ appDir, env, port, dev, token })), exitForRestart()));
+  api.use(hostRoutes({ env, appDir, version, dev, discovery, active, modulesFile, failed, restart }));
 
   await mountModules({
     modules: discovery.modules,

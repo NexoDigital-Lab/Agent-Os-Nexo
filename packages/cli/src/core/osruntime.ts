@@ -3,9 +3,9 @@
 // processes (pid + log in .state/os). Everything here shells out to node, npm and tar: no runtime dependencies.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { closeSync, cpSync, existsSync, lstatSync, mkdtempSync, openSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { closeSync, cpSync, existsSync, lstatSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { ensureDir, linkDir, readJson, readText, writeJson, writeText } from "./fsx.ts";
 import { spawnable, tryRun } from "./exec.ts";
 import { activeVersion, listVersions, nextVersion } from "./osversions.ts";
@@ -43,9 +43,50 @@ export function runtimeDeps(pkg: Pkg): Record<string, string> {
   return Object.fromEntries(Object.entries(all).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-/** Short, stable id of a dependency set: builds with the same dependencies share one runtime. */
-export function runtimeHash(pkg: Pkg): string {
-  return createHash("sha256").update(JSON.stringify(runtimeDeps(pkg))).digest("hex").slice(0, 12);
+/**
+ * The machine a runtime is built for: OS, CPU and Node's module ABI. Native dependencies (node-pty) are compiled or
+ * downloaded for exactly this, so an environment used from two machines (a synced folder, WSL and Windows) must never
+ * share one runtime between them.
+ */
+export function currentTarget(): string {
+  return `${process.platform}-${process.arch}-node${process.versions.modules}`;
+}
+
+/** Short, stable id of a dependency set on a target: same dependencies on the same kind of machine share a runtime. */
+export function runtimeHash(pkg: Pkg, target = currentTarget()): string {
+  return createHash("sha256").update(JSON.stringify({ deps: runtimeDeps(pkg), target })).digest("hex").slice(0, 12);
+}
+
+/** Written next to a runtime's node_modules: which target it was installed for (doctor compares it). */
+export const TARGET_FILE = ".target";
+
+const SUPPORTED = { platforms: ["linux", "darwin", "win32"], arches: ["x64", "arm64"] };
+
+/** True when `version` (x.y.z) meets a `>=x.y(.z)` range; any other range form is not checked here (npm does). */
+export function meetsEngine(version: string, range: string): boolean {
+  const m = /^>=\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?\s*$/.exec(range.trim());
+  if (!m) return true;
+  const want = [Number(m[1]), Number(m[2] ?? 0), Number(m[3] ?? 0)];
+  const have = version.replace(/^v/, "").split(".").map((n) => Number.parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) if ((have[i] ?? 0) !== want[i]) return (have[i] ?? 0) > (want[i] ?? 0);
+  return true;
+}
+
+const NODE_HINT: Record<string, string> = {
+  win32: "winget install OpenJS.NodeJS.LTS",
+  darwin: "brew install node (or the installer from nodejs.org)",
+  linux: "your package manager (dnf/apt install nodejs) or nodejs.org",
+};
+
+/** Refuses to build on a machine the build would not run on: unsupported OS/CPU, or a Node older than `engines`. */
+export function preflight(sourceDir: string, platform: string = process.platform, arch: string = process.arch, node = process.versions.node): void {
+  if (!SUPPORTED.platforms.includes(platform) || !SUPPORTED.arches.includes(arch)) {
+    throw new Error(`agent-os-nexo runs on ${SUPPORTED.platforms.join("/")} with ${SUPPORTED.arches.join("/")}; this machine is ${platform}-${arch}.`);
+  }
+  const range = readJson<Pkg & { engines?: { node?: string } }>(join(sourceDir, "package.json")).engines?.node;
+  if (range && !meetsEngine(node, range)) {
+    throw new Error(`agent-os-nexo needs Node ${range}; this is ${node}. Update it: ${NODE_HINT[platform] ?? "nodejs.org"}.`);
+  }
 }
 
 /** Written after npm succeeds: a node_modules without it is an interrupted install, never reused. */
@@ -62,6 +103,7 @@ export function ensureRuntime(osDir: string, sourceDir: string, run: Runner = de
   writeJson(join(dir, "package.json"), { name: "agent-os-nexo-runtime", private: true, type: "module", dependencies: runtimeDeps(pkg) });
   run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error"], dir);
   if (!existsSync(join(dir, "node_modules"))) throw new Error(`npm did not create ${join(dir, "node_modules")}.`);
+  writeText(join(dir, TARGET_FILE), currentTarget());
   writeText(join(dir, READY), new Date().toISOString());
   return { hash, dir, installed: true };
 }
@@ -120,10 +162,62 @@ export function fetchSource(osDir: string, from: string | undefined, run: Runner
   });
 }
 
-/** Builds os/source into os/versions/<next> (written to a temp folder first, so a failed build leaves nothing). */
-export function buildVersion(osDir: string, notes = "", run: Runner = defaultRunner): string {
+/** Starts a fresh build and says what went wrong, or null when it answered and every module loaded. */
+export type SmokeTest = (buildDir: string, root: string) => Promise<string | null>;
+
+/**
+ * The build must run on this machine: started on a free port, it has to answer /api/os/info as agent-os-nexo and
+ * load every module (a native dependency built for another OS fails right there). Stopped afterwards.
+ */
+export const smokeTest: SmokeTest = async (buildDir, root) => {
+  const port = await freePort();
+  const log = join(mkdtempSync(join(tmpdir(), "nexo-smoke-")), "server.log");
+  const fd = openSync(log, "a");
+  let child;
+  try {
+    child = spawn(process.execPath, [join(buildDir, "host", "server", "main.ts"), "--port", String(port)], {
+      cwd: buildDir, detached: true, windowsHide: true, stdio: ["ignore", fd, fd], env: { ...process.env, NEXO_ROOT: root, NEXO_PID_FILE: "", NEXO_LOG_FILE: "" },
+    });
+  } finally {
+    closeSync(fd);
+  }
+  let exited = false;
+  child.once("exit", () => (exited = true));
+  try {
+    let up = false;
+    for (const until = Date.now() + 60_000; Date.now() < until && !exited && !up; ) {
+      up = await answers(port);
+      if (!up) await sleep(250);
+    }
+    const out = existsSync(log) ? readFileSync(log, "utf8") : "";
+    if (!up) return `it ${exited ? "exited" : "did not answer"} on a test start.\n${out.trimEnd().split("\n").slice(-12).join("\n")}`;
+    const failed = out.split("\n").filter((l) => /failed to load/.test(l));
+    return failed.length ? `some modules did not load on this machine:\n${failed.join("\n")}` : null;
+  } finally {
+    if (child.pid && !exited) killTree(child.pid);
+    rmSync(join(root, ".state", "os", `token-${port}`), { force: true });
+    rmSync(dirname(log), { recursive: true, force: true });
+  }
+};
+
+async function freePort(): Promise<number> {
+  const { createServer } = await import("node:net");
+  return new Promise((resolve, reject) => {
+    const srv = createServer().once("error", reject).listen(0, "127.0.0.1", () => {
+      const port = (srv.address() as { port: number }).port;
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
+/**
+ * Builds os/source into os/versions/<next> (written to a temp folder first, so a failed build leaves nothing), after a
+ * preflight of this machine, and keeps it only if it starts here (smokeTest).
+ */
+export async function buildVersion(osDir: string, notes = "", run: Runner = defaultRunner, smoke: SmokeTest = smokeTest): Promise<string> {
   const source = join(osDir, "source");
   if (!existsSync(join(source, "scripts", "build.ts"))) throw new Error(`No agent-os-nexo source in ${source}. Run \`nexo os install\` first.`);
+  preflight(source);
   const runtime = ensureRuntime(osDir, source, run);
   linkRuntime(source, runtime.dir);
   const version = nextVersion(listVersions(osDir).at(-1) ?? null);
@@ -137,13 +231,34 @@ export function buildVersion(osDir: string, notes = "", run: Runner = defaultRun
     // --opt=value: a value starting with "-" would otherwise read as another option.
     run(process.execPath, [join(source, "scripts", "build.ts"), `--out=${tmp}`, `--version=${version}`, `--notes=${notes}`, `--runtime=${runtime.hash}`], source);
     linkRuntime(tmp, runtime.dir);
-    renameSync(tmp, final);
-    tagBuild(source, version);
   } catch (e) {
     rmSync(tmp, { recursive: true, force: true });
     throw e;
   }
+  const problem = await smoke(tmp, dirname(osDir));
+  if (problem) {
+    rmSync(tmp, { recursive: true, force: true });
+    throw new Error(`Build ${version} was not kept: ${problem}`);
+  }
+  renameSync(tmp, final);
+  tagBuild(source, version);
   return version;
+}
+
+/** The target the runtime of a build was installed for, or null when unknown (a runtime from before targets). */
+export function buildTarget(osDir: string, version: string): string | null {
+  const dir = join(osDir, "versions", version);
+  try {
+    // build.json names its runtime; resolving the node_modules link is the fallback (on Windows it is a junction,
+    // which Node 22's realpathSync does not resolve the same way: the native one does).
+    const meta = join(dir, "build.json");
+    const hash = existsSync(meta) ? readJson<{ runtime?: string }>(meta).runtime : undefined;
+    const runtime = hash ? join(osDir, "runtime", hash) : dirname(realpathSync.native(join(dir, "node_modules")));
+    const file = join(runtime, TARGET_FILE);
+    return existsSync(file) ? readText(file).trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 // ── processes ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -224,11 +339,14 @@ export function runningPid(stateDir: string, p: OsProcess): number | null {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Answers like agent-os-nexo: 200 from /api/os/info, stamped X-Agent-OS-Nexo (a foreign program on the port doesn't count). */
+/** The identity stamps: X-Agent-OS-Nexo since the rename, X-Agent-OS on builds made before it (still installed). */
+const IDENTITY_HEADERS = ["x-agent-os-nexo", "x-agent-os"];
+
+/** Answers like agent-os-nexo: 200 from /api/os/info, stamped with an identity header (a foreign program doesn't count). */
 async function answers(port: number): Promise<boolean> {
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/os/info`, { signal: AbortSignal.timeout(1500) });
-    return res.ok && res.headers.get("x-agent-os-nexo") === "1";
+    return res.ok && IDENTITY_HEADERS.some((h) => res.headers.get(h) === "1");
   } catch {
     return false;
   }
@@ -265,7 +383,7 @@ export async function startProcess(
   const args = [join(dir, "host", "server", "main.ts"), "--port", String(port), ...(p === "preview" ? ["--dev"] : [])];
   let child;
   try {
-    child = spawn(process.execPath, args, { cwd: dir, detached: true, windowsHide: true, stdio: ["ignore", fd, fd], env: { ...process.env, NEXO_ROOT: root } });
+    child = spawn(process.execPath, args, { cwd: dir, detached: true, windowsHide: true, stdio: ["ignore", fd, fd], env: { ...process.env, NEXO_ROOT: root, NEXO_PID_FILE: pidFile(stateDir, p), NEXO_LOG_FILE: log } });
   } finally {
     closeSync(fd); // the child has its own copy
   }

@@ -24,13 +24,18 @@ export const dockerSys: {
   platform: NodeJS.Platform;
   /** Docker Desktop's exe on Windows when installed; null otherwise (tests set this). */
   desktop: string | null;
+  /** Whether a file is there; `desktop` is found once at startup, so it is checked again before launching. */
+  exists: (file: string) => boolean;
   /** The Desktop launcher; tests swap it so no real Docker Desktop starts. */
   spawnDesktop: (exe: string) => void;
 } = {
   platform: process.platform,
   desktop: winDesktopExe(),
+  exists: existsSync,
   spawnDesktop: (exe) => {
-    spawn(exe, [], { detached: true, stdio: "ignore", windowsHide: false }).unref();
+    const child = spawn(exe, [], { detached: true, stdio: "ignore", windowsHide: false });
+    child.on("error", () => {}); // an exe that cannot start must never take the whole server down
+    child.unref();
   },
 };
 
@@ -106,6 +111,7 @@ export async function info(): Promise<DockerInfo> {
 /** Starts Docker Desktop (Windows-only in practice: desktop is null elsewhere). */
 export function openDockerDesktop(): { ok: true; path: string } {
   if (!dockerSys.desktop) throw httpError(400, "Docker Desktop is not installed");
+  if (!dockerSys.exists(dockerSys.desktop)) throw httpError(400, "Docker Desktop is no longer installed");
   dockerSys.spawnDesktop(dockerSys.desktop);
   return { ok: true, path: dockerSys.desktop };
 }

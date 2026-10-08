@@ -1,5 +1,10 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
+  "agent-os-nexo did not come back. Start it with `nexo os start`.": "agent-os-nexo no volvió. Arrancalo con `nexo os start`.",
+  "Restart agent-os-nexo now": "Reiniciar agent-os-nexo ahora",
+  "Restart now": "Reiniciar ahora",
+  "Restart? Open sessions and terminals end": "¿Reiniciar? Se cierran las sesiones y terminales abiertas",
+  "Restarting…": "Reiniciando…",
   "The link is also printed by `nexo os start`. The desktop app opens it by itself.": "`nexo os start` también muestra el link. La app de escritorio lo abre sola.",
   "Each run of agent-os-nexo has its own access link, so no other program on this computer can use it.": "Cada ejecución de agent-os-nexo tiene su propio link de acceso, así ningún otro programa de esta computadora puede usarlo.",
   "Open agent-os-nexo with its access link": "Abrí agent-os-nexo con su link de acceso",

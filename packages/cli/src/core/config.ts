@@ -47,5 +47,6 @@ export function enabledTools(config: EnvironmentConfig): Tool[] {
 }
 
 export function folder(root: string, config: EnvironmentConfig, key: keyof EnvironmentConfig["folders"]): string {
-  return join(root, config.folders[key]);
+  // A config that leaves a folder out gets the standard one (agent-os applies the same defaults).
+  return join(root, (config.folders as Partial<EnvironmentConfig["folders"]> | undefined)?.[key] ?? DEFAULT_FOLDERS[key]);
 }

@@ -1,0 +1,23 @@
+.perm-settings { display: flex; flex-direction: column; gap: 18px; }
+.perm-intro { margin: 0; font-size: 13px; line-height: 1.5; }
+.perm-scope { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.perm-scope select.field { width: auto; min-width: 240px; }
+.perm-block { display: flex; flex-direction: column; gap: 8px; }
+.perm-hint { font-size: 12px; margin-top: -4px; }
+.perm-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.perm-setting { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--text-2); }
+.perm-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.perm-col { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; min-height: 64px; padding: 10px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.perm-col-head { width: 100%; font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+.perm-col.allow .perm-col-head { color: var(--ok); }
+.perm-col.ask .perm-col-head { color: var(--accent-text); }
+.perm-col.deny .perm-col-head { color: var(--bad); }
+.perm-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 2px 4px 2px 8px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line-2); max-width: 100%; overflow-wrap: anywhere; }
+.perm-chip button { border: 0; background: none; color: var(--text-3); cursor: pointer; padding: 2px; border-radius: 4px; display: grid; place-items: center; }
+.perm-chip button:hover { color: var(--bad); }
+.perm-chip.inherited { opacity: .55; padding-right: 8px; border-style: dashed; }
+.perm-none { font-size: 12px; }
+.perm-add { display: flex; gap: 8px; align-items: center; }
+.perm-add input.field { flex: 1; min-width: 0; }
+.perm-add select.field { width: auto; }
+@media (max-width: 760px) { .perm-cols { grid-template-columns: 1fr; } }

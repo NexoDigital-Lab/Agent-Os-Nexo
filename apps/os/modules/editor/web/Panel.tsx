@@ -132,7 +132,7 @@ export function Panel({ tab, view, setView, height, onClose, problems: problemsP
 
       <div className="panel-body" style={{ display: view === "terms" ? "block" : "none" }}>
         {!terminals ? (
-          <div className="faint" style={{ padding: 12, fontSize: 13 }}>{tr("The terminal submodule is off: turn it on in Settings → Modules.")}</div>
+          <div className="faint" style={{ padding: 12, fontSize: 13 }}>{tr("The terminal submodule is off: turn it on in Modules.")}</div>
         ) : terms.length === 0 && <div className="faint" style={{ padding: 12, fontSize: 13 }}>{tr("No terminals.")} <Plus size={13} /> {tr("to open one.")}</div>}
         {terms.map((t) => (
           <div key={t.id} className="term-pane" style={{ display: active === t.id ? "block" : "none" }}>

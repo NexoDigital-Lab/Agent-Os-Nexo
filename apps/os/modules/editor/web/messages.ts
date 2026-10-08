@@ -96,7 +96,7 @@ export const es: Record<string, string> = {
   "Terminal: show/hide the panel": "Terminal: mostrar/ocultar panel",
   "Terminals": "Terminales",
   "Terminals, problems and environment (Ctrl+`)": "Terminales, problemas y entorno (Ctrl+`)",
-  "The terminal submodule is off: turn it on in Settings → Modules.": "El submódulo de terminal está apagado: activalo en Ajustes → Módulos.",
+  "The terminal submodule is off: turn it on in Modules.": "El submódulo de terminal está apagado: activalo en Módulos.",
   "Types into a new terminal: {cmd} (you run it with Enter)": "Escribe en una terminal nueva: {cmd} (lo corrés vos con Enter)",
   "Use the nexo-onboard skill on this project: fill its AGENTS.md and context/.": "Usá la skill nexo-onboard en este proyecto: completá su AGENTS.md y context/.",
   "View problems": "Ver problemas",

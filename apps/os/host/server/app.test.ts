@@ -41,7 +41,8 @@ const port = await new Promise<number>((r) => {
     probe.close(() => r(p));
   });
 });
-const { server, token, failed } = await createAgentOsNexo({ appDir: dir, env, port, dev: false, version: readVersion(dir), warn: (m) => warnings.push(m) });
+let restarts = 0;
+const { server, token, failed } = await createAgentOsNexo({ appDir: dir, env, port, dev: false, version: readVersion(dir), warn: (m) => warnings.push(m), restart: () => restarts++ });
 await new Promise<void>((r) => server.listen(port, "127.0.0.1", r));
 after(() => (server.closeAllConnections(), server.close()));
 
@@ -79,7 +80,7 @@ test("the guard runs first: no token, no API; a foreign origin cannot change any
 
 test("the host routes: info, modules, prefs", async () => {
   const info = (await call("GET", "/api/os/info")).body;
-  assert.deepEqual({ ...info, environment: undefined }, { version: "1.0.0", dev: false, newer: null, environment: undefined, language: "es", user: "Ana" });
+  assert.deepEqual({ ...info, environment: undefined, boot: undefined }, { version: "1.0.0", dev: false, newer: null, environment: undefined, language: "es", user: "Ana", boot: undefined });
   const modules = (await call("GET", "/api/os/modules")).body as Array<{ id: string; active: boolean; error: string | null; enabled: boolean }>;
   assert.deepEqual(modules.map((m) => [m.id, m.active, m.error !== null]), [["hello", true, false], ["broken", false, true]]);
 
@@ -121,4 +122,16 @@ test("readVersion: build.json's personal version, else the package's", () => {
   assert.equal(readVersion(d), "1.0.0");
   writeFileSync(join(d, "build.json"), JSON.stringify({ version: "1.0.7" }));
   assert.equal(readVersion(d), "1.0.7");
+});
+
+test("restart: only with the token, once, after the answer is sent; info carries a boot id", async () => {
+  const info = await call("GET", "/api/os/info", undefined, {});
+  assert.match(info.body.boot, /^[0-9a-f-]{36}$/);
+  assert.equal((await call("POST", "/api/os/restart", undefined, {})).status, 401, "no token, no restart");
+  const first = await call("POST", "/api/os/restart");
+  assert.deepEqual(first.body, { ok: true, boot: info.body.boot });
+  for (let i = 0; i < 50 && restarts === 0; i++) await new Promise((r) => setTimeout(r, 20));
+  assert.equal(restarts, 1);
+  assert.equal((await call("POST", "/api/os/restart")).status, 409, "a second click while restarting is refused");
+  assert.equal(restarts, 1);
 });

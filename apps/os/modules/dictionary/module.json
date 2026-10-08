@@ -1,0 +1,9 @@
+{
+  "name": "dictionary",
+  "version": "1.0.0",
+  "description": "Your concepts in library/dictionary: search, add, edit and delete the terms every agent reads",
+  "owner": "nexo",
+  "dependsOn": ["shell", "projects"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Dictionary", "icon": "book-a", "order": 32 }
+}

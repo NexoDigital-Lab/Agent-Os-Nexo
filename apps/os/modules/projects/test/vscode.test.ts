@@ -5,7 +5,7 @@ import { EventEmitter } from "node:events";
 import { chmodSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tempDir } from "../../../host/test/harness.ts";
-import { codeRun, installExtension, installed, isEditorOnly, openInEditor, resolveCodeBin, VSCODE_ID, vscodeExec } from "../server/vscode.ts";
+import { codeCliOf, codeRun, installExtension, installed, isEditorOnly, openInEditor, resolveCodeBin, VSCODE_ID, vscodeExec } from "../server/vscode.ts";
 
 const skip = process.platform === "win32" ? "the fake code is a unix script" : false;
 
@@ -93,20 +93,37 @@ test("resolveCodeBin on POSIX keeps the flatpak chain", () => {
   assert.equal(resolveCodeBin("linux", () => null), "code");
 });
 
-test("codeRun routes a .cmd bin through cmd.exe /c, a plain bin directly", async () => {
+const VS = "C:\\Users\\u\\AppData\\Local\\Programs\\Microsoft VS Code";
+const CODE_CMD = `${VS}\\bin\\code.cmd`;
+const VS_SHIM = '@echo off\r\nsetlocal\r\nset VSCODE_DEV=\r\nset ELECTRON_RUN_AS_NODE=1\r\n"%~dp0..\\Code.exe" "%~dp0..\\resources\\app\\out\\cli.js" %*\r\nendlocal\r\n';
+const PLAN = { file: `${VS}\\Code.exe`, pre: [`${VS}\\resources\\app\\out\\cli.js`] };
+
+test("codeCliOf reads Code.exe and cli.js out of code.cmd, or the standard layout; null when absent", () => {
+  assert.deepEqual(codeCliOf(CODE_CMD, () => VS_SHIM, () => true), PLAN);
+  assert.deepEqual(codeCliOf(CODE_CMD, () => "@echo off\r\n", () => true), PLAN, "an unfamiliar shim: the layout next to it");
+  assert.equal(codeCliOf(CODE_CMD, () => VS_SHIM, () => false), null);
+});
+
+test("codeRun: a plain bin directly; a .cmd as Code.exe + cli.js with ELECTRON_RUN_AS_NODE, never cmd.exe", async () => {
   const real = vscodeExec.run;
-  const calls: { cmd: string; args: string[] }[] = [];
-  vscodeExec.run = (async (cmd: string, args: string[]) => {
-    calls.push({ cmd, args });
+  const calls: { cmd: string; args: string[]; env?: NodeJS.ProcessEnv }[] = [];
+  vscodeExec.run = (async (cmd: string, args: string[], opts?: { env?: NodeJS.ProcessEnv }) => {
+    calls.push({ cmd, args, env: opts?.env });
     return { stdout: "x" };
   }) as never;
   try {
-    assert.deepEqual(await codeRun("foo.cmd", ["--list-extensions"], { timeout: 5 }), { stdout: "x" });
-    const comspec = process.env.ComSpec ?? "cmd.exe";
-    assert.deepEqual(calls, [{ cmd: comspec, args: ["/c", "foo.cmd", "--list-extensions"] }]);
-    calls.length = 0;
     assert.deepEqual(await codeRun("code", ["--list-extensions"]), { stdout: "x" });
-    assert.deepEqual(calls, [{ cmd: "code", args: ["--list-extensions"] }]);
+    assert.deepEqual(calls.at(-1), { cmd: "code", args: ["--list-extensions"], env: undefined });
+    await codeRun(CODE_CMD, ["--install-extension", "a.b"], { timeout: 5 }, () => PLAN);
+    assert.equal(calls.at(-1)?.cmd, PLAN.file);
+    assert.deepEqual(calls.at(-1)?.args, [...PLAN.pre, "--install-extension", "a.b"]);
+    assert.equal(calls.at(-1)?.env?.ELECTRON_RUN_AS_NODE, "1");
+    // Only when VS Code's files can't be found: cmd.exe, and only with harmless arguments.
+    await codeRun("foo.cmd", ["--list-extensions"], { timeout: 5 }, () => null);
+    assert.deepEqual(calls.at(-1)?.args, ["/c", "foo.cmd", "--list-extensions"]);
+    const n = calls.length;
+    await assert.rejects(codeRun("foo.cmd", ["--x", "a&calc"], {}, () => null), (e: any) => e.status === 400);
+    assert.equal(calls.length, n, "nothing ran");
   } finally {
     vscodeExec.run = real;
   }
@@ -186,30 +203,42 @@ test("openInEditor refuses a file outside the project and never launches", () =>
   assert.equal(l.launched.length, 0);
 });
 
-test("when code cannot start, the desktop default is tried", () => {
+test("when code cannot start, the desktop shows the target — never runs it", () => {
   const root = tempDir();
   mkdirSync(join(root, "d"));
   const l = launcher();
-  openInEditor(root, "d", undefined, l.launch, "code-bin");
-  // The fallback's own child must be unref'able too. Windows opens the target through cmd.exe, not xdg-open.
+  openInEditor(root, "d", undefined, l.launch, "code-bin", "linux");
   l.children[0]!.emit("error", new Error("ENOENT"));
-  const comspec = process.env.ComSpec ?? "cmd.exe";
-  const fallback = (target: string) =>
-    process.platform === "win32" ? { cmd: comspec, args: ["/c", "start", "", target] } : { cmd: "xdg-open", args: [target] };
-  assert.deepEqual(l.launched[1], fallback(join(root, "d")));
-  const l2 = launcher();
-  openInEditor(root, undefined, undefined, l2.launch, "code-bin");
-  l2.children[0]!.emit("error", new Error("ENOENT"));
-  assert.deepEqual(l2.launched[1], fallback(root));
+  assert.deepEqual(l.launched[1], { cmd: "xdg-open", args: [join(root, "d")] });
+  // Windows: Explorer with the file selected (`start <file>` would execute a .bat or an .exe).
+  const w = launcher();
+  openInEditor(root, "d", undefined, w.launch, "code-bin", "win32");
+  w.children[0]!.emit("error", new Error("ENOENT"));
+  assert.deepEqual(w.launched[1], { cmd: "explorer.exe", args: [`/select,${join(root, "d")}`] });
+  const w2 = launcher();
+  openInEditor(root, undefined, undefined, w2.launch, "code-bin", "win32");
+  w2.children[0]!.emit("error", new Error("ENOENT"));
+  assert.deepEqual(w2.launched[1], { cmd: "explorer.exe", args: [root] });
 });
 
-test("openInEditor launches a .cmd bin through cmd.exe /c start with no error listener", () => {
+test("a file named a&calc.exe opens through Code.exe with its name intact — cmd.exe never sees it", () => {
   const root = tempDir();
+  writeFileSync(join(root, "a&calc.exe"), "");
   const l = launcher();
-  openInEditor(root, undefined, undefined, l.launch, "C:/VS Code/bin/code.cmd");
+  openInEditor(root, "a&calc.exe", 3, l.launch, CODE_CMD, "win32", () => PLAN);
+  assert.deepEqual(l.launched, [{ cmd: PLAN.file, args: [...PLAN.pre, "-g", `${join(root, "a&calc.exe")}:3`] }]);
+  assert.equal(l.children[0]!.listeners("error").length, 1, "a failure falls back to showing the file");
+});
+
+test("without VS Code's files, a .cmd goes through cmd.exe start only for harmless paths", () => {
+  const root = tempDir();
+  writeFileSync(join(root, "a&calc.exe"), "");
+  const l = launcher();
+  openInEditor(root, undefined, undefined, l.launch, "C:/VS Code/bin/code.cmd", "win32", () => null);
   const comspec = process.env.ComSpec ?? "cmd.exe";
   assert.deepEqual(l.launched, [{ cmd: comspec, args: ["/c", "start", "", "C:/VS Code/bin/code.cmd", root] }]);
-  assert.equal(l.children[0]!.listeners("error").length, 0);
+  assert.throws(() => openInEditor(root, "a&calc.exe", undefined, l.launch, "C:/VS Code/bin/code.cmd", "win32", () => null), (e: any) => e.status === 400);
+  assert.equal(l.launched.length, 1, "the dangerous one never launched");
 });
 
 test("openInEditor does not follow a symlink out of the project", { skip }, () => {

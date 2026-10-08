@@ -5,6 +5,7 @@ import { listConnections, mcpServersFor } from "./connections.ts";
 import { ensureDir, linkDir, linksTo, listDir, readJson, readText, writeJson, writeText } from "./fsx.ts";
 import { parseFrontmatter } from "./frontmatter.ts";
 import { toClaudePermissions, type Permissions } from "./permissions.ts";
+import { CODEX_HEADER, codexConfig, codexRules, geminiAllowed, opencodeMcp, opencodePermission } from "./aitools.ts";
 
 const CLAUDE_EVENTS: Record<string, string> = {
   "pre-tool": "PreToolUse",
@@ -66,11 +67,11 @@ function writeClaudeAgents(libraryDir: string, targetDir: string): string[] {
 }
 
 /**
- * .claude/skills → library/skills (relative link), so Claude Code started here sees the library's skills.
- * A real folder the user made there is left alone.
+ * <dot>/skills → library/skills (relative link), so the AI started here (Claude Code: .claude, OpenCode: .opencode)
+ * sees the library's skills. A real folder the user made there is left alone.
  */
-function linkClaudeSkills(libraryDir: string, targetDir: string): boolean {
-  const link = join(targetDir, ".claude", "skills");
+function linkSkills(libraryDir: string, targetDir: string, dot = ".claude"): boolean {
+  const link = join(targetDir, dot, "skills");
   const want = relative(dirname(link), join(libraryDir, "skills"));
   let stat: ReturnType<typeof lstatSync> | null = null;
   try {
@@ -114,16 +115,57 @@ export function generateAdapters(
       });
       writeJson(join(targetDir, ".mcp.json"), { mcpServers: mcpServersFor(connections, "claude") });
       written.push(".claude/CLAUDE.md", ".claude/settings.json", ".mcp.json");
-      if (linkClaudeSkills(libraryDir, targetDir)) written.push(".claude/skills");
+      if (linkSkills(libraryDir, targetDir)) written.push(".claude/skills");
       written.push(...writeClaudeAgents(libraryDir, targetDir));
     } else if (tool === "gemini") {
-      mergeJson(join(targetDir, ".gemini", "settings.json"), {
-        contextFileName: "AGENTS.md",
+      // Settings v2 (nested): context.fileName, tools.allowed; keys the user added under context/tools stay.
+      const file = join(targetDir, ".gemini", "settings.json");
+      const current = existsSync(file) ? readJson<Record<string, unknown>>(file) : {};
+      const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+      delete current.contextFileName; // the v1 key earlier versions of nexo wrote
+      writeJson(file, {
+        ...current,
+        context: { ...obj(current.context), fileName: "AGENTS.md" },
+        tools: { ...obj(current.tools), allowed: geminiAllowed(permissions) },
         mcpServers: mcpServersFor(connections, "gemini"),
       });
       written.push(".gemini/settings.json");
+    } else if (tool === "opencode") {
+      // OpenCode reads AGENTS.md itself; it gets the permissions, MCP servers, skills and agents.
+      mergeJson(join(targetDir, "opencode.json"), {
+        $schema: "https://opencode.ai/config.json",
+        permission: opencodePermission(permissions, root),
+        mcp: opencodeMcp(connections),
+      });
+      written.push("opencode.json");
+      if (linkSkills(libraryDir, targetDir, ".opencode")) written.push(".opencode/skills");
+      written.push(...writeOpencodeAgents(libraryDir, targetDir));
+    } else if (tool === "codex") {
+      // Codex reads AGENTS.md itself; it gets its config (approvals, MCP) and command rules. A config.toml the user
+      // wrote there is never overwritten.
+      const config = join(targetDir, ".codex", "config.toml");
+      if (!existsSync(config) || readText(config).startsWith(CODEX_HEADER)) {
+        writeText(config, codexConfig(permissions, connections));
+        written.push(".codex/config.toml");
+      }
+      writeText(join(targetDir, ".codex", "rules", "nexo.rules"), codexRules(permissions).text);
+      written.push(".codex/rules/nexo.rules");
     }
-    // codex and opencode read AGENTS.md natively; nothing to generate yet.
+  }
+  return written;
+}
+
+/** library/agents/*.md as OpenCode subagents (.opencode/agents/); the user's own files there are left alone. */
+function writeOpencodeAgents(libraryDir: string, targetDir: string): string[] {
+  const out = join(targetDir, ".opencode", "agents");
+  for (const f of listDir(out)) if (f.endsWith(".md") && readText(join(out, f)).includes(GENERATED)) rmSync(join(out, f));
+  const written: string[] = [];
+  for (const file of listDir(join(libraryDir, "agents")).filter((f) => f.endsWith(".md"))) {
+    const { data, body } = parseFrontmatter(readText(join(libraryDir, "agents", file)));
+    const name = String(data.name ?? basename(file, ".md"));
+    // OpenCode names models as provider/model; Nexo's "haiku"/"sonnet" are not, so the session's model is used.
+    writeText(join(out, `${name}.md`), `---\ndescription: ${String(data.description ?? "")}\nmode: subagent\n---\n${GENERATED}\n\n${body.trimStart()}`);
+    written.push(`.opencode/agents/${name}.md`);
   }
   return written;
 }

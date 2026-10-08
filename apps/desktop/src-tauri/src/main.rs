@@ -109,7 +109,8 @@ fn is_listening(port: u16) -> bool {
 }
 
 /// True only if what answers on the port is agent-os-nexo: `GET /api/os/info` → 200 stamped `X-Agent-OS-Nexo: 1`
-/// (host/server/http.ts). A bare "port is open" would happily load some other program's page into the window.
+/// (host/server/http.ts), or `X-Agent-OS: 1` from a build made before the rename. A bare "port is open" would
+/// happily load some other program's page into the window.
 fn is_agent_os_nexo(port: u16) -> bool {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let Ok(mut s) = TcpStream::connect_timeout(&addr, Duration::from_millis(500)) else {
@@ -125,7 +126,11 @@ fn is_agent_os_nexo(port: u16) -> bool {
     let text = String::from_utf8_lossy(&buf);
     let status_ok = text.lines().next().is_some_and(|l| l.split_whitespace().nth(1) == Some("200"));
     let head = text.split_once("\r\n\r\n").map_or(&*text, |(h, _)| h);
-    status_ok && head.lines().any(|l| l.to_ascii_lowercase().replace(' ', "") == "x-agent-os-nexo:1")
+    status_ok
+        && head.lines().any(|l| {
+            let l = l.to_ascii_lowercase().replace(' ', "");
+            l == "x-agent-os-nexo:1" || l == "x-agent-os:1"
+        })
 }
 
 /// Windows process creation flag: start the child without a console window.
@@ -141,6 +146,9 @@ fn spawn_server(root: &Path, build: &Path, log_path: &Path, port: u16) -> Result
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
     let _ = fs::rename(log_path, log_path.with_extension("log.1")); // keep the previous run's log for debugging
+    let pid_file = restarted_pid_file(log_path);
+    let _ = fs::remove_file(&pid_file); // a previous run's; this one has not restarted yet
+    let _ = RESTART_PID_FILE.set(pid_file.clone());
     let log = File::create(log_path).map_err(|e| e.to_string())?;
     let log_err = log.try_clone().map_err(|e| e.to_string())?;
     let mut cmd = Command::new(node);
@@ -149,6 +157,10 @@ fn spawn_server(root: &Path, build: &Path, log_path: &Path, port: u16) -> Result
         .current_dir(build)
         .env("PATH", path)
         .env("NEXO_ROOT", root)
+        // "Restart now" in the page: the server relaunches itself and writes the new pid here, so closing the
+        // window still stops it (stop_restarted), and its output keeps going to this log.
+        .env("NEXO_PID_FILE", &pid_file)
+        .env("NEXO_LOG_FILE", log_path)
         .stdin(Stdio::null())
         .stdout(log)
         .stderr(log_err);
@@ -204,6 +216,40 @@ fn stop_server(child: &mut Child) {
         let _ = child.kill();
     }
     let _ = child.wait();
+}
+
+/// Where a server restarted from its own page records its pid (next to the desktop log).
+fn restarted_pid_file(log_path: &Path) -> PathBuf {
+    log_path.with_file_name("desktop.pid")
+}
+
+static RESTART_PID_FILE: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Stops the server that replaced ours after a restart, if any: it is not our child, so it is found by its pid file.
+fn stop_restarted(original: Option<u32>) {
+    let Some(file) = RESTART_PID_FILE.get() else { return };
+    let pid = fs::read_to_string(file).ok().and_then(|t| t.trim().parse::<u32>().ok());
+    let _ = fs::remove_file(file);
+    let Some(pid) = pid.filter(|p| Some(*p) != original && *p > 1) else { return };
+    #[cfg(unix)]
+    {
+        // The restarted server leads its own process group (spawned detached): end it with what it started.
+        let pgid = pid as i32;
+        unsafe { libc::kill(-pgid, libc::SIGTERM) };
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while Instant::now() < deadline && unsafe { libc::kill(pgid, 0) } == 0 {
+            thread::sleep(Duration::from_millis(100));
+        }
+        unsafe { libc::kill(-pgid, libc::SIGKILL) };
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = Command::new("taskkill")
+            .args(["/pid", &pid.to_string(), "/T", "/F"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+    }
 }
 
 /// The splash DOM may not exist yet (setup runs before the page loads), so the idempotent,
@@ -274,6 +320,12 @@ fn exit_on_signals(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Err
 }
 
 fn main() {
+    // WebKitGTK's DMA-BUF renderer leaves the window blank or invisible on many Linux setups (Wayland, some GPU
+    // drivers). Off unless the user set the variable themselves; set before any thread starts.
+    #[cfg(target_os = "linux")]
+    if env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
     let port = port_from_env();
     let root = env_root();
 
@@ -356,9 +408,12 @@ fn main() {
         .expect("error building agent-os-nexo")
         .run(|app, event| {
             if let RunEvent::Exit = event {
-                if let Some(mut child) = app.state::<Server>().0.lock().unwrap().take() {
+                let child = app.state::<Server>().0.lock().unwrap().take();
+                let original = child.as_ref().map(|c| c.id());
+                if let Some(mut child) = child {
                     stop_server(&mut child);
                 }
+                stop_restarted(original);
             }
         });
 }

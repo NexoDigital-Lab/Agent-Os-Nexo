@@ -680,6 +680,31 @@ test("CLI turn: --model and --agent appear in argv when set; providerAgent stick
   }
 });
 
+test("CLI turn: the composer's mode reaches the CLI, and Stop kills it instead of letting it keep editing", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  const calls: { args: string[]; signal?: AbortSignal; timeout?: number }[] = [];
+  providersHost.providerExec.find = (n: string) => (n === "codex" ? "/fake/codex" : null);
+  providersHost.providerExec.run = ((_cmd: string, args: string[], opts: { signal?: AbortSignal; timeout?: number }) => {
+    calls.push({ args, signal: opts.signal, timeout: opts.timeout });
+    return new Promise((_r, reject) => opts.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))));
+  }) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const id = await open("cli stop tab");
+    assert.equal((await send(id, { provider: "codex", mode: "acceptEdits" })).status, 200);
+    await until(async () => calls.length === 1, "the CLI to start");
+    assert.deepEqual(calls[0]!.args.slice(0, 3), ["exec", "--sandbox", "workspace-write"]);
+    assert.ok((calls[0]!.timeout ?? 0) >= 30 * 60_000, "a coding turn gets real time, not two minutes");
+    assert.equal((await m.call("POST", `/tabs/${id}/interrupt`)).status, 200);
+    await idle(id);
+    assert.equal(calls[0]!.signal?.aborted, true, "the child process was told to stop");
+    agent.closeTab(id);
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});
+
 test("CLI turn without model/agent: argv stays clean (no --model, no --agent)", async () => {
   const realRun = providersHost.providerExec.run;
   const realFind = providersHost.providerExec.find;
@@ -696,7 +721,7 @@ test("CLI turn without model/agent: argv stays clean (no --model, no --agent)", 
     await idle(id);
     assert.deepEqual(
       askCalls[0].args,
-      shim ? ["/c", "/fake/codex.cmd", "exec", "go"] : ["exec", "go"],
+      shim ? ["/c", "/fake/codex.cmd", "exec", "--sandbox", "read-only", "go"] : ["exec", "--sandbox", "read-only", "go"],
     );
     assert.equal((await tab(id)).providerAgent, null, "no agent set");
     agent.closeTab(id);

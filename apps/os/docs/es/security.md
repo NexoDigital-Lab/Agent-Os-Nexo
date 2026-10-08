@@ -51,7 +51,14 @@ R9 en [module-rules.md](module-rules.md).
 - **Solo sesiones de Claude.** El confinamiento de rutas de `confineHook` y los pedidos de permisos de
   Claude aplican a las sesiones Claude (SDK); un proveedor que no sea Claude corre su propio CLI en la
   carpeta del proyecto con su propio modelo de permisos — la app no media sus herramientas en esta
-  versión.
+  versión. Lo que la app sí hace cumplir: el modo del composer pasa a ser el del CLI (Codex:
+  `--sandbox read-only` salvo que se acepten ediciones, nunca `danger-full-access`; OpenCode: `--auto` solo en
+  bypass), Detener mata al CLI, los archivos de IA generados del proyecto (permisos, `.state/**` ilegible) aplican
+  porque el CLI corre en la carpeta del proyecto, y las consultas sueltas (notas, skills, extensiones) usan siempre
+  el SDK incluido, de solo lectura, sea cual sea el proveedor por defecto.
+- **Lanzadores en Windows.** Un shim `.cmd` de npm corre su script con node, nunca por `cmd.exe`, que ejecutaría
+  `& | < > ^ % ! "` dentro de un prompt; a un lanzador que no es de npm se le rechaza cualquier argumento con esos
+  caracteres.
 
 ## SSH: la bóveda y la consola
 

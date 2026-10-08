@@ -48,7 +48,13 @@ in [module-rules.md](module-rules.md).
   (`host/server/redact.ts`): private keys, tokens, passwords and credentials in URLs are masked.
 - **Claude sessions only.** `confineHook` path confinement and the Claude permission prompts apply to
   Claude (SDK) sessions; a non-Claude provider runs its own CLI in the project directory with its own
-  permission model — the app does not mediate its tools in this version.
+  permission model — the app does not mediate its tools in this version. What the app does enforce:
+  the composer's mode becomes the CLI's own (Codex: `--sandbox read-only` unless edits are accepted, never
+  `danger-full-access`; OpenCode: `--auto` only on bypass), Stop kills the CLI, the project's generated AI files
+  (permissions, `.state/**` unreadable) apply because the CLI runs in the project folder, and one-shot helpers
+  (notes, skills, extensions) always use the bundled SDK, read-only, whatever the default provider.
+- **Windows launchers.** An npm `.cmd` shim runs its script with node, never through `cmd.exe`, which would run
+  `& | < > ^ % ! "` inside a prompt; a launcher that is not npm's is refused any argument with those characters.
 
 ## SSH: the vault and the console
 

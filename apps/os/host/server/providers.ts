@@ -1,11 +1,12 @@
 // The shared AI-provider registry: which providers agent-os-nexo knows, how to detect their CLIs on this
-// machine (Windows-safe — execFile cannot run .cmd/.bat shims, so those resolve through cmd.exe /c), and
+// machine (Windows-safe — a .cmd shim runs its script with node, never through cmd.exe: winshell.ts), and
 // library/providers.json read/write. Sessions routing (T2) adapts claude.ts over this same registry.
 // Round 2 added codex profiles, antigravity agents/models and the gemini provider.
 import { readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join as pathJoin } from "node:path";
 import { findBin, httpError, run, writeJson } from "./http.ts";
+import { CMD_META, cmdShimTargets } from "./winshell.ts";
 
 export type ProviderId = "claude" | "opencode" | "codex" | "antigravity" | "gemini";
 export type ProviderKind = "sdk" | "cli";
@@ -116,27 +117,54 @@ export const providerExec: {
 };
 
 /**
- * Resolves a CLI on this machine, Windows-safe: for each candidate name, the first hit wins. On Windows
- * npm writes a .cmd/.bat shim alongside a bare shell script that execFile cannot run — the shim is
- * checked FIRST so detection matches what askWithProvider will actually spawn. A .cmd/.bat hit is
- * wrapped in cmd.exe /c. Nothing found is null.
+ * Resolves a CLI on this machine: for each candidate name, the first hit wins. On Windows npm installs a .cmd shim
+ * next to a shell script execFile cannot run; the shim is checked first, and its script (`"%dp0%\…\cli.js"`) runs
+ * with node directly — cmd.exe would parse & | < > ^ % ! " inside the prompt and run them (CVE-2024-27980 class).
+ * Only a shim that is not npm's falls back to cmd.exe (`viaCmd`), and askWithProvider then refuses any argument
+ * cmd.exe would interpret. Nothing found is null.
  */
 export function resolveCli(
   names: string[],
   platform: NodeJS.Platform = process.platform,
   find: (name: string) => string | null = findBin,
-): { cmd: string; pre: string[]; path: string } | null {
+  script: (cmdFile: string) => string | null = (f) => cmdShimTargets(f).find((t) => /\.(c|m)?js$/i.test(t)) ?? null,
+): { cmd: string; pre: string[]; path: string; viaCmd: boolean } | null {
   const order = (name: string): string[] =>
     platform === "win32" ? [`${name}.cmd`, `${name}.bat`, name] : [name, `${name}.cmd`, `${name}.bat`];
   for (const name of names) {
     for (const candidate of order(name)) {
       const hit = find(candidate);
       if (!hit) continue;
-      if (/\.(cmd|bat)$/i.test(hit)) return { cmd: process.env.ComSpec ?? "cmd.exe", pre: ["/c", hit], path: hit };
-      return { cmd: hit, pre: [], path: hit };
+      if (/\.(cmd|bat)$/i.test(hit)) {
+        const js = script(hit);
+        if (js) return { cmd: process.execPath, pre: [js], path: hit, viaCmd: false };
+        return { cmd: process.env.ComSpec ?? "cmd.exe", pre: ["/c", hit], path: hit, viaCmd: true };
+      }
+      return { cmd: hit, pre: [], path: hit, viaCmd: false };
     }
   }
   return null;
+}
+
+/**
+ * The longest prompt a CLI gets as one argument: Windows' CreateProcess caps the whole command line at 32,767
+ * characters, Linux a single argument at 128 KiB. Callers trim history to fit (agent.ts).
+ */
+export const MAX_PROMPT_ARG = process.platform === "win32" ? 30_000 : 120_000;
+
+/** The chat Composer's permission mode, as each CLI can express it headless (flags checked in each tool's docs). */
+export type ProviderMode = "default" | "acceptEdits" | "plan" | "bypassPermissions";
+
+/**
+ * Codex exec is read-only unless told otherwise (developers.openai.com/codex/noninteractive): plan/default keep that,
+ * accept-edits and bypass allow edits in the workspace — never `danger-full-access`. OpenCode run's `--auto`
+ * auto-approves what is not explicitly denied (opencode.ai/docs/cli): only on bypass. Antigravity and Gemini get no
+ * flag (not verified): they keep their own defaults and the environment's generated settings.
+ */
+export function modeArgs(id: ProviderId, mode: string = "default"): string[] {
+  if (id === "codex") return ["--sandbox", mode === "acceptEdits" || mode === "bypassPermissions" ? "workspace-write" : "read-only"];
+  if (id === "opencode" && mode === "bypassPermissions") return ["--auto"];
+  return [];
 }
 
 /**
@@ -152,10 +180,11 @@ export const CHOICE_RE = /^[A-Za-z0-9][A-Za-z0-9 ._()/+:,@-]{0,199}$/;
 const AGENT_RE = /^[A-Za-z0-9._-]{1,100}$/;
 
 /** Headless argv per CLI provider, prompt as ONE argument (verified where possible: opencode run, codex exec, agy/gemini -p). */
-function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; agent?: string }): string[] {
+function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; agent?: string; mode?: string }): string[] {
   if (id === "opencode") {
     return [
       "run",
+      ...modeArgs(id, opts?.mode),
       ...(opts?.model ? ["--model", opts.model] : []),
       ...(opts?.agent ? ["--agent", opts.agent] : []),
       prompt,
@@ -165,6 +194,7 @@ function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; a
   if (id === "codex") {
     return [
       "exec",
+      ...modeArgs(id, opts?.mode),
       ...(opts?.model ? ["--model", opts.model] : []),
       ...(opts?.agent ? ["--profile", opts.agent] : []),
       prompt,
@@ -193,7 +223,7 @@ function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; a
 export async function askWithProvider(
   id: ProviderId,
   prompt: string,
-  opts: { cwd: string; timeoutMs?: number; model?: string; agent?: string },
+  opts: { cwd: string; timeoutMs?: number; model?: string; agent?: string; mode?: string; signal?: AbortSignal },
 ): Promise<AskResult> {
   const meta = providerById(id);
   if (!meta) throw httpError(502, `Unknown provider: ${id}`);
@@ -202,16 +232,22 @@ export async function askWithProvider(
   if (opts.agent !== undefined && !AGENT_RE.test(opts.agent)) throw httpError(400, "Invalid agent");
   const cli = resolveCli(meta.binaries, process.platform, providerExec.find);
   if (!cli) throw httpError(502, `${meta.label} is not installed (or not on PATH)`);
+  if (prompt.length > MAX_PROMPT_ARG) throw httpError(413, `The prompt is longer than ${MAX_PROMPT_ARG} characters for ${meta.label}`);
   const argv = headlessArgs(id, prompt, opts);
+  if (cli.viaCmd && argv.some((a) => CMD_META.test(a))) {
+    throw httpError(502, `${meta.label} is installed through a launcher that is not npm's: its prompt cannot be passed safely on Windows. Reinstall it with npm.`);
+  }
   const timeout = opts.timeoutMs ?? 120_000;
   try {
-    const out = await providerExec.run(cli.cmd, [...cli.pre, ...argv], { timeout, cwd: opts.cwd });
+    // The signal kills the CLI when the user stops the turn: it must not keep editing after Stop.
+    const out = await providerExec.run(cli.cmd, [...cli.pre, ...argv], { timeout, cwd: opts.cwd, ...(opts.signal ? { signal: opts.signal } : {}) });
     const text = (out.stdout ?? "").trim();
     if (!text) throw httpError(502, `${meta.label} returned no output`);
     return { text, raw: out.stdout ?? "" };
   } catch (e) {
     if (e && typeof e === "object" && "status" in e) throw e; // our own httpError above passes through
-    const err = e as { stderr?: string; stdout?: string; killed?: boolean; message?: string };
+    const err = e as { stderr?: string; stdout?: string; killed?: boolean; message?: string; name?: string };
+    if (opts.signal?.aborted || err.name === "AbortError") throw httpError(499, `${meta.label} was stopped`);
     if (err.killed) throw httpError(504, `${meta.label} took more than ${Math.round(timeout / 1000)} s to answer`);
     const tail = String(err.stderr || err.stdout || err.message || "failed")
       .trim()

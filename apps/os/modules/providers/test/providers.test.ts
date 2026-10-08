@@ -28,16 +28,17 @@ beforeEach(() => {
 const appPackageVersion = (): string =>
   (JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8")) as { version: string }).version;
 
-test("resolveCli: posix finds the plain bin; win32 finds the .cmd shim and wraps it in cmd.exe", () => {
+test("resolveCli: posix finds the plain bin; on win32 npm's .cmd shim runs its script with node, never cmd.exe", () => {
   const posix = providers.resolveCli(["opencode"], "linux", (n) => (n === "opencode" ? "/usr/bin/opencode" : null));
-  assert.deepEqual(posix, { cmd: "/usr/bin/opencode", pre: [], path: "/usr/bin/opencode" });
+  assert.deepEqual(posix, { cmd: "/usr/bin/opencode", pre: [], path: "/usr/bin/opencode", viaCmd: false });
 
-  const win = providers.resolveCli(["opencode"], "win32", (n) => (n === "opencode.cmd" ? "C:\\tools\\opencode.cmd" : null));
-  assert.deepEqual(win, {
-    cmd: process.env.ComSpec ?? "cmd.exe",
-    pre: ["/c", "C:\\tools\\opencode.cmd"],
-    path: "C:\\tools\\opencode.cmd",
-  });
+  const find = (n: string) => (n === "opencode.cmd" ? "C:\\tools\\opencode.cmd" : null);
+  const npm = providers.resolveCli(["opencode"], "win32", find, () => "C:\\tools\\node_modules\\opencode-ai\\bin\\opencode.js");
+  assert.deepEqual(npm, { cmd: process.execPath, pre: ["C:\\tools\\node_modules\\opencode-ai\\bin\\opencode.js"], path: "C:\\tools\\opencode.cmd", viaCmd: false });
+
+  // A shim that is not npm's: cmd.exe is the only way, flagged so askWithProvider guards its arguments.
+  const other = providers.resolveCli(["opencode"], "win32", find, () => null);
+  assert.deepEqual(other, { cmd: process.env.ComSpec ?? "cmd.exe", pre: ["/c", "C:\\tools\\opencode.cmd"], path: "C:\\tools\\opencode.cmd", viaCmd: true });
 });
 
 test("resolveCli: on win32 the .cmd shim wins over a bare shell script of the same name", () => {
@@ -220,7 +221,7 @@ test("askWithProvider: headless argv per provider (opencode run / codex exec / a
   findHits = { codex: "/usr/local/bin/codex" };
   runReply = () => ({ stdout: "ok" });
   await providers.askWithProvider("codex", "do it", { cwd: "/tmp" });
-  assert.deepEqual(runCalls.at(-1), ["exec", "do it"]);
+  assert.deepEqual(runCalls.at(-1), ["exec", "--sandbox", "read-only", "do it"]);
 
   findHits = { agy: "/usr/bin/agy" };
   runReply = () => ({ stdout: "g" });
@@ -228,16 +229,49 @@ test("askWithProvider: headless argv per provider (opencode run / codex exec / a
   assert.deepEqual(runCalls.at(-1), ["-p", "hello"]);
 });
 
-test("askWithProvider: a win32 .cmd shim resolves through cmd.exe /c with the headless argv after it", async () => {
+test("askWithProvider: through a non-npm .cmd launcher, a prompt cmd.exe would interpret is refused before spawning", async () => {
   const seen: { cmd: string; args: string[] }[] = [];
   providers.providerExec.run = ((cmd: string, args: string[]) => {
     seen.push({ cmd, args });
     return Promise.resolve({ stdout: "ok", stderr: "" });
   }) as unknown as typeof providers.providerExec.run;
-  findHits = { "codex.cmd": "C:\\tools\\codex.cmd" };
-  await providers.askWithProvider("codex", "x", { cwd: "C:\\proj" });
-  assert.equal(seen[0].cmd, process.env.ComSpec ?? "cmd.exe");
-  assert.deepEqual(seen[0].args, ["/c", "C:\\tools\\codex.cmd", "exec", "x"]);
+  findHits = { "codex.cmd": "C:\\tools\\codex.cmd" }; // not a real file: no npm script to read → cmd.exe fallback
+  if (process.platform === "win32") {
+    await providers.askWithProvider("codex", "x", { cwd: "C:\\proj" });
+    assert.deepEqual(seen[0]?.args, ["/c", "C:\\tools\\codex.cmd", "exec", "--sandbox", "read-only", "x"]);
+    await assert.rejects(providers.askWithProvider("codex", "fix a&calc.exe", { cwd: "C:\\proj" }), (e: any) => e.status === 502 && /Reinstall it with npm/.test(e.message));
+    assert.equal(seen.length, 1, "the dangerous prompt never ran");
+  } else {
+    // Elsewhere a .cmd hit only happens in tests; the guard is the same code path.
+    await assert.rejects(providers.askWithProvider("codex", "fix a&calc.exe", { cwd: "/p" }), (e: any) => e.status === 502);
+    assert.equal(seen.length, 0);
+  }
+});
+
+test("askWithProvider: Stop aborts the CLI (the signal reaches the spawn) and answers 499; a prompt too long is a 413", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  let passed: AbortSignal | undefined;
+  providers.providerExec.run = ((_c: string, _a: string[], opts: { signal?: AbortSignal }) => {
+    passed = opts.signal;
+    return new Promise((_r, reject) => opts.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))));
+  }) as unknown as typeof providers.providerExec.run;
+  const ac = new AbortController();
+  const pending = providers.askWithProvider("opencode", "go", { cwd: "/p", signal: ac.signal });
+  ac.abort();
+  await assert.rejects(pending, (e: any) => e.status === 499);
+  assert.equal(passed, ac.signal);
+  await assert.rejects(providers.askWithProvider("opencode", "x".repeat(providers.MAX_PROMPT_ARG + 1), { cwd: "/p" }), (e: any) => e.status === 413);
+});
+
+test("modeArgs: Codex read-only unless edits are accepted (never danger-full-access); OpenCode --auto only on bypass", () => {
+  assert.deepEqual(providers.modeArgs("codex", "default"), ["--sandbox", "read-only"]);
+  assert.deepEqual(providers.modeArgs("codex", "plan"), ["--sandbox", "read-only"]);
+  assert.deepEqual(providers.modeArgs("codex", "acceptEdits"), ["--sandbox", "workspace-write"]);
+  assert.deepEqual(providers.modeArgs("codex", "bypassPermissions"), ["--sandbox", "workspace-write"]);
+  assert.deepEqual(providers.modeArgs("codex", "auto"), ["--sandbox", "read-only"], "an unknown mode is the safe default");
+  assert.deepEqual(providers.modeArgs("opencode", "bypassPermissions"), ["--auto"]);
+  assert.deepEqual(providers.modeArgs("opencode", "acceptEdits"), []);
+  assert.deepEqual(providers.modeArgs("gemini", "bypassPermissions"), []);
 });
 
 test("askWithProvider: non-zero exit is a 502 carrying a trimmed stderr tail; empty stdout is a 502", async () => {
@@ -271,16 +305,16 @@ test("headlessArgs argv: opencode --model/--agent, codex --model/--profile, anti
 
   findHits = { codex: "/usr/local/bin/codex" };
   await providers.askWithProvider("codex", "do", { cwd: "/tmp", model: "gpt-5" });
-  assert.deepEqual(runCalls.at(-1), ["exec", "--model", "gpt-5", "do"]);
+  assert.deepEqual(runCalls.at(-1), ["exec", "--sandbox", "read-only", "--model", "gpt-5", "do"]);
 
   await providers.askWithProvider("codex", "do", { cwd: "/tmp", agent: "deep-review" });
-  assert.deepEqual(runCalls.at(-1), ["exec", "--profile", "deep-review", "do"]);
+  assert.deepEqual(runCalls.at(-1), ["exec", "--sandbox", "read-only", "--profile", "deep-review", "do"]);
 
   await providers.askWithProvider("codex", "do", { cwd: "/tmp", model: "gpt-5.5", agent: "deep-review" });
-  assert.deepEqual(runCalls.at(-1), ["exec", "--model", "gpt-5.5", "--profile", "deep-review", "do"]);
+  assert.deepEqual(runCalls.at(-1), ["exec", "--sandbox", "read-only", "--model", "gpt-5.5", "--profile", "deep-review", "do"]);
 
   await providers.askWithProvider("codex", "do", { cwd: "/tmp" });
-  assert.deepEqual(runCalls.at(-1), ["exec", "do"]);
+  assert.deepEqual(runCalls.at(-1), ["exec", "--sandbox", "read-only", "do"]);
 
   findHits = { agy: "/usr/bin/agy" };
   await providers.askWithProvider("antigravity", "hi", { cwd: "/tmp", model: "gemini-3.5-flash-medium", agent: "planner" });

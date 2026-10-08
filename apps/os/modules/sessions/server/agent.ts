@@ -12,7 +12,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { join } from "node:path";
 import { httpError, readJson, writeJson } from "../../../host/server/http.ts";
-import { askWithProvider, type ProviderId } from "../../../host/server/providers.ts";
+import { askWithProvider, MAX_PROMPT_ARG, type ProviderId } from "../../../host/server/providers.ts";
 import { contributions, mergedHooks, safely, type TabContext, type TurnInfo } from "./contributions.ts";
 import { getActiveProviderId } from "./claude.ts";
 import { lastTask, translate, type Ev } from "./sdkEvents.ts";
@@ -250,24 +250,32 @@ function systemNote(s: Session, opts: SendOpts): string {
 
 /** Short text transcript of the tab's prior user/assistant turns. v1 has no resume for CLI providers, so
  *  this is what stands in for conversation history — computed BEFORE the current turn's user event lands. */
-function transcriptPrefix(s: Session): string {
+function transcriptPrefix(s: Session, budget = MAX_PROMPT_ARG): string {
   const prior = s.events
     .filter((e): e is Extract<Ev, { kind: "user" } | { kind: "text" }> => e.kind === "user" || e.kind === "text")
-    .map((e) => (e.kind === "user" ? `User: ${e.text}` : `Assistant: ${e.text}`));
-  return prior.length ? `${prior.slice(-20).join("\n")}\n\n` : "";
+    .map((e) => (e.kind === "user" ? `User: ${e.text}` : `Assistant: ${e.text}`))
+    .slice(-20);
+  // The whole prompt travels as one argument (providers.ts MAX_PROMPT_ARG): drop the oldest turns until it fits.
+  while (prior.length && prior.join("\n").length + 2 > budget) prior.shift();
+  return prior.length ? `${prior.join("\n")}\n\n` : "";
 }
+
+/** A CLI turn is real work (edits, commands): give it the time a coding task takes, not a one-shot's 2 minutes. */
+const CLI_TURN_TIMEOUT = 30 * 60_000;
 
 /** One headless CLI turn: the same chat events the claude path emits (user → text → result → activity →
  *  status), without the SDK. Cost is unknown → 0; usage.ts reads Claude transcripts only, so CLI turns
- *  are never recorded there (nothing to corrupt). Mid-turn quick prompts queue via afterRun; interrupt
- *  cannot kill the child process in v1, but an aborted turn still ends quietly like the claude path.
+ *  are never recorded there (nothing to corrupt). Mid-turn quick prompts queue via afterRun; Stop aborts the
+ *  signal, which kills the CLI (it must not keep editing after Stop), and the turn ends quietly like the claude path.
  *  `opts.model`/`opts.agent` carry the CLI selection flags (provider/model id, agent name). */
 async function runCliTurn(s: Session, provider: ProviderId, opts: SendOpts, transcript: string, ctx: TabContext, signal: AbortSignal): Promise<void> {
   const started = Date.now();
   let ok = false;
   try {
     const agentName = opts.agent ?? s.providerAgent ?? undefined;
-    const { text } = await askWithProvider(provider, transcript + opts.prompt, { cwd: s.dir, model: opts.model, agent: agentName });
+    const { text } = await askWithProvider(provider, transcript + opts.prompt, {
+      cwd: s.dir, model: opts.model, agent: agentName, mode: opts.mode, signal, timeoutMs: CLI_TURN_TIMEOUT,
+    });
     if (signal.aborted) return;
     emit(s, { kind: "text", text, sub: false });
     emit(s, { kind: "result", cost: 0, turns: 1, ms: Date.now() - started, ok: true, text });
@@ -312,7 +320,7 @@ export function send(id: string, opts: SendOpts): void {
   const provider = opts.provider ?? s.provider ?? getActiveProviderId() ?? "claude";
   // v1 has no resume for CLI providers: prefix prior turns as a short transcript BEFORE this turn's
   // user event is appended, so the prompt never duplicates the message being sent.
-  const cliTranscript = provider === "claude" ? "" : transcriptPrefix(s);
+  const cliTranscript = provider === "claude" ? "" : transcriptPrefix(s, MAX_PROMPT_ARG - opts.prompt.length);
   s.running = true;
   s.end = null;
   s.unseen = false;

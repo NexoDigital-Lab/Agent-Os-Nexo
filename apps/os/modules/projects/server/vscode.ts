@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { join, win32 } from "node:path";
 import { findBin, httpError, run } from "../../../host/server/http.ts";
 import { safePath } from "./repo.ts";
-import { CMD_META, cmdShimTargets } from "./winshell.ts";
+import { CMD_META, cmdShimTargets } from "../../../host/server/winshell.ts";
 
 /** VS Code's CLI per platform: Windows ships `code.cmd` (codeCliOf runs what it runs, without cmd.exe). */
 export function resolveCodeBin(platform = process.platform, find: typeof findBin = findBin): string {

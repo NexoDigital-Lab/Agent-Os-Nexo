@@ -7,7 +7,7 @@ import type { Env } from "../../../host/server/env.ts";
 import { findBin, httpError, run, trash } from "../../../host/server/http.ts";
 import { projectHooks, type DeleteFacts, type DeleteOptions } from "./hooks.ts";
 import { projectDir, projectPath, readProject, projectIds } from "./projects.ts";
-import { CMD_META, cmdShimTargets } from "./winshell.ts";
+import { CMD_META, cmdShimTargets } from "../../../host/server/winshell.ts";
 
 const NAME = /^[a-z0-9][a-z0-9._-]{0,99}$/;
 const FULL = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;

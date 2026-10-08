@@ -247,9 +247,13 @@ export async function buildVersion(osDir: string, notes = "", run: Runner = defa
 
 /** The target the runtime of a build was installed for, or null when unknown (a runtime from before targets). */
 export function buildTarget(osDir: string, version: string): string | null {
-  const link = join(osDir, "versions", version, "node_modules");
+  const dir = join(osDir, "versions", version);
   try {
-    const runtime = dirname(realpathSync(link));
+    // build.json names its runtime; resolving the node_modules link is the fallback (on Windows it is a junction,
+    // which Node 22's realpathSync does not resolve the same way: the native one does).
+    const meta = join(dir, "build.json");
+    const hash = existsSync(meta) ? readJson<{ runtime?: string }>(meta).runtime : undefined;
+    const runtime = hash ? join(osDir, "runtime", hash) : dirname(realpathSync.native(join(dir, "node_modules")));
     const file = join(runtime, TARGET_FILE);
     return existsSync(file) ? readText(file).trim() : null;
   } catch {

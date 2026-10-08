@@ -2,7 +2,7 @@
 // rolls back a build, and doctor's check of the active build's target.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { freshEnv, tempDir } from "./helpers.ts";
 import { os, osDeps } from "../src/commands/os.ts";
@@ -53,8 +53,10 @@ function runner(main: string): Runner {
     if (cmd === "npm") mkdirSync(join(cwd, "node_modules"), { recursive: true });
     if (cmd === process.execPath) {
       const out = args.find((a) => a.startsWith("--out="))!.slice(6);
+      const runtime = args.find((a) => a.startsWith("--runtime="))!.slice(10);
       mkdirSync(join(out, "host", "server"), { recursive: true });
       writeFileSync(join(out, "host", "server", "main.ts"), main);
+      writeFileSync(join(out, "build.json"), JSON.stringify({ runtime })); // as scripts/build.ts records it
     }
   };
 }
@@ -92,6 +94,10 @@ test("doctor flags an active build installed for another machine; an unknown tar
   assert.match(finding?.message ?? "", /installed for win32-x64-node127, this machine is .*: run `nexo os build`/);
   writeFileSync(join(runtime, TARGET_FILE), "");
   assert.equal(buildTarget(join(root, "os"), "9.9.9"), null, "a version that is not there");
+  // A build without build.json (older ones): found through its node_modules link instead.
+  writeFileSync(join(runtime, TARGET_FILE), "linux-x64-node1\n");
+  rmSync(join(root, "os", "versions", "1.0.0", "build.json"));
+  assert.equal(buildTarget(join(root, "os"), "1.0.0"), "linux-x64-node1");
 });
 
 test("the smoke test is swappable through osDeps", async () => {

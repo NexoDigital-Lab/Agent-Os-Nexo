@@ -69,10 +69,19 @@ resume or permission prompts.
 - **Stores:** data `tabs.json`; state `uploads/`, `search.db`.
 
 ## providers
-Detects the AI CLIs installed on the machine (Claude, OpenCode, Codex, Antigravity/Google) and lets the
-user enable providers and pick the default; new sessions and one-shot calls follow that choice. Each CLI
-keeps its own login — the app never stores keys. It also answers the chat composer's agent and model
-pickers for the providers that expose them (OpenCode: agent and model; Codex: model).
+Detects the AI CLIs installed on the machine (Claude, OpenCode, Codex, Antigravity/Google, Gemini CLI) and
+lets the user enable providers and pick the default; new sessions and one-shot calls follow that choice. Each
+CLI keeps its own login — the app never stores keys. It also answers the chat composer's agent and model
+pickers for the providers that expose them, one source per provider:
+- **OpenCode:** `opencode agent list` and `opencode models`, run in the project folder.
+- **Codex:** a scan of `$CODEX_HOME` (default `~/.codex`) for `<name>.config.toml` profiles plus the legacy
+  `[profiles.<name>]` tables inside `config.toml`. No CLI is spawned, so a missing folder is just an empty
+  list; models stay free text (Codex has no list-models command).
+- **Antigravity (Google):** `agy agents` and `agy models`. Its registry entry is agy-only: the legacy
+  `gemini` binary belongs to the Gemini CLI provider, which lists extensions as agents with `gemini -l` and
+  takes the model as free text.
+Lists are cached 60 s per provider and project; empty or failed answers are never cached, and output that
+looks like a log line, a sentence or a table degrades to an empty list instead of a wrong name.
 - **Depends on:** projects (the choices run in the project folder). **View:** Providers.
 - **Routes:** `GET /providers`, `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices`.
 - **Stores:** `library/providers.json` (enabled providers + default; seeded from the environment's `tools`

@@ -69,11 +69,20 @@ turnos CLI en modo headless en la carpeta del proyecto, sin retomar ni pedidos d
 - **Guarda:** data `tabs.json`; state `uploads/`, `search.db`.
 
 ## providers
-Detecta los CLIs de IA instalados en la máquina (Claude, OpenCode, Codex, Antigravity/Google) y deja al
-usuario habilitar proveedores y elegir el predeterminado; las sesiones nuevas y las llamadas sueltas
-siguen esa elección. Cada CLI conserva su propio login: la app nunca guarda claves. También responde a
-los selectores de agente y modelo del composer del chat para los proveedores que los exponen (OpenCode:
-agente y modelo; Codex: modelo).
+Detecta los CLIs de IA instalados en la máquina (Claude, OpenCode, Codex, Antigravity/Google, Gemini CLI) y
+deja al usuario habilitar proveedores y elegir el predeterminado; las sesiones nuevas y las llamadas sueltas
+siguen esa elección. Cada CLI conserva su propio login: la app nunca guarda claves. También responde a los
+selectores de agente y modelo del composer del chat para los proveedores que los exponen, con una fuente por
+proveedor:
+- **OpenCode:** `opencode agent list` y `opencode models`, ejecutados en la carpeta del proyecto.
+- **Codex:** un escaneo de `$CODEX_HOME` (por defecto `~/.codex`) por perfiles `<name>.config.toml` más las
+  tablas heredadas `[profiles.<name>]` dentro de `config.toml`. No se lanza ningún CLI, así que una carpeta
+  ausente es solo una lista vacía; los modelos quedan como texto libre (Codex no tiene comando de modelos).
+- **Antigravity (Google):** `agy agents` y `agy models`. Su entrada en el registro es solo agy: el binario
+  heredado `gemini` pertenece al proveedor Gemini CLI, que lista extensiones como agentes con `gemini -l` y
+  recibe el modelo como texto libre.
+Las listas se cachean 60 s por proveedor y proyecto; las respuestas vacías o fallidas nunca se cachean, y la
+salida que parece un registro, una frase o una tabla degrada a una lista vacía en vez de a un nombre mal.
 - **Depende de:** projects (las opciones se ejecutan en la carpeta del proyecto). **Vista:** Providers.
 - **Rutas:** `GET /providers`, `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices`.
 - **Guarda:** `library/providers.json` (proveedores habilitados + predeterminado; se siembra desde el

@@ -1,10 +1,13 @@
 // The shared AI-provider registry: which providers agent-os-nexo knows, how to detect their CLIs on this
 // machine (Windows-safe — execFile cannot run .cmd/.bat shims, so those resolve through cmd.exe /c), and
 // library/providers.json read/write. Sessions routing (T2) adapts claude.ts over this same registry.
-import { readFileSync } from "node:fs";
+// Round 2 added codex profiles, antigravity agents/models and the gemini provider.
+import { readdirSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join as pathJoin } from "node:path";
 import { findBin, httpError, run, writeJson } from "./http.ts";
 
-export type ProviderId = "claude" | "opencode" | "codex" | "antigravity";
+export type ProviderId = "claude" | "opencode" | "codex" | "antigravity" | "gemini";
 export type ProviderKind = "sdk" | "cli";
 
 export interface ProviderMeta {
@@ -73,19 +76,31 @@ export const PROVIDERS: ProviderMeta[] = [
       posix: "npm install -g @openai/codex",
     },
     loginHint: "Run codex login.",
-    supports: { model: true },
+    supports: { agent: true, model: true }, // agents are the profiles of $CODEX_HOME (--profile)
   },
   {
     id: "antigravity",
     label: "Antigravity (Google)",
     kind: "cli",
-    binaries: ["agy", "gemini"],
+    binaries: ["agy"], // the legacy `gemini` binary belongs to the gemini provider below
     install: {
-      win32: "irm https://antigravity.google/cli/install.ps1 | iex (legacy: npm install -g @google/gemini-cli)",
-      posix: "curl -fsSL https://antigravity.google/cli/install.sh | bash (legacy: npm install -g @google/gemini-cli)",
+      win32: "irm https://antigravity.google/cli/install.ps1 | iex",
+      posix: "curl -fsSL https://antigravity.google/cli/install.sh | bash",
     },
     loginHint: "Run agy once and complete its Google sign-in.",
-    supports: {}, // model flag unverified — do not pass one
+    supports: { agent: true, model: true }, // `agy agents` and `agy models`
+  },
+  {
+    id: "gemini",
+    label: "Gemini CLI",
+    kind: "cli",
+    binaries: ["gemini"],
+    install: {
+      win32: "npm install -g @google/gemini-cli",
+      posix: "npm install -g @google/gemini-cli",
+    },
+    loginHint: "Run gemini once and complete its Google sign-in.",
+    supports: { agent: true, model: true }, // agents are extensions (`gemini -l`); the model is free text
   },
 ];
 
@@ -125,13 +140,18 @@ export function resolveCli(
 }
 
 /**
- * Shared shape validator for model/agent values that reach a CLI spawn. Provider/model ids contain `/`
- * and `:` (e.g. `opencode/mimo-v2.6-pro`, `gpt-5:mini`); agent names are a subset without those chars.
- * Exported so sendBody.ts can reuse the same bound at the HTTP layer.
+ * Shared shape validator for model values (and non-agent choices) that reach a CLI spawn: provider/model ids
+ * such as `opencode/mimo-v2.6-pro` or `gpt-5:mini`, and display names such as `Gemini 3.5 Flash (Medium)`.
+ * Starts with a letter or digit, ≤ 200 chars, no shell metacharacters (no quotes, `$`, backticks, `;`, `&`,
+ * `|`, `<`, `>` or newlines) — `:` stays allowed because codex uses `gpt-5:mini` and it is not a metacharacter.
+ * Exported so sendBody.ts can reuse the same bound at the HTTP layer. Agent names stay on AGENT_RE below.
  */
-export const CHOICE_RE = /^[A-Za-z0-9._:/-]{1,100}$/;
+export const CHOICE_RE = /^[A-Za-z0-9][A-Za-z0-9 ._()/+:,@-]{0,199}$/;
 
-/** Headless argv per CLI provider, prompt as ONE argument (verified where possible: opencode run, codex exec, agy -p). */
+/** Agent/profile/extension names: a strict subset of CHOICE_RE (no spaces, no `:` or `/`). */
+const AGENT_RE = /^[A-Za-z0-9._-]{1,100}$/;
+
+/** Headless argv per CLI provider, prompt as ONE argument (verified where possible: opencode run, codex exec, agy/gemini -p). */
 function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; agent?: string }): string[] {
   if (id === "opencode") {
     return [
@@ -141,8 +161,25 @@ function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; a
       prompt,
     ];
   }
-  if (id === "codex") return ["exec", ...(opts?.model ? ["--model", opts.model] : []), prompt]; // `codex exec -m <id> "…"`
-  if (id === "antigravity") return ["-p", prompt]; // `agy -p "…"`; legacy `gemini -p "…"` shares the flag; model unverified
+  // `codex exec -m <id> --profile <name> "…"`
+  if (id === "codex") {
+    return [
+      "exec",
+      ...(opts?.model ? ["--model", opts.model] : []),
+      ...(opts?.agent ? ["--profile", opts.agent] : []),
+      prompt,
+    ];
+  }
+  // `agy -p "…" [--model <id>] [--agent <name>]` and `gemini -p "…" [--model <id>] [--extensions <name>]`
+  if (id === "antigravity" || id === "gemini") {
+    const agentFlag = id === "antigravity" ? "--agent" : "--extensions";
+    return [
+      "-p",
+      prompt,
+      ...(opts?.model ? ["--model", opts.model] : []),
+      ...(opts?.agent ? [agentFlag, opts.agent] : []),
+    ];
+  }
   throw httpError(502, `Provider ${id} runs through the Claude SDK, not a headless CLI`);
 }
 
@@ -150,8 +187,8 @@ function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; a
  * Runs a CLI provider headless in `cwd`. stdout is the answer text (trimmed). Throws httpError(502, …)
  * on a non-zero exit (with a trimmed stderr/stdout tail, docker.ts style) or empty output; a killed
  * process (our own timeout) is a 504, same as docker. claude is not handled here — it is the SDK path.
- * `model`/`agent` are optional CLI selection flags (opencode --model/--agent, codex --model); both are
- * shape-validated before spawning.
+ * `model`/`agent` are optional CLI selection flags (opencode --model/--agent, codex --model/--profile,
+ * antigravity --model/--agent, gemini --model/--extensions); both are shape-validated before spawning.
  */
 export async function askWithProvider(
   id: ProviderId,
@@ -162,7 +199,7 @@ export async function askWithProvider(
   if (!meta) throw httpError(502, `Unknown provider: ${id}`);
   if (meta.kind !== "cli") throw httpError(502, `Provider ${id} runs through the Claude SDK, not a headless CLI`);
   if (opts.model !== undefined && !CHOICE_RE.test(opts.model)) throw httpError(400, "Invalid model");
-  if (opts.agent !== undefined && !CHOICE_RE.test(opts.agent)) throw httpError(400, "Invalid agent");
+  if (opts.agent !== undefined && !AGENT_RE.test(opts.agent)) throw httpError(400, "Invalid agent");
   const cli = resolveCli(meta.binaries, process.platform, providerExec.find);
   if (!cli) throw httpError(502, `${meta.label} is not installed (or not on PATH)`);
   const argv = headlessArgs(id, prompt, opts);
@@ -190,6 +227,12 @@ export async function askWithProvider(
 const choicesCache = new Map<string, { at: number; agents: string[]; models: string[] }>();
 const CHOICES_TTL = 60_000;
 const AGENT_LINE = /^(\S+)\s+\([^)]+\)\s*$/; // "build (primary)" → "build"
+const PROFILE_RE = /^[A-Za-z0-9._-]{1,100}$/; // a codex profile that can reach --profile
+const LEGACY_PROFILE = /^\s*\[profiles\.([A-Za-z0-9_-]+)\]\s*$/gm; // codex < 0.134: [profiles.<name>] tables
+const BULLET = /^[-*•]\s+/; // list bullets in CLI output
+const TABLE_EDGE = /^\|\s*/; // markdown table edge
+// Colour codes CLIs print even when stdout is not a tty: ESC [ … letter.
+const ANSI = new RegExp("\\x1b\\[[0-9;?]*[A-Za-z]", "g");
 
 /** Empties the choices cache; tests call this between runs. */
 export function clearChoicesCache(): void {
@@ -197,34 +240,103 @@ export function clearChoicesCache(): void {
 }
 
 /**
- * Agent and model lists for one provider in a project cwd. OpenCode only (agent list + models); every
- * other id returns empty lists. Failures also return empty lists — never throw. Cached 60 s per id+cwd.
+ * Turns one CLI's stdout into names: strip colour codes and list/table decoration, then keep only short,
+ * plain, name-shaped lines — log lines (`14:32:11 INFO …: …`), sentences (`No extensions installed.`),
+ * column tables and long paths all drop out. A trailing ` (role)` suffix is removed on agent lists, the
+ * shape `opencode agent list` and `agy agents` print. Anything suspicious degrades away instead of being
+ * guessed at: a missing name is an empty list, not a wrong one.
+ */
+function parseNames(stdout: string | undefined, isAgent: boolean): string[] {
+  const out: string[] = [];
+  for (const raw of String(stdout ?? "").split(/\r?\n/)) {
+    const line = raw.replace(ANSI, "").trim().replace(BULLET, "").replace(TABLE_EDGE, "").trim();
+    if (!line || !/^[A-Za-z0-9]/.test(line)) continue; // empty or still decorated (table borders, ellipses)
+    if (line.length > 80 || line.includes(":") || line.endsWith(".")) continue; // prose, logs, URLs
+    if (/\s{2,}/.test(line)) continue; // table columns, not a name
+    const name = isAgent ? (AGENT_LINE.exec(line)?.[1] ?? line) : line;
+    if (isAgent ? AGENT_RE.test(name) : CHOICE_RE.test(name)) out.push(name);
+  }
+  return out;
+}
+
+/** `opencode agent list` + `opencode models`, spawned in the project cwd. */
+async function opencodeChoices(cwd: string): Promise<{ agents: string[]; models: string[] }> {
+  const cli = resolveCli(["opencode"], process.platform, providerExec.find);
+  if (!cli) return { agents: [], models: [] };
+  const [agentsOut, modelsOut] = await Promise.all([
+    providerExec.run(cli.cmd, [...cli.pre, "agent", "list"], { timeout: 15_000, cwd }),
+    providerExec.run(cli.cmd, [...cli.pre, "models"], { timeout: 15_000, cwd }),
+  ]);
+  return { agents: parseNames(agentsOut.stdout, true), models: parseNames(modelsOut.stdout, false) };
+}
+
+/**
+ * Codex profiles from a filesystem scan of `$CODEX_HOME` (default `~/.codex`): `<name>.config.toml` files,
+ * plus the legacy `[profiles.<name>]` tables inside `config.toml` (codex < 0.134). Nothing is spawned, so
+ * a missing directory is simply an empty list. Models are not listed (codex has no list-models command),
+ * so the model input stays free text.
+ */
+function codexProfiles(): { agents: string[]; models: string[] } {
+  const home = process.env.CODEX_HOME?.trim() || pathJoin(homedir(), ".codex");
+  const names = new Set<string>();
+  let entries: string[] = [];
+  try {
+    entries = readdirSync(home);
+  } catch {
+    entries = [];
+  }
+  for (const file of entries) {
+    if (!file.endsWith(".config.toml")) continue; // config.toml itself is not a profile
+    const profile = file.slice(0, -".config.toml".length);
+    if (PROFILE_RE.test(profile)) names.add(profile);
+  }
+  try {
+    for (const m of readFileSync(pathJoin(home, "config.toml"), "utf8").matchAll(LEGACY_PROFILE)) names.add(m[1]);
+  } catch {
+    // no config.toml: only the per-profile files above count
+  }
+  return { agents: [...names].sort(), models: [] };
+}
+
+/** `agy agents` (the agent list) and `agy models`, spawned in the project cwd. */
+async function agyChoices(cwd: string): Promise<{ agents: string[]; models: string[] }> {
+  const cli = resolveCli(["agy"], process.platform, providerExec.find);
+  if (!cli) return { agents: [], models: [] };
+  const [agentsOut, modelsOut] = await Promise.all([
+    providerExec.run(cli.cmd, [...cli.pre, "agents"], { timeout: 15_000, cwd }),
+    providerExec.run(cli.cmd, [...cli.pre, "models"], { timeout: 15_000, cwd }),
+  ]);
+  return { agents: parseNames(agentsOut.stdout, true), models: parseNames(modelsOut.stdout, false) };
+}
+
+/** `gemini -l` lists the installed extensions (usable as `--extensions <name>`); there is no model list. */
+async function geminiChoices(cwd: string): Promise<{ agents: string[]; models: string[] }> {
+  const cli = resolveCli(["gemini"], process.platform, providerExec.find);
+  if (!cli) return { agents: [], models: [] };
+  const out = await providerExec.run(cli.cmd, [...cli.pre, "-l"], { timeout: 15_000, cwd });
+  return { agents: parseNames(out.stdout, true), models: [] };
+}
+
+/**
+ * Agent and model lists for one provider in a project cwd: opencode (agent list + models), codex (a
+ * $CODEX_HOME profile scan), antigravity (`agy agents`/`agy models`) and gemini (`gemini -l` extensions);
+ * claude and unknown ids answer empty without spawning. Failures also answer empty — never throw. A
+ * successful non-empty list is cached 60 s per id+cwd; empty and failed answers are not cached, so a CLI
+ * that was cold the first time is retried instead of staying empty.
  */
 export async function listProviderChoices(id: ProviderId, cwd: string): Promise<{ agents: string[]; models: string[] }> {
-  if (id !== "opencode") return { agents: [], models: [] };
   const key = `${id}\0${cwd}`;
   const hit = choicesCache.get(key);
-  if (hit && Date.now() - hit.at < CHOICES_TTL) return { agents: hit.agents, models: hit.models };
+  if (hit && Date.now() - hit.at < CHOICES_TTL) return { agents: [...hit.agents], models: [...hit.models] };
   const empty = { agents: [], models: [] };
   try {
-    const cli = resolveCli(["opencode"], process.platform, providerExec.find);
-    if (!cli) return empty;
-    const [agentsOut, modelsOut] = await Promise.all([
-      providerExec.run(cli.cmd, [...cli.pre, "agent", "list"], { timeout: 15_000, cwd }),
-      providerExec.run(cli.cmd, [...cli.pre, "models"], { timeout: 15_000, cwd }),
-    ]);
-    const agents = (agentsOut.stdout ?? "")
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line)
-      .map((line) => AGENT_LINE.exec(line)?.[1])
-      .filter((name): name is string => !!name);
-    const models = (modelsOut.stdout ?? "")
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line);
-    const result = { agents, models };
-    choicesCache.set(key, { at: Date.now(), ...result });
+    const result =
+      id === "opencode" ? await opencodeChoices(cwd)
+      : id === "codex" ? codexProfiles()
+      : id === "antigravity" ? await agyChoices(cwd)
+      : id === "gemini" ? await geminiChoices(cwd)
+      : empty;
+    if (result.agents.length || result.models.length) choicesCache.set(key, { at: Date.now(), ...result });
     return result;
   } catch {
     return empty;

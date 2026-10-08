@@ -320,7 +320,7 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
             className="field"
             value={agent}
             aria-label={t("Agent")}
-            title={t("Agents load from the project's OpenCode config")}
+            title={t("Agents load from the selected provider's config")}
             onChange={(e) => setAgent(e.target.value)}
           >
             <option value="">{t("Default")}</option>

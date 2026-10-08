@@ -65,7 +65,7 @@ export function setDecision(perms: Permissions, key: string, decision: Decision)
   if (key === "default") perms.default = decision;
   else if (parts[0] === "os" && parts.length === 2 && OS_ACTIONS.includes(parts[1] ?? "")) {
     (perms.os ??= {})[parts[1] as "build" | "restart" | "vault"] = decision;
-  } else if (parts[0] === "connections" && parts.length === 3 && /^[\w*.-]+$/.test(parts[1] ?? "") && CONNECTION_ACTIONS.includes(parts[2] ?? "")) {
+  } else if (parts[0] === "connections" && parts.length === 3 && /^[\w*-]+$/.test(parts[1] ?? "") && CONNECTION_ACTIONS.includes(parts[2] ?? "")) {
     ((perms.connections ??= {})[parts[1] as string] ??= {})[parts[2] as "read" | "write" | "delete"] = decision;
   } else {
     throw new Error(`Unknown setting "${key}". Use default, os.${OS_ACTIONS.join("|os.")}, or connections.<name>.<${CONNECTION_ACTIONS.join("|")}>.`);

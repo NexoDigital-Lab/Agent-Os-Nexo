@@ -29,7 +29,7 @@ export interface PermissionsView {
 
 export const AREAS = ["files.read", "files.edit", "commands"] as const;
 const DECISIONS = ["allow", "ask", "deny"];
-const SETTING = /^(default|os\.(build|restart|vault)|connections\.[\w*.-]+\.(read|write|delete))$/;
+const SETTING = /^(default|os\.(build|restart|vault)|connections\.[\w*-]+\.(read|write|delete))$/;
 
 /** The CLI runner; tests swap it. */
 export const deps = { nexo };

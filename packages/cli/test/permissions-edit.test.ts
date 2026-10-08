@@ -33,7 +33,7 @@ test("setDecision: default, os actions and connections; anything else is refused
   setDecision(p, "os.build", "allow");
   setDecision(p, "connections.notion.write", "ask");
   assert.deepEqual(p, { default: "deny", os: { build: "allow" }, connections: { notion: { write: "ask" } } });
-  for (const bad of ["os.explode", "connections.notion", "connections.a b.read", "files.read", "nope"]) {
+  for (const bad of ["os.explode", "connections.notion", "connections.a b.read", "connections.a.b.read", "files.read", "nope"]) {
     assert.throws(() => setDecision(p, bad, "allow"), /Unknown setting/, bad);
   }
 });

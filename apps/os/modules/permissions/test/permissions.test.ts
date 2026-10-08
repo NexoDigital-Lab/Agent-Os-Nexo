@@ -47,7 +47,7 @@ test("bad input is a 400 before the CLI runs", async () => {
   for (const body of [{}, { area: "files", decision: "allow", pattern: "x" }, { area: "commands", decision: "maybe", pattern: "x" }, { area: "commands", decision: "allow", pattern: "" }, { area: "commands", decision: "allow", pattern: "a\nb" }, { area: "commands", decision: "allow", pattern: "x".repeat(201) }]) {
     assert.equal((await call("POST", "/permissions/rule", body)).status, 400, JSON.stringify(body));
   }
-  for (const body of [{ key: "files.read", decision: "allow" }, { key: "os.explode", decision: "allow" }, { key: "default", decision: "never" }]) {
+  for (const body of [{ key: "files.read", decision: "allow" }, { key: "os.explode", decision: "allow" }, { key: "default", decision: "never" }, { key: "connections.a.b.read", decision: "allow" }]) {
     assert.equal((await call("POST", "/permissions/setting", body)).status, 400, JSON.stringify(body));
   }
   assert.equal(calls.length, n);

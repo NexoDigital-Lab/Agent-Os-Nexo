@@ -16,16 +16,21 @@ nexo os desktop                         # the desktop app installer for this OS 
 nexo import opencode --apply            # bring another AI's MCP servers and permissions into the library
 ```
 
-Commands: `init`, `update`, `doctor`, `analyze`, `index`, `clone`, `new`, `map`, `connect`, `os`.
-Run `nexo --help` for options.
+Commands: `init`, `update`, `doctor`, `analyze`, `index`, `permissions`, `dict`, `import`, `connect`, `clone`,
+`new`, `map`, `os`. Run `nexo --help` for options. Not on npm yet: until it is, run it from a checkout with
+`node packages/cli/src/bin.ts` (see the repository README and `docs/release.md`).
 
-What it writes for each enabled AI (next to every `AGENTS.md`):
+What it writes for each enabled AI (next to every `AGENTS.md`), from `library/`:
 
 | AI | Files |
 |---|---|
-| Claude Code | `.claude/CLAUDE.md` (`@../AGENTS.md`), `.claude/settings.json` (permissions + hooks), `.mcp.json` |
-| Gemini CLI | `.gemini/settings.json` (`contextFileName: AGENTS.md`, MCP servers) |
-| Codex, OpenCode | nothing — they read `AGENTS.md` natively |
+| Claude Code | `.claude/CLAUDE.md` (`@../AGENTS.md`), `.claude/settings.json` (permissions + hooks), `.claude/skills` and `.claude/agents/`, `.mcp.json` |
+| OpenCode | `opencode.json` (permissions, MCP servers), `.opencode/skills`, `.opencode/agents/`; reads `AGENTS.md` natively |
+| Codex | `.codex/config.toml` (approval policy, sandbox, MCP servers), `.codex/rules/nexo.rules` (command rules); reads `AGENTS.md` natively |
+| Gemini CLI | `.gemini/settings.json` (`AGENTS.md` as context file, allowed commands, MCP servers) |
+
+What an AI cannot express (Codex has no per-path file rules, Gemini cannot deny a command…) is listed by
+`nexo doctor`, never dropped silently: see `docs/ai-tools.md` in the repository.
 
 Generated files may contain connection credentials; the environment is personal and is never
 versioned by Nexo. Zero runtime dependencies; Node 22.18+. License: PolyForm Noncommercial 1.0.0 (see LICENSE).

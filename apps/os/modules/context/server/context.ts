@@ -1,11 +1,11 @@
 // A project's context — AGENTS.md and context/ — for the Context view: list the documents, read and save them, open
 // them in VS Code. Only those two places: secrets/ and code/ are never listed or served from here, and
 // context/permissions.json is read-only (its changes go through `nexo permissions`, which validates them).
-import { existsSync, lstatSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, posix, relative, sep } from "node:path";
 import { httpError } from "../../../host/server/http.ts";
 import { projectDir } from "../../projects/server/projects.ts";
-import { safePath } from "../../projects/server/repo.ts";
+import { inside, realOrAncestor, safePath } from "../../projects/server/repo.ts";
 
 export interface ContextFile {
   /** Relative to the project folder, with forward slashes: "AGENTS.md", "context/features/0001-x.md". */
@@ -50,6 +50,12 @@ function resolveDoc(dir: string, rel: unknown): { abs: string; path: string } {
   if (!TEXT.has(extname(path).toLowerCase())) throw httpError(400, `Only text documents (${[...TEXT].join(", ")})`);
   const abs = safePath(dir, path);
   if (existsSync(abs) && lstatSync(abs).isSymbolicLink()) throw httpError(400, "Symbolic links are not opened from here");
+  // A linked folder inside context/ (context/s → ../secrets) stays inside the project, so safePath lets it through:
+  // the real path must stay under context/ too.
+  const ctxDir = join(dir, "context");
+  if (path !== "AGENTS.md" && existsSync(ctxDir) && !inside(realpathSync(ctxDir), realOrAncestor(abs))) {
+    throw httpError(400, "Symbolic links are not opened from here");
+  }
   return { abs, path };
 }
 

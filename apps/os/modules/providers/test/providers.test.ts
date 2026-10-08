@@ -316,6 +316,21 @@ test("listProviderChoices: failures return empty lists; non-opencode ids return 
   assert.equal(runCalls.length, before, "non-opencode ids never spawn a CLI");
 });
 
+test("listProviderChoices: an empty (failed) run is not cached — the next call retries", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = () => ({ err: true }); // first call fails, e.g. a cold CLI that timed out
+  assert.deepEqual(await providers.listProviderChoices("opencode", "/fresh"), { agents: [], models: [] });
+  assert.equal(runCalls.length, 2);
+  runReply = (args) => {
+    if (args.includes("agent")) return { stdout: "build (primary)\n" };
+    if (args.includes("models")) return { stdout: "opencode/mimo-v2.6-pro\n" };
+    return { stdout: "" };
+  };
+  const r = await providers.listProviderChoices("opencode", "/fresh"); // still inside the TTL window
+  assert.deepEqual(r, { agents: ["build"], models: ["opencode/mimo-v2.6-pro"] }, "a cold empty result must not poison the cache");
+  assert.equal(runCalls.length, 4, "the retry spawned again instead of serving the cached empty");
+});
+
 // ---- choices route (T3) --------------------------------------------------------------------------
 const { initProjects } = await import("../../projects/server/projects.ts");
 const projectsEnv = tempEnv();

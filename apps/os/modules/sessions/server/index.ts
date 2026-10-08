@@ -9,7 +9,7 @@ import { readProvidersFile } from "../../../host/server/providers.ts";
 import { addProjectHooks } from "../../projects/server/hooks.ts";
 import { projectDiff, projectDir, projectOfPath, projectPath, worktreePath } from "../../projects/server/projects.ts";
 import * as agent from "./agent.ts";
-import { setActiveProviderId } from "./claude.ts";
+import { useProvidersFile } from "./claude.ts";
 import { parseSendBody } from "./sendBody.ts";
 import { contributeToSessions } from "./contributions.ts";
 import { osGuard } from "./guard.ts";
@@ -41,9 +41,9 @@ const register: ModuleServer = (ctx) => {
   setUploadsDir(join(ctx.stateDir, "uploads"));
   setSearchDb(join(ctx.stateDir, "search.db"));
   initSkills(ctx.env);
-  // One-shot ask() and new tabs follow the configured default provider (library/providers.json, seeded
-  // from the CLI's tools map when the file is missing).
-  setActiveProviderId(readProvidersFile(join(ctx.env.library, "providers.json"), ctx.env.tools).default ?? "claude");
+  // New tabs follow the default provider in library/providers.json (seeded from the CLI's tools map when the
+  // file is missing), read when a tab opens. One-shot helpers always use the bundled SDK (claude.ts).
+  useProvidersFile(join(ctx.env.library, "providers.json"), (file) => readProvidersFile(file, ctx.env.tools).default ?? "claude");
   agent.restoreTabs(agent.tabsFileName(ctx.dataDir));
   // Every agent session: no reaching agent-os-nexo's own API or private data (guard.ts).
   contributeToSessions({

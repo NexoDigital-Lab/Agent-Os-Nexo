@@ -330,16 +330,16 @@ test("deleting the GitHub repo goes first; a gh failure leaves everything local 
 
 test("Windows: npm's nexo.cmd shim runs its script with node, never through cmd.exe", () => {
   const shim = '@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\n"%_prog%"  "%dp0%\\node_modules\\@nexodigital\\nexo\\dist\\bin.js" %*\r\n';
-  const dir = join("C:", "npm");
-  const js = shimScript(join(dir, "nexo.cmd"), () => shim);
-  assert.equal(js, join(dir, "node_modules\\@nexodigital\\nexo\\dist\\bin.js"));
+  const js = shimScript("C:\\npm\\nexo.cmd", () => shim);
+  assert.equal(js, "C:\\npm\\node_modules\\@nexodigital\\nexo\\dist\\bin.js");
+  const dir = "C:\\npm";
   assert.equal(shimScript("x.cmd", () => "@echo off\r\nsomething else\r\n"), null);
   assert.equal(shimScript("missing.cmd", () => { throw new Error("ENOENT"); }), null);
 
   const dev = process.env.NEXO_CLI;
   delete process.env.NEXO_CLI;
   try {
-    const find = ((name: string) => (name === "nexo.cmd" ? join(dir, "nexo.cmd") : null)) as unknown as Parameters<typeof nexoCommand>[1];
+    const find = ((name: string) => (name === "nexo.cmd" ? `${dir}\\nexo.cmd` : null)) as unknown as Parameters<typeof nexoCommand>[1];
     assert.deepEqual(nexoCommand("win32", find, () => "C:\\npm\\bin.js"), { cmd: process.execPath, pre: ["C:\\npm\\bin.js"], viaCmd: false });
     assert.equal(nexoCommand("win32", find, () => null)?.viaCmd, true, "an unknown shim is the only cmd.exe path");
     assert.equal(nexoCommand("linux", (() => null) as unknown as Parameters<typeof nexoCommand>[1]), null);

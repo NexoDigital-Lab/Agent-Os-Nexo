@@ -1,12 +1,13 @@
 // Create, clone and delete projects. The project skeleton (AGENTS.md, context/, secrets/, AI files) comes from
 // the nexo CLI, so a project made here is the same as one made in the terminal; this adds what the UI offers
 // on top: a first commit, a GitHub repository, and a delete that goes to the trash and checks what would be lost.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Env } from "../../../host/server/env.ts";
 import { findBin, httpError, run, trash } from "../../../host/server/http.ts";
 import { projectHooks, type DeleteFacts, type DeleteOptions } from "./hooks.ts";
 import { projectDir, projectPath, readProject, projectIds } from "./projects.ts";
+import { CMD_META, cmdShimTargets } from "./winshell.ts";
 
 const NAME = /^[a-z0-9][a-z0-9._-]{0,99}$/;
 const FULL = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
@@ -27,22 +28,12 @@ const errText = (e: unknown) => {
   return String(err.stderr || err.message || e).trim();
 };
 
-/** Characters cmd.exe acts on inside arguments: a value carrying one must never reach it. */
-const CMD_META = /[&|<>^%!"\r\n]/;
-
 /**
- * npm's Windows shim (`nexo.cmd`) only runs `node "%dp0%\…\bin.js" %*`: read that script path out of it, so the CLI
- * runs with node directly and no argument ever goes through cmd.exe. Null when the shim is not npm's.
+ * npm's Windows shim (`nexo.cmd`) only runs `node "%dp0%\…\bin.js" %*`: take that script out of it, so the CLI runs
+ * with node directly and no argument ever goes through cmd.exe. Null when the shim is not npm's.
  */
-export function shimScript(cmdFile: string, read: (f: string) => string = (f) => readFileSync(f, "utf8")): string | null {
-  let text: string;
-  try {
-    text = read(cmdFile);
-  } catch {
-    return null;
-  }
-  const m = /"%(?:~dp0|dp0)%?\\([^"]+\.(?:c|m)?js)"/i.exec(text);
-  return m?.[1] ? join(dirname(cmdFile), m[1]) : null;
+export function shimScript(cmdFile: string, read?: (f: string) => string): string | null {
+  return cmdShimTargets(cmdFile, read).find((t) => /\.(c|m)?js$/i.test(t)) ?? null;
 }
 
 /** How to run the CLI: a checkout (NEXO_CLI), the shim's script with node, or the binary on PATH. */

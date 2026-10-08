@@ -22,3 +22,23 @@ Notes:
 - Gemini's project policies (`.gemini/policies`) are disabled upstream, so a project cannot deny a command to Gemini.
 - A `.codex/config.toml` that nexo did not write is never overwritten; keys you add to `.gemini/settings.json` stay.
 - `nexo init` offers the AIs it finds on your PATH (Claude when none is found).
+
+## In agent-os-nexo's chat tabs
+
+A tab talks to Claude through the bundled Agent SDK, or to OpenCode, Codex or Gemini by running their CLI headless
+in the project folder (so the files above apply). Details: `apps/os/docs/en/security.md`.
+
+- **Only governed CLIs run.** A CLI must be enabled in `environment.config.json` → `tools` — the switch that makes
+  `nexo update` write its permission files. The Providers view, the API and every turn refuse any other.
+- **The composer's mode becomes the CLI's own** (flags checked in each tool's docs on 2026-10-08):
+
+  | Mode | Codex | OpenCode | Gemini CLI |
+  |---|---|---|---|
+  | plan / default | `--sandbox read-only` | — (its own rules) | plan: `--approval-mode plan`; default: — |
+  | accept edits | `--sandbox workspace-write` | — | `--approval-mode auto_edit` |
+  | bypass | `--sandbox workspace-write` (never `danger-full-access`) | `--auto` | `--approval-mode auto_edit` (never `yolo`) |
+
+- **One-shot helpers** (notes, extension recommendations) use the SDK, read-only. The skill recommendation may use
+  the tab's CLI only when it has a documented read-only mode (Codex, Gemini) and only in the project folder;
+  OpenCode documents none for `opencode run`, so it keeps the SDK.
+- **Not offered:** Antigravity (`agy`) — its CLI and flags are not documented.

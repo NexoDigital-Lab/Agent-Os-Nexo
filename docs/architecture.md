@@ -20,8 +20,9 @@ To customize a factory skill, copy it and set `owner: user`; updates then leave 
 ```
 environments/
 ├── AGENTS.md                 single source of rules; ≤120 lines
-├── .claude/CLAUDE.md         "@../AGENTS.md" (one per enabled AI; Codex/OpenCode read AGENTS.md natively)
-├── .gemini/settings.json     points Gemini CLI at AGENTS.md
+├── .claude/                  CLAUDE.md ("@../AGENTS.md"), settings.json, skills, agents — one set per enabled AI:
+├── .gemini/ .codex/          Gemini and Codex settings and rules; opencode.json + .opencode/ for OpenCode
+│                             (Codex and OpenCode read AGENTS.md natively; see docs/ai-tools.md)
 ├── environment.config.json   lean: nexo{version,updatePolicy}, root, tools, folders, system summary
 ├── library/
 │   ├── index.json            the only thing loaded up front: what exists and when to use it
@@ -54,7 +55,8 @@ environments/
 │       ├── context/          shared across parts
 │       └── <part>/{AGENTS.md, code/, context/, secrets/}
 └── .state/                   generated and disposable: logs, indexes, analysis detail, cache;
-                              .state/os/ holds agent-os-nexo's pid files, logs and per-module caches
+                              .state/os/ holds agent-os-nexo's pid files, logs, per-module caches and the
+                              access token of each run — every permission preset denies agents reading it
 ```
 
 ## Principles
@@ -74,7 +76,8 @@ environments/
 ## agent-os-nexo
 
 agent-os-nexo is a local app built from modules (see `apps/os/README.md`), distributed as its own npm
-package (`@nexodigital/agent-os-nexo`) that `nexo os install` copies into `os/source`. Each user has a
+package (`@nexodigital/agent-os-nexo`) that `nexo os install` copies into `os/source` (from a checkout with
+`--from` until it is published: `docs/release.md`). Each user has a
 personal version history starting at `1.0.0`: a requested change is previewed in the browser
 (`nexo os preview`), built only on approval (`nexo os build`), and loaded on the next restart (the
 app detects the new build and asks to restart; agents never close it). Each run has its own access token (only the

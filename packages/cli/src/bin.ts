@@ -10,6 +10,7 @@ import { connect } from "./commands/connect.ts";
 import { os } from "./commands/os.ts";
 import { map } from "./commands/map.ts";
 import { dict } from "./commands/dict.ts";
+import { permissions } from "./commands/permissions.ts";
 import { nexoVersion } from "./core/version.ts";
 
 const HELP = `nexo — install and maintain a Nexo agent environment
@@ -24,6 +25,11 @@ Usage: nexo <command> [options]
   doctor [--quick] [--json]         Check the environment; reports, never changes
   analyze                           Record OS and toolchains (summary in the config)
   index                             Rebuild library/index.json
+  permissions [show] [--project <id>]
+                                    What agents may do alone (global, or a project's effective rules)
+  permissions allow|ask|deny <files.read|files.edit|commands> <pattern> [--project <id>]
+  permissions remove <area> <pattern> | set <default|os.<action>|connections.<n>.<action>> <decision>
+                                    Change one rule, validated; refreshes every AI's files
   dict [list|show <term>|rm <term>] Your dictionary of concepts (library/dictionary/)
   dict add <term> --summary <s> [--alias a,b] [--body <text>] [--from <old name>]
                                     Save a concept (updates it if the term or an alias exists;
@@ -82,6 +88,7 @@ async function main(argv: string[]): Promise<number> {
       summary: { type: "string" },
       alias: { type: "string" },
       body: { type: "string" },
+      project: { type: "string" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -116,6 +123,8 @@ async function main(argv: string[]): Promise<number> {
       return print(map(rest[0], values));
     case "dict":
       return print(dict(rest[0], rest.slice(1), values));
+    case "permissions":
+      return print(permissions(rest[0], rest.slice(1), values));
     case "os":
       return print(await os(rest[0], rest[1], values));
     default:

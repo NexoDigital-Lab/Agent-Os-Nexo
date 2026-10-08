@@ -35,7 +35,7 @@ commit, read `library/conventions/git/` — not every convention.
    your recommendation; let the user choose.
 3. **Respect `permissions.json`.** `allow` = do it; `ask` = ask first; `deny` = never. A project's
    `context/permissions.json` overrides the global file. Never edit permission files without
-   asking.
+   asking; once the user agrees, change them with `nexo permissions` (validated, refreshes every AI's files).
 4. **Confirm before anything irreversible or remote**: deleting, force operations, pushing,
    publishing, production systems, sending messages.
 5. **Keep code clean.** Never add work conventions, AGENTS/CLAUDE files or notes inside

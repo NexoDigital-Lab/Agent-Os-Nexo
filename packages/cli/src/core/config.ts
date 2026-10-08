@@ -20,7 +20,7 @@ export interface EnvironmentConfig {
   nexo: { version: string; updatePolicy: "owner" };
   root: string;
   tools: Record<Tool, boolean>;
-  folders: { library: string; blueprints: string; projects: string; os: string; state: string };
+  folders: { library: string; blueprints: string; projects: string; os: string; state: string; frameworks: string };
   system: SystemSummary | null;
   /** Factory items this environment takes (`nexo init --factory`); missing means "all". */
   factory?: FactorySet;
@@ -32,6 +32,7 @@ export const DEFAULT_FOLDERS: EnvironmentConfig["folders"] = {
   projects: "projects",
   os: "os",
   state: ".state",
+  frameworks: "frameworks",
 };
 
 export function readConfig(root: string): EnvironmentConfig {

@@ -6,6 +6,8 @@ import { parseFrontmatter } from "../core/frontmatter.ts";
 import { isDir, listDir, readJson, readText } from "../core/fsx.ts";
 import { loadPermissions, validatePermissions } from "../core/permissions.ts";
 import { unenforced } from "../core/aitools.ts";
+import { frameworkContributions } from "../core/adapters.ts";
+import { loadFrameworks } from "../core/frameworks.ts";
 import { listProjectDirs } from "../core/projects.ts";
 import { buildTarget, currentTarget } from "../core/osruntime.ts";
 import { activeVersion } from "../core/osversions.ts";
@@ -48,6 +50,27 @@ export function staleAnalysis(config: EnvironmentConfig, now = new Date()): stri
   return days > STALE_DAYS ? `the OS analysis is ${Math.floor(days)} days old — run \`nexo analyze\`` : null;
 }
 
+/** Third-party frameworks: listed as such, with their name clashes and hooks still waiting for approval. */
+function checkFrameworks(findings: Finding[], root: string, config: EnvironmentConfig): void {
+  const { frameworks, broken } = loadFrameworks(root, config);
+  for (const b of broken) findings.push({ level: "warn", area: `framework ${b}`, message: "unreadable framework.json" });
+  for (const fw of frameworks) {
+    const where = fw.enabled.global ? "everywhere" : fw.enabled.projects.length ? `in ${fw.enabled.projects.join(", ")}` : "disabled";
+    findings.push({ level: "ok", area: `framework ${fw.name}`, message: `third-party (${fw.source}, ${fw.managed === "external" ? "managed elsewhere" : "installed by nexo"}), ${where}` });
+    if (!isDir(fw.contentRoot)) findings.push({ level: "warn", area: `framework ${fw.name}`, message: `its files are missing at ${fw.contentRoot}` });
+  }
+  if (!frameworks.length) return;
+  const clashes = new Set<string>();
+  const pending = new Set<string>();
+  for (const dir of [root, ...listProjectDirs(root, config)]) {
+    const r = frameworkContributions(root, config, dir);
+    r.clashes.forEach((c) => clashes.add(c));
+    Object.keys(r.pendingHooks).forEach((n) => pending.add(n));
+  }
+  for (const c of clashes) findings.push({ level: "warn", area: "frameworks", message: `name clash: ${c}` });
+  for (const name of pending) findings.push({ level: "warn", area: `framework ${name}`, message: `has hooks that are not approved and stay off — review them, then \`nexo framework enable ${name} --hooks\`` });
+}
+
 export function diagnose(root: string, quick = false): Finding[] {
   const findings: Finding[] = [];
   let config: EnvironmentConfig;
@@ -82,6 +105,7 @@ export function diagnose(root: string, quick = false): Finding[] {
     const gaps = unenforced(tool, loadPermissions(join(folder(root, config, "library"), "permissions.json")));
     if (gaps.length) findings.push({ level: "warn", area: tool, message: `not enforced by ${tool}: ${gaps.join("; ")}` });
   }
+  checkFrameworks(findings, root, config);
   const stale = staleAnalysis(config);
   if (stale) findings.push({ level: "warn", area: "analysis", message: stale });
   if (quick) return findings;

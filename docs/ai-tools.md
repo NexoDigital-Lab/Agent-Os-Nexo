@@ -23,6 +23,30 @@ Notes:
 - A `.codex/config.toml` that nexo did not write is never overwritten; keys you add to `.gemini/settings.json` stay.
 - `nexo init` offers the AIs it finds on your PATH (Claude when none is found).
 
+## Living next to other frameworks
+
+Other agent frameworks (a company's, a community's) write into the same files Nexo generates. Nexo records what it
+wrote in `.state/nexo/generated.json` and replaces only that: your own and other frameworks' lines in
+`.claude/CLAUDE.md`, MCP servers in `.mcp.json`, `opencode.json` and `.gemini/settings.json`, and hooks in
+`.claude/settings.json` stay. Permissions are the exception: they always come from `permissions.json` alone, so no
+framework can widen them.
+
+`nexo framework` installs and manages them in `frameworks/<name>/framework.json`:
+
+- Sources: `npm:<pkg>@<exact version>` (installed with `--ignore-scripts`; ranges and `latest` are refused) and
+  `path:<dir>` (managed by someone else: only referenced, never copied, modified or updated; `remove` forgets it).
+- Enabled everywhere or per project (`--project <id>`); several at once.
+- Contributions come from the framework's own `framework.json` (`contributes`) or are detected from the Claude Code
+  plugin layout: `skills/*/SKILL.md`, `agents/*.md`, `commands/*.md`, `hooks/hooks.json`, `.mcp.json`, `CLAUDE.md`.
+- They land next to Nexo's: local MCP servers in every AI's config, agents and commands in `.claude/agents/` and
+  `.claude/commands/` (marked as generated, removed when disabled), instructions as an extra `@` line after
+  `@../AGENTS.md`, skills through a generated folder of links (`.state/nexo/skills/`) that `.claude/skills` points at
+  while a framework contributes skills (nothing is written into `library/skills`; a real `skills/` folder you made
+  is left alone). A name that is already taken gets the framework's name as prefix.
+- Hooks run a command on every tool call, so they stay off until you review them and run
+  `nexo framework enable <name> --hooks`. `nexo doctor` lists frameworks as third-party and reports name clashes and
+  hooks waiting for approval.
+
 ## In agent-os-nexo's chat tabs
 
 A tab talks to Claude through the bundled Agent SDK, or to OpenCode, Codex or Gemini by running their CLI headless

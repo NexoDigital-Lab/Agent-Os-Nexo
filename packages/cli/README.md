@@ -13,11 +13,12 @@ nexo doctor                             # check everything; never changes anythi
 nexo dict add "Active customer" --summary "Bought in the last 90 days"   # a concept every agent reads
 nexo permissions allow commands "npm run test*"                         # one rule, validated, every AI updated
 nexo os desktop                         # the desktop app installer for this OS (checksum-verified)
+nexo framework add npm:@corp/agents@1.4.0   # a third-party framework: pinned, no install scripts, hooks off
 nexo import opencode --apply            # bring another AI's MCP servers and permissions into the library
 ```
 
 Commands: `init`, `update`, `doctor`, `analyze`, `index`, `permissions`, `dict`, `import`, `connect`, `clone`,
-`new`, `map`, `os`. Run `nexo --help` for options. Not on npm yet: until it is, run it from a checkout with
+`new`, `map`, `framework`, `os`. Run `nexo --help` for options. Not on npm yet: until it is, run it from a checkout with
 `node packages/cli/src/bin.ts` (see the repository README and `docs/release.md`).
 
 What it writes for each enabled AI (next to every `AGENTS.md`), from `library/`:

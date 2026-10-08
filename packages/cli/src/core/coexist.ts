@@ -77,9 +77,14 @@ export function mergeHooks(current: unknown, ours: Record<string, unknown[]>, be
   return { value, items };
 }
 
-/** CLAUDE.md that points at AGENTS.md: Nexo's line first; lines another framework or the user added stay after it. */
-export function withAgentsPointer(current: string | null, pointer = "@../AGENTS.md"): string {
-  const rest = (current ?? "").split(/\r?\n/).filter((l) => l.trim() !== pointer);
+/**
+ * CLAUDE.md that points at AGENTS.md: Nexo's line first, then the lines `extra` that Nexo adds for frameworks (those it
+ * added before, `before`, are replaced); lines another framework or the user added stay after them.
+ */
+export function withAgentsPointer(current: string | null, pointer = "@../AGENTS.md", extra: string[] = [], before: string[] = []): string {
+  const mine = new Set([pointer, ...extra, ...before]);
+  const rest = (current ?? "").split(/\r?\n/).filter((l) => !mine.has(l.trim()));
   while (rest.length && !rest[0]?.trim()) rest.shift();
-  return rest.length ? `${pointer}\n${rest.join("\n").replace(/\s+$/, "")}\n` : pointer;
+  const head = [pointer, ...extra].join("\n");
+  return rest.length ? `${head}\n${rest.join("\n").replace(/\s+$/, "")}\n` : head;
 }

@@ -65,7 +65,7 @@ resume or permission prompts.
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
   `GET /tabs/:id/diff`, `POST /tabs/:id/uploads`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
-  `PUT /sessions/skills/prefs` (in `library/profile.json`), `POST /sessions/skills/recommend`.
+  `PUT /sessions/skills/prefs` (in `library/profile.json`), `POST /sessions/skills/recommend` (runs through the selected provider; the Claude SDK only when it is claude).
 - **Stores:** data `tabs.json`; state `uploads/`, `search.db`.
 
 ## providers

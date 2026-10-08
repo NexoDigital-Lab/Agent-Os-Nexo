@@ -84,3 +84,56 @@ test("recommendSkills: failed or empty runs still return the pinned skills", asy
   const bare = await recommendSkills("t", null, fake([{ type: "result", subtype: "success", total_cost_usd: 0, structured_output: null }]));
   assert.deepEqual(bare.skills.map((s) => s.name), ["personal"]);
 });
+
+// ---- CLI providers (round 3): the recommender rides the selected provider ------------------------
+const providersHost = await import("../../../host/server/providers.ts");
+
+test("recommendSkills routes a CLI provider through askWithProvider and parses the JSON answer", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  providersHost.providerExec.find = (n: string) => (n === "opencode" || n === "opencode.cmd" ? `/fake/${n}` : null);
+  const asks: { args: string[]; opts: { timeout?: number } }[] = [];
+  providersHost.providerExec.run = ((_c: string, args: string[], opts: { timeout?: number }) => {
+    asks.push({ args, opts });
+    return Promise.resolve({ stdout: '```json\n{"skills":[{"name":"alpha","why":"pick"}]}\n```', stderr: "" });
+  }) as unknown as typeof providersHost.providerExec.run;
+  try {
+    // The fake run stays as the 3rd arg: the old Claude-only path would use it and fail these asserts (RED).
+    const r = await recommendSkills("fix", "shop", fake([{ type: "result", subtype: "error_max_turns", total_cost_usd: 0 }]), {
+      provider: "opencode",
+      model: "opencode/mimo-v2.6-flash-free",
+      cwd: env.library,
+    });
+    assert.deepEqual(r, { skills: [{ name: "alpha", why: "pick" }, { name: "personal", why: "" }], cost: 0 });
+    const argv = asks[0].args.join(" ");
+    assert.match(argv, /run/);
+    assert.match(argv, /--model opencode\/mimo-v2\.6-flash-free/);
+    assert.match(argv, /"skills"/, "the CLI prompt asks for the JSON shape");
+    assert.equal(asks[0].opts.timeout, 120_000, "a recommend is a one-shot: the 120s budget");
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});
+
+test("recommendSkills: an unparseable CLI answer degrades to the pinned skills", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  providersHost.providerExec.find = (n: string) => (n === "opencode" || n === "opencode.cmd" ? `/fake/${n}` : null);
+  const asks: unknown[] = [];
+  providersHost.providerExec.run = ((_c: string, args: string[]) => {
+    asks.push(args);
+    return Promise.resolve({ stdout: "sorry, I cannot help", stderr: "" });
+  }) as unknown as typeof providersHost.providerExec.run;
+  try {
+    const r = await recommendSkills("t", null, fake([{ type: "result", subtype: "error_max_turns", total_cost_usd: 0 }]), {
+      provider: "opencode",
+      cwd: env.library,
+    });
+    assert.equal(asks.length, 1, "the CLI was spawned");
+    assert.deepEqual(r, { skills: [{ name: "personal", why: "" }], cost: 0 });
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});

@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { h, httpError, ok } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
-import { readProvidersFile } from "../../../host/server/providers.ts";
+import { providerById, readProvidersFile } from "../../../host/server/providers.ts";
 import { addProjectHooks } from "../../projects/server/hooks.ts";
 import { projectDiff, projectDir, projectOfPath, projectPath, worktreePath } from "../../projects/server/projects.ts";
 import * as agent from "./agent.ts";
@@ -136,7 +136,18 @@ const register: ModuleServer = (ctx) => {
     writePrefs({ disabled: req.body.disabled ?? [], pinned: req.body.pinned ?? [] });
     return readPrefs();
   }));
-  api.post("/sessions/skills/recommend", h((req) => recommendSkills(String(req.body.task ?? ""), req.body.project ?? null)));
+  api.post("/sessions/skills/recommend", h((req) => {
+    const provider = req.body?.provider ?? null;
+    if (provider !== null && !providerById(String(provider))) throw httpError(400, `Unknown provider: ${String(provider)}`);
+    const model = typeof req.body?.model === "string" ? req.body.model : undefined;
+    const project = req.body?.project ?? null;
+    const cwd = project ? projectPath(String(project)) : null;
+    return recommendSkills(String(req.body?.task ?? ""), project, undefined, {
+      provider: provider as string | null,
+      model,
+      cwd: cwd ?? undefined,
+    });
+  }));
 
   // Full-text search over past sessions
   api.get("/sessions/search", h((req) => {

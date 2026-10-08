@@ -134,7 +134,7 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
     setRecLoading(true);
     setError("");
     try {
-      const r = await api.recommend(prompt, tab.project);
+        const r = await api.recommend(prompt, tab.project, effectiveProvider, isClaude ? undefined : cliModel || undefined);
       setRecs(r.skills);
       setPicked(new Set(r.skills.map((s) => s.name)));
     } catch (e) {

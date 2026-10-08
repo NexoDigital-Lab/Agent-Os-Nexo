@@ -65,7 +65,7 @@ turnos CLI en modo headless en la carpeta del proyecto, sin retomar ni pedidos d
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
   `GET /tabs/:id/diff`, `POST /tabs/:id/uploads`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
-  `PUT /sessions/skills/prefs` (en `library/profile.json`), `POST /sessions/skills/recommend`.
+  `PUT /sessions/skills/prefs` (en `library/profile.json`), `POST /sessions/skills/recommend` (corre por el provider seleccionado; el SDK de Claude solo cuando es claude).
 - **Guarda:** data `tabs.json`; state `uploads/`, `search.db`.
 
 ## providers

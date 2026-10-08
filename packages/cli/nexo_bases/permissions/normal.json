@@ -4,7 +4,7 @@
   "files": {
     "read": {
       "allow": ["**"],
-      "deny": ["library/connections/**/*.secret*", "projects/**/secrets/**", "os/data/vault/**"]
+      "deny": ["library/connections/**/*.secret*", "projects/**/secrets/**", "os/data/vault/**", ".state/**"]
     },
     "edit": {
       "allow": ["projects/*/context/**", "projects/*/*/context/**", "library/memory/**", "library/conventions/**", "library/dictionary/**"],

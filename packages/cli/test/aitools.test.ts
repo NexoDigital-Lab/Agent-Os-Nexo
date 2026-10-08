@@ -110,3 +110,15 @@ test("onPath finds an AI's command on PATH, with Windows' .cmd form", async () =
   assert.ok(onPath("gemini", { Path: "C:\\x;C:\\npm" }, "win32", exists));
   assert.ok(!onPath("codex", {}, "linux", exists));
 });
+
+test("every permission preset keeps agents out of .state/ (agent-os access tokens live there)", async () => {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const dir = join(import.meta.dirname, "..", "nexo_bases", "permissions");
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
+    const p = JSON.parse(readFileSync(join(dir, f), "utf8"));
+    assert.ok(p.files.read.deny.includes(".state/**"), f);
+  }
+  const root = await freshEnv("claude,opencode");
+  const opencode = JSON.parse(readFileSync(join(root, "opencode.json"), "utf8"));
+  assert.equal(opencode.permission.read[`${root.replace(/\\/g, "/")}/.state/**`], "deny", "OpenCode cannot read the token either");
+});

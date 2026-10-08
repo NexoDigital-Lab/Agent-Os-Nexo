@@ -6,6 +6,7 @@ import { ensureDir, linkDir, linksTo, listDir, readJson, readText, writeJson, wr
 import { parseFrontmatter } from "./frontmatter.ts";
 import { toClaudePermissions, type Permissions } from "./permissions.ts";
 import { CODEX_HEADER, codexConfig, codexRules, geminiAllowed, opencodeMcp, opencodePermission } from "./aitools.ts";
+import { asObj, Ledger, mergeHooks, mergeKeys, withAgentsPointer } from "./coexist.ts";
 
 const CLAUDE_EVENTS: Record<string, string> = {
   "pre-tool": "PreToolUse",
@@ -87,11 +88,6 @@ function linkSkills(libraryDir: string, targetDir: string, dot = ".claude"): boo
   return true;
 }
 
-function mergeJson(path: string, patch: Record<string, unknown>): void {
-  const current = existsSync(path) ? readJson<Record<string, unknown>>(path) : {};
-  writeJson(path, { ...current, ...patch });
-}
-
 /**
  * Generates the per-AI files next to an AGENTS.md (the environment root or a project folder):
  * pointers to AGENTS.md, translated permissions, hooks and MCP servers. Returns written paths.
@@ -105,38 +101,48 @@ export function generateAdapters(
   const written: string[] = [];
   const libraryDir = folder(root, config, "library");
   const connections = listConnections(libraryDir);
+  // Other frameworks share these files: only what Nexo wrote last time is replaced (coexist.ts).
+  const ledger = new Ledger(root, folder(root, config, "state"));
+  const readObj = (file: string) => (existsSync(file) ? asObj(readJson<unknown>(file)) : {});
 
   for (const tool of enabledTools(config)) {
     if (tool === "claude") {
-      writeText(join(targetDir, ".claude", "CLAUDE.md"), "@../AGENTS.md");
-      mergeJson(join(targetDir, ".claude", "settings.json"), {
-        permissions: toClaudePermissions(permissions, root),
-        hooks: claudeHooks(libraryDir),
-      });
-      writeJson(join(targetDir, ".mcp.json"), { mcpServers: mcpServersFor(connections, "claude") });
+      const md = join(targetDir, ".claude", "CLAUDE.md");
+      writeText(md, withAgentsPointer(existsSync(md) ? readText(md) : null));
+      const settingsFile = join(targetDir, ".claude", "settings.json");
+      const settings = readObj(settingsFile);
+      const hooks = mergeHooks(settings.hooks, claudeHooks(libraryDir), ledger.get(settingsFile)?.items);
+      // Permissions come from permissions.json alone: a framework never widens them.
+      writeJson(settingsFile, { ...settings, permissions: toClaudePermissions(permissions, root), hooks: hooks.value });
+      ledger.set(settingsFile, { items: hooks.items });
+      const mcpFile = join(targetDir, ".mcp.json");
+      const servers = mergeKeys(readObj(mcpFile).mcpServers, mcpServersFor(connections, "claude"), ledger.get(mcpFile)?.keys?.mcpServers);
+      writeJson(mcpFile, { ...readObj(mcpFile), mcpServers: servers.value });
+      ledger.set(mcpFile, { keys: { mcpServers: servers.keys } });
       written.push(".claude/CLAUDE.md", ".claude/settings.json", ".mcp.json");
       if (linkSkills(libraryDir, targetDir)) written.push(".claude/skills");
       written.push(...writeClaudeAgents(libraryDir, targetDir));
     } else if (tool === "gemini") {
       // Settings v2 (nested): context.fileName, tools.allowed; keys the user added under context/tools stay.
       const file = join(targetDir, ".gemini", "settings.json");
-      const current = existsSync(file) ? readJson<Record<string, unknown>>(file) : {};
-      const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+      const current = readObj(file);
       delete current.contextFileName; // the v1 key earlier versions of nexo wrote
+      const servers = mergeKeys(current.mcpServers, mcpServersFor(connections, "gemini"), ledger.get(file)?.keys?.mcpServers);
       writeJson(file, {
         ...current,
-        context: { ...obj(current.context), fileName: "AGENTS.md" },
-        tools: { ...obj(current.tools), allowed: geminiAllowed(permissions) },
-        mcpServers: mcpServersFor(connections, "gemini"),
+        context: { ...asObj(current.context), fileName: "AGENTS.md" },
+        tools: { ...asObj(current.tools), allowed: geminiAllowed(permissions) },
+        mcpServers: servers.value,
       });
+      ledger.set(file, { keys: { mcpServers: servers.keys } });
       written.push(".gemini/settings.json");
     } else if (tool === "opencode") {
       // OpenCode reads AGENTS.md itself; it gets the permissions, MCP servers, skills and agents.
-      mergeJson(join(targetDir, "opencode.json"), {
-        $schema: "https://opencode.ai/config.json",
-        permission: opencodePermission(permissions, root),
-        mcp: opencodeMcp(connections),
-      });
+      const file = join(targetDir, "opencode.json");
+      const current = readObj(file);
+      const servers = mergeKeys(current.mcp, opencodeMcp(connections), ledger.get(file)?.keys?.mcp);
+      writeJson(file, { ...current, $schema: "https://opencode.ai/config.json", permission: opencodePermission(permissions, root), mcp: servers.value });
+      ledger.set(file, { keys: { mcp: servers.keys } });
       written.push("opencode.json");
       if (linkSkills(libraryDir, targetDir, ".opencode")) written.push(".opencode/skills");
       written.push(...writeOpencodeAgents(libraryDir, targetDir));
@@ -152,6 +158,7 @@ export function generateAdapters(
       written.push(".codex/rules/nexo.rules");
     }
   }
+  ledger.save();
   return written;
 }
 

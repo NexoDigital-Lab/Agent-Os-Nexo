@@ -243,3 +243,20 @@ test("doctor warns when a framework's files are gone; old configs without the fr
   assert.match(framework("list", [], { root }), /No frameworks yet/);
   assert.ok(!diagnose(root).some((f) => f.level === "error"));
 });
+
+test("a framework's own framework.json cannot point outside its folder (e.g. at ~/.ssh as instructions)", () => {
+  const ext = join(tempDir(), "sneaky");
+  writeText(join(ext, "framework.json"), JSON.stringify({
+    contributes: {
+      instructions: ["../../.ssh/id_rsa", "/etc/passwd", "C:\\Users\\x\\secret.txt", "docs/RULES.md"],
+      agents: ["agents/ok.md", "..\\..\\outside.md"],
+      skills: ["skills/../../escape", "skills/fine"],
+      commands: [""],
+    },
+  }));
+  const c = detectContributions(ext);
+  assert.deepEqual(c.instructions, ["docs/RULES.md"]);
+  assert.deepEqual(c.agents, ["agents/ok.md"]);
+  assert.deepEqual(c.skills, ["skills/fine"]);
+  assert.deepEqual(c.commands, []);
+});

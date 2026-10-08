@@ -65,6 +65,12 @@ export function frameworksDir(root: string, config: EnvironmentConfig): string {
 }
 
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+/**
+ * Paths a framework lists for its files: relative and inside its own folder only. A package's framework.json could
+ * otherwise name `../../.ssh/id_rsa` as "instructions" and have Nexo point every AI at it.
+ */
+const inside = (v: unknown): string[] =>
+  strings(v).filter((p) => p.trim() !== "" && !isAbsolute(p) && !/^[A-Za-z]:/.test(p) && !p.split(/[\\/]/).includes(".."));
 
 function normalize(raw: Record<string, unknown>, dir: string): Framework {
   const c = asObj(raw.contributes);
@@ -81,7 +87,7 @@ function normalize(raw: Record<string, unknown>, dir: string): Framework {
     enabled: { global: en.global === true, projects: strings(en.projects) },
     hooksApproved: raw.hooksApproved === true,
     root: rootDir,
-    contributes: { skills: strings(c.skills), agents: strings(c.agents), commands: strings(c.commands), hooks, mcpServers: asObj(c.mcpServers), instructions: strings(c.instructions) },
+    contributes: { skills: inside(c.skills), agents: inside(c.agents), commands: inside(c.commands), hooks, mcpServers: asObj(c.mcpServers), instructions: inside(c.instructions) },
     dir,
     contentRoot: isAbsolute(rootDir) ? rootDir : resolve(dir, rootDir),
   };

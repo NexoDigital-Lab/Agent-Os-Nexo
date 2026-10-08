@@ -65,7 +65,8 @@ turnos CLI en modo headless en la carpeta del proyecto, sin retomar ni pedidos d
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
   `GET /tabs/:id/diff`, `POST /tabs/:id/uploads`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
-  `PUT /sessions/skills/prefs` (en `library/profile.json`), `POST /sessions/skills/recommend`.
+  `PUT /sessions/skills/prefs` (en `library/profile.json`), `POST /sessions/skills/recommend` (por el CLI de la
+  pestaña si está habilitado y tiene modo de solo lectura — Codex, Gemini — en la carpeta del proyecto; si no, el SDK).
 - **Guarda:** data `tabs.json`; state `uploads/`, `search.db`.
 
 ## providers
@@ -84,7 +85,7 @@ proveedor:
 Las listas se cachean 60 s por proveedor y proyecto; las respuestas vacías o fallidas nunca se cachean, y la
 salida que parece un registro, una frase o una tabla degrada a una lista vacía en vez de a un nombre mal.
 - **Depende de:** projects (las opciones se ejecutan en la carpeta del proyecto). **Vista:** Providers.
-- **Rutas:** `GET /providers` (con `governed`: los proveedores que este entorno puede correr), `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices`.
+- **Rutas:** `GET /providers` (con `governed`: los proveedores que este entorno puede correr), `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices` (400 para un CLI que el entorno no habilita: nunca se lanza).
 - **Guarda:** `library/providers.json` (proveedores habilitados + predeterminado; se siembra desde el
   `tools` del entorno cuando el archivo no existe).
 

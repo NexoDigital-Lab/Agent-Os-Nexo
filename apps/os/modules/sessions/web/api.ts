@@ -58,7 +58,8 @@ export const sessionsApi = {
   resume: (sessionId: string) => call<{ id: string; reused: boolean; forked?: boolean }>("POST", `/api/sessions/history/${seg(sessionId)}/resume`),
   skills: () => call<Skill[]>("GET", "/api/sessions/skills"),
   savePrefs: (disabled: string[], pinned: string[]) => call("PUT", "/api/sessions/skills/prefs", { disabled, pinned }),
-  recommend: (task: string, project: string) => call<{ skills: Recommendation[]; cost: number }>("POST", "/api/sessions/skills/recommend", { task, project }),
+  recommend: (task: string, project: string, provider?: string, model?: string) =>
+    call<{ skills: Recommendation[]; cost: number }>("POST", "/api/sessions/skills/recommend", { task, project, provider, model }),
   providers: () => call<ProvidersState>("GET", "/api/providers"),
   choices: (id: string, project: string) =>
     call<ProviderChoices>("GET", `/api/providers/choices?id=${encodeURIComponent(id)}&project=${encodeURIComponent(project)}`),

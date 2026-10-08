@@ -734,3 +734,33 @@ test("CLI turn without model/agent: argv stays clean (no --model, no --agent)", 
     providersHost.providerExec.find = realFind;
   }
 });
+
+test("POST /sessions/skills/recommend: input checked; an enabled read-only CLI answers in the project's code", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  const asks: { args: string[]; cwd?: string }[] = [];
+  providersHost.providerExec.find = (n: string) => (n === "codex" || n === "gemini" ? `/fake/${n}` : null);
+  providersHost.providerExec.run = ((_c: string, args: string[], opts: { cwd?: string }) => {
+    asks.push({ args, cwd: opts.cwd });
+    return Promise.resolve({ stdout: '{"skills":[]}', stderr: "" });
+  }) as unknown as typeof providersHost.providerExec.run;
+  const rec = (body: Record<string, unknown>) => m.call("POST", "/sessions/skills/recommend", body);
+  try {
+    assert.equal((await rec({ task: "x", provider: "bogus" })).status, 400);
+    assert.equal((await rec({ task: 42 })).status, 400);
+    assert.equal((await rec({ task: "x".repeat(20_001) })).status, 400);
+    const off = await rec({ task: "x", project: "shop", provider: "gemini" });
+    assert.equal(off.status, 400, "gemini is off in this environment's tools");
+    assert.match(off.body.error, /Gemini CLI is not enabled/);
+    assert.equal(asks.length, 0, "nothing spawned for a refused provider");
+    const ok = await rec({ task: "x", project: "shop", provider: "codex", model: "gpt-5" });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.body, { skills: [], cost: 0 });
+    assert.deepEqual(asks[0].args.slice(0, 3), ["exec", "--sandbox", "read-only"]);
+    assert.equal(asks[0].cwd, join(env.projects, "shop", "code"));
+    assert.equal((await rec({ task: "x", project: "shop", provider: "codex", model: "$(rm -rf ~)" })).status, 400, "model shape-checked");
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});

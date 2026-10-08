@@ -280,7 +280,7 @@ test("askWithProvider: Stop aborts the CLI (the signal reaches the spawn) and an
   await assert.rejects(providers.askWithProvider("opencode", "x".repeat(providers.MAX_PROMPT_ARG + 1), { cwd: "/p" }), (e: any) => e.status === 413);
 });
 
-test("modeArgs: Codex read-only unless edits are accepted (never danger-full-access); OpenCode --auto only on bypass", () => {
+test("modeArgs: Codex read-only unless edits are accepted (never danger-full-access); OpenCode --auto only on bypass; Gemini plan/auto_edit, never yolo", () => {
   assert.deepEqual(providers.modeArgs("codex", "default"), ["--sandbox", "read-only"]);
   assert.deepEqual(providers.modeArgs("codex", "plan"), ["--sandbox", "read-only"]);
   assert.deepEqual(providers.modeArgs("codex", "acceptEdits"), ["--sandbox", "workspace-write"]);
@@ -288,7 +288,11 @@ test("modeArgs: Codex read-only unless edits are accepted (never danger-full-acc
   assert.deepEqual(providers.modeArgs("codex", "auto"), ["--sandbox", "read-only"], "an unknown mode is the safe default");
   assert.deepEqual(providers.modeArgs("opencode", "bypassPermissions"), ["--auto"]);
   assert.deepEqual(providers.modeArgs("opencode", "acceptEdits"), []);
-  assert.deepEqual(providers.modeArgs("gemini", "bypassPermissions"), []);
+  assert.deepEqual(providers.modeArgs("gemini", "default"), []);
+  assert.deepEqual(providers.modeArgs("gemini", "plan"), ["--approval-mode", "plan"]);
+  assert.deepEqual(providers.modeArgs("gemini", "acceptEdits"), ["--approval-mode", "auto_edit"]);
+  assert.deepEqual(providers.modeArgs("gemini", "bypassPermissions"), ["--approval-mode", "auto_edit"], "never yolo");
+  assert.deepEqual([...providers.READ_ONLY_ONE_SHOT].sort(), ["codex", "gemini"], "only CLIs with a documented read-only mode");
 });
 
 test("askWithProvider: non-zero exit is a 502 carrying a trimmed stderr tail; empty stdout is a 502", async () => {
@@ -505,11 +509,16 @@ mkdirSync(join(projectsEnv.projects, "shop", "code"), { recursive: true });
 writeFileSync(join(projectsEnv.projects, "shop", "AGENTS.md"), "# shop");
 initProjects(projectsEnv);
 
-test("GET /providers/choices: 400 for an unknown id; gemini answers 200 with (usually empty) lists; 404 for unknown project", async () => {
+test("GET /providers/choices: 400 for an unknown or ungoverned id; codex answers 200 with (usually empty) lists; 404 for unknown project", async () => {
   assert.equal((await m.get("/providers/choices?id=bogus&project=shop")).status, 400);
-  // gemini is not installed on this machine: 200 with empty lists, not an error.
   assert.equal((await m.get("/providers/choices?id=antigravity&project=shop")).status, 400, "Antigravity is gone");
-  assert.deepEqual((await m.get("/providers/choices?id=gemini&project=shop")).body, { agents: [], models: [] });
+  // gemini is off in this environment's tools: its CLI is never spawned, not even to list extensions.
+  findHits = { gemini: "/usr/bin/gemini" };
+  const off = await m.get("/providers/choices?id=gemini&project=shop");
+  assert.equal(off.status, 400);
+  assert.match(off.body.error, /Gemini CLI is not enabled/);
+  assert.equal(runCalls.length, 0, "gemini -l never ran");
+  assert.equal((await m.get("/providers/choices?id=codex&project=shop")).status, 200);
   assert.equal((await m.get("/providers/choices?id=opencode&project=nope")).status, 404);
 });
 

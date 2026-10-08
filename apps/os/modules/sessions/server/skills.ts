@@ -3,6 +3,7 @@
 // honor the same choice (the environment's AGENTS.md tells them to).
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
+import { askWithProvider, type ProviderId } from "../../../host/server/providers.ts";
 import { join } from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Env } from "../../../host/server/env.ts";
@@ -111,8 +112,43 @@ const RECOMMEND_SCHEMA = {
   additionalProperties: false,
 };
 
-/** Picks a focused loadout for a task with a cheap model call: few skills, rare-signal matches first, under ~15k tokens. */
-export async function recommendSkills(task: string, project: string | null, run: typeof query = query) {
+/** Pinned skills ride along on every task (the web shows "pinned" for an empty why). */
+const withPinned = (pool: Skill[], recs: Recommendation[]): Recommendation[] => {
+  const list = [...recs];
+  for (const s of pool.filter((s) => s.pinned)) if (!list.some((r) => r.name === s.name)) list.push({ name: s.name, why: "" });
+  return list;
+};
+
+/** A CLI answers in free text: tolerate a code fence or prose around {"skills":[…]}; anything unparsable is empty. */
+export function parseCliRecommendations(text: string): Recommendation[] {
+  const body = /```(?:json)?\s*([\s\S]*?)```/.exec(text)?.[1] ?? text;
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  if (start < 0 || end <= start) return [];
+  try {
+    const parsed = JSON.parse(body.slice(start, end + 1)) as { skills?: unknown };
+    if (!Array.isArray(parsed.skills)) return [];
+    return parsed.skills
+      .filter((r): r is Recommendation => !!r && typeof r === "object" && typeof (r as Recommendation).name === "string" && typeof (r as Recommendation).why === "string")
+      .map((r) => ({ name: r.name, why: r.why.slice(0, 200) }));
+  } catch {
+    return [];
+  }
+}
+
+/** A CLI that answers the recommendation instead of the SDK: one with a read-only mode, run in the project's code. */
+export interface RecommendVia {
+  provider: ProviderId;
+  model?: string;
+  cwd: string;
+}
+
+/**
+ * Picks a focused loadout for a task with a cheap model call: few skills, rare-signal matches first, under ~15k tokens.
+ * The bundled SDK answers (tools off) unless `via` names a CLI: then it runs headless in mode "plan" — read-only for the
+ * CLIs that may be used here (providers.ts READ_ONLY_ONE_SHOT) — with its cost unknown (0).
+ */
+export async function recommendSkills(task: string, project: string | null, run: typeof query = query, via?: RecommendVia) {
   const pool = listSkills().filter((s) => s.enabled);
   const catalog = pool.map((s) => `- ${s.name} (${s.tokens} tok): ${s.description}`).join("\n");
   const prompt = `You pick the skill loadout for a coding agent before it starts a task.
@@ -129,6 +165,13 @@ Rules:
 - "why" is one short line in the language with code "${userLanguage()}", max 12 words, saying what the skill will do for THIS task.
 - Only use names from the list.`;
 
+  const known = (r: Recommendation) => pool.some((s) => s.name === r.name);
+  if (via) {
+    const ask = `${prompt}\n- Do not use any tool and do not change anything: answer with ONLY a JSON object, no prose, in exactly this shape: {"skills":[{"name":"<name>","why":"<why>"}]}`;
+    const answer = await askWithProvider(via.provider, ask, { cwd: via.cwd, mode: "plan", ...(via.model ? { model: via.model } : {}) });
+    return { skills: withPinned(pool, parseCliRecommendations(answer.text).filter(known)), cost: 0 };
+  }
+
   let recs: Recommendation[] = [];
   let cost = 0;
   for await (const msg of run({
@@ -138,11 +181,9 @@ Rules:
     if (msg.type === "result") {
       cost = msg.total_cost_usd;
       if (msg.subtype === "success") {
-        recs = ((msg.structured_output as { skills?: Recommendation[] })?.skills ?? []).filter((r) => pool.some((s) => s.name === r.name));
+        recs = ((msg.structured_output as { skills?: Recommendation[] })?.skills ?? []).filter(known);
       }
     }
   }
-  // Pinned skills ride along on every task (the web shows "pinned" for an empty why).
-  for (const s of pool.filter((s) => s.pinned)) if (!recs.some((r) => r.name === s.name)) recs.push({ name: s.name, why: "" });
-  return { skills: recs, cost };
+  return { skills: withPinned(pool, recs), cost };
 }

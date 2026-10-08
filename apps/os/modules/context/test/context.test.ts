@@ -50,6 +50,13 @@ test("a symlink inside context/ is not followed", { skip: process.platform === "
   assert.ok(!((await get(base)).body as { path: string }[]).some((f) => f.path === "context/leak.md"), "not listed either");
 });
 
+test("a linked folder inside context/ that points at secrets/ is neither read nor written through", { skip: process.platform === "win32" && "symlinks need admin" }, async () => {
+  symlinkSync(join(shop, "secrets"), join(shop, "context", "vault"));
+  assert.equal((await get(`${base}/file?path=context/vault/token.md`)).status, 400, "read refused");
+  assert.equal((await call("PUT", `${base}/file`, { path: "context/vault/new.md", content: "x" })).status, 400, "write refused");
+  assert.doesNotMatch(readFileSync(join(shop, "secrets", "token.md"), "utf8"), /^x$/);
+});
+
 test("read, save with the stale-copy check, create in an existing folder", async () => {
   const doc = (await get(`${base}/file?path=context/README.md`)).body;
   assert.equal(doc.content, "# context\n");

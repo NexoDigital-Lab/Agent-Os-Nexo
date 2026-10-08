@@ -7,7 +7,7 @@ import type { Env } from "../../../host/server/env.ts";
 import { findBin, httpError, run, trash } from "../../../host/server/http.ts";
 import { projectHooks, type DeleteFacts, type DeleteOptions } from "./hooks.ts";
 import { projectDir, projectPath, readProject, projectIds } from "./projects.ts";
-import { CMD_META, cmdShimTargets } from "../../../host/server/winshell.ts";
+import { CMD_META, launcher, shimScript } from "../../../host/server/winshell.ts";
 
 const NAME = /^[a-z0-9][a-z0-9._-]{0,99}$/;
 const FULL = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
@@ -28,24 +28,12 @@ const errText = (e: unknown) => {
   return String(err.stderr || err.message || e).trim();
 };
 
-/**
- * npm's Windows shim (`nexo.cmd`) only runs `node "%dp0%\…\bin.js" %*`: take that script out of it, so the CLI runs
- * with node directly and no argument ever goes through cmd.exe. Null when the shim is not npm's.
- */
-export function shimScript(cmdFile: string, read?: (f: string) => string): string | null {
-  return cmdShimTargets(cmdFile, read).find((t) => /\.(c|m)?js$/i.test(t)) ?? null;
-}
-
 /** How to run the CLI: a checkout (NEXO_CLI), the shim's script with node, or the binary on PATH. */
 export function nexoCommand(platform = process.platform, find: typeof findBin = findBin, script = shimScript): { cmd: string; pre: string[]; viaCmd: boolean } | null {
   const dev = process.env.NEXO_CLI;
   if (dev) return { cmd: process.execPath, pre: [dev], viaCmd: false };
   const bin = platform === "win32" ? find("nexo.cmd") ?? find("nexo") : find("nexo");
-  if (!bin) return null;
-  if (!/\.(cmd|bat)$/i.test(bin)) return { cmd: bin, pre: [], viaCmd: false };
-  const js = script(bin);
-  if (js) return { cmd: process.execPath, pre: [js], viaCmd: false };
-  return { cmd: process.env.ComSpec ?? "cmd.exe", pre: ["/c", bin], viaCmd: true };
+  return bin ? launcher(bin, script) : null;
 }
 
 /**

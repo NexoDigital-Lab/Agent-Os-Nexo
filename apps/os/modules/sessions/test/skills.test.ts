@@ -84,3 +84,41 @@ test("recommendSkills: failed or empty runs still return the pinned skills", asy
   const bare = await recommendSkills("t", null, fake([{ type: "result", subtype: "success", total_cost_usd: 0, structured_output: null }]));
   assert.deepEqual(bare.skills.map((s) => s.name), ["personal"]);
 });
+
+// ---- through a CLI with a read-only mode (the tab's provider, when it is codex or gemini) -------------------------
+const providersHost = await import("../../../host/server/providers.ts");
+const { parseCliRecommendations } = await import("../server/skills.ts");
+
+test("parseCliRecommendations: a fenced or prose-wrapped JSON answer parses; anything else is empty", () => {
+  assert.deepEqual(parseCliRecommendations('```json\n{"skills":[{"name":"alpha","why":"w"}]}\n```'), [{ name: "alpha", why: "w" }]);
+  assert.deepEqual(parseCliRecommendations('Sure! {"skills":[{"name":"a","why":"x"},{"name":3},null]} hope it helps'), [{ name: "a", why: "x" }]);
+  assert.deepEqual(parseCliRecommendations("sorry, I cannot help"), []);
+  assert.deepEqual(parseCliRecommendations("{not json}"), []);
+  assert.deepEqual(parseCliRecommendations('{"skills":"alpha"}'), []);
+  assert.equal(parseCliRecommendations(`{"skills":[{"name":"a","why":"${"w".repeat(500)}"}]}`)[0]?.why.length, 200);
+});
+
+test("recommendSkills through a CLI: read-only mode, the project's cwd, known skills + pinned, cost 0, no SDK call", async () => {
+  const realRun = providersHost.providerExec.run;
+  const realFind = providersHost.providerExec.find;
+  const asks: { args: string[]; opts: { timeout?: number; cwd?: string } }[] = [];
+  providersHost.providerExec.find = (n: string) => (n === "codex" || n === "gemini" ? `/fake/${n}` : null);
+  providersHost.providerExec.run = ((_c: string, args: string[], opts: { timeout?: number; cwd?: string }) => {
+    asks.push({ args, opts });
+    return Promise.resolve({ stdout: '```json\n{"skills":[{"name":"alpha","why":"pick"},{"name":"ghost","why":"x"}]}\n```', stderr: "" });
+  }) as unknown as typeof providersHost.providerExec.run;
+  const noSdk = (() => assert.fail("the SDK is not called when a CLI answers")) as any;
+  try {
+    const r = await recommendSkills("fix", "shop", noSdk, { provider: "codex", model: "gpt-5", cwd: "/proj/shop/code" });
+    assert.deepEqual(r, { skills: [{ name: "alpha", why: "pick" }, { name: "personal", why: "" }], cost: 0 });
+    assert.deepEqual(asks[0].args.slice(0, 5), ["exec", "--sandbox", "read-only", "--model", "gpt-5"]);
+    assert.match(asks[0].args.at(-1) ?? "", /ONLY a JSON object/);
+    assert.equal(asks[0].opts.cwd, "/proj/shop/code");
+    assert.equal(asks[0].opts.timeout, 120_000, "a recommendation is a one-shot: the 120 s budget");
+    await recommendSkills("fix", "shop", noSdk, { provider: "gemini", cwd: "/proj/shop/code" });
+    assert.deepEqual(asks[1].args.slice(0, 3), ["--approval-mode", "plan", "-p"], "gemini's read-only plan mode");
+  } finally {
+    providersHost.providerExec.run = realRun;
+    providersHost.providerExec.find = realFind;
+  }
+});

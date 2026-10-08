@@ -65,7 +65,8 @@ resume or permission prompts.
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
   `GET /tabs/:id/diff`, `POST /tabs/:id/uploads`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
-  `PUT /sessions/skills/prefs` (in `library/profile.json`), `POST /sessions/skills/recommend`.
+  `PUT /sessions/skills/prefs` (in `library/profile.json`), `POST /sessions/skills/recommend` (through the
+  tab's CLI when it is enabled and read-only capable — Codex, Gemini — in the project folder; otherwise the SDK).
 - **Stores:** data `tabs.json`; state `uploads/`, `search.db`.
 
 ## providers
@@ -83,7 +84,7 @@ pickers for the providers that expose them, one source per provider:
 Lists are cached 60 s per provider and project; empty or failed answers are never cached, and output that
 looks like a log line, a sentence or a table degrades to an empty list instead of a wrong name.
 - **Depends on:** projects (the choices run in the project folder). **View:** Providers.
-- **Routes:** `GET /providers` (with `governed`: the providers this environment may run), `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices`.
+- **Routes:** `GET /providers` (with `governed`: the providers this environment may run), `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices` (400 for a CLI the environment does not enable: it is never spawned).
 - **Stores:** `library/providers.json` (enabled providers + default; seeded from the environment's `tools`
   when the file is missing).
 

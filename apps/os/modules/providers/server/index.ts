@@ -34,11 +34,14 @@ const register: ModuleServer = (ctx) => {
   const api = ctx.api;
   api.get("/providers", h(() => snapshot()));
 
-  // Agent/model lists for the chat Composer. id must expose supports.agent|model; project resolves to its code/ dir.
+  // Agent/model lists for the chat Composer. id must expose supports.agent|model and be governed (enabled in the
+  // environment's tools); project resolves to its code/ dir.
   api.get("/providers/choices", h((req) => {
     const id = String(req.query.id ?? "");
     const meta = providerById(id);
     if (!meta || !(meta.supports.agent || meta.supports.model)) throw httpError(400, `No choices for provider: ${id}`);
+    // Listing spawns the CLI (`opencode agent list`, `gemini -l`): never one the environment does not enable.
+    if (!isGoverned(meta.id, envTools(ctx.env.root))) throw httpError(400, `${meta.label} is not enabled in this Nexo environment`);
     const project = String(req.query.project ?? "");
     const cwd = projectPath(project);
     if (!cwd) throw httpError(404, `Unknown project: ${project}`);

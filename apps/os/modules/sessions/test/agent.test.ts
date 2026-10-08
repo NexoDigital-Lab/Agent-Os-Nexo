@@ -554,7 +554,8 @@ test("send with a CLI provider: the same chat events, headless argv, no SDK call
   const realRun = providersHost.providerExec.run;
   const realFind = providersHost.providerExec.find;
   const askCalls: { cmd: string; args: string[] }[] = [];
-  providersHost.providerExec.find = (n: string) => (n === "opencode" || n === "opencode.cmd" ? `/fake/${n}` : null);
+  // A plain binary on every platform: routing is under test here; Windows shims are covered in providers.test.ts.
+  providersHost.providerExec.find = (n: string) => (n === "opencode" ? "/fake/opencode" : null);
   providersHost.providerExec.run = ((cmd: string, args: string[]) => {
     askCalls.push({ cmd, args });
     return Promise.resolve({ stdout: "  CLI answer one\n", stderr: "" });
@@ -574,9 +575,7 @@ test("send with a CLI provider: the same chat events, headless argv, no SDK call
     assert.equal(evs[3].cost, 0);
     assert.equal(evs[3].turns, 1);
     assert.equal(calls.length, sdkBefore, "the SDK query never ran");
-    // resolveCli prefers the .cmd shim on win32 and wraps it in cmd.exe /c; posix runs the bare bin.
-    const shim = process.platform === "win32";
-    assert.deepEqual(askCalls[0].args, shim ? ["/c", "/fake/opencode.cmd", "run", "go"] : ["run", "go"]);
+    assert.deepEqual(askCalls[0].args, ["run", "go"]);
     const t = await tab(id);
     assert.equal(t.provider, "opencode");
     assert.equal(t.sdkSessionId, null);
@@ -588,12 +587,10 @@ test("send with a CLI provider: the same chat events, headless argv, no SDK call
     assert.equal((await send(id, { prompt: "second" })).status, 200);
     await idle(id);
     assert.equal(askCalls.length, 2);
-    assert.equal(askCalls[1].cmd, shim ? (process.env.ComSpec ?? "cmd.exe") : "/fake/opencode");
+    assert.equal(askCalls[1].cmd, "/fake/opencode");
     assert.deepEqual(
       askCalls[1].args,
-      shim
-        ? ["/c", "/fake/opencode.cmd", "run", "User: go\nAssistant: CLI answer one\n\nsecond"]
-        : ["run", "User: go\nAssistant: CLI answer one\n\nsecond"],
+      ["run", "User: go\nAssistant: CLI answer one\n\nsecond"],
     );
     agent.closeTab(id);
   } finally {
@@ -653,22 +650,20 @@ test("CLI turn: --model and --agent appear in argv when set; providerAgent stick
   const realRun = providersHost.providerExec.run;
   const realFind = providersHost.providerExec.find;
   const askCalls: { cmd: string; args: string[] }[] = [];
-  providersHost.providerExec.find = (n: string) => (n === "opencode" || n === "opencode.cmd" ? `/fake/${n}` : null);
+  // A plain binary on every platform: routing is under test here; Windows shims are covered in providers.test.ts.
+  providersHost.providerExec.find = (n: string) => (n === "opencode" ? "/fake/opencode" : null);
   providersHost.providerExec.run = ((cmd: string, args: string[]) => {
     askCalls.push({ cmd, args });
     return Promise.resolve({ stdout: "answer", stderr: "" });
   }) as unknown as typeof providersHost.providerExec.run;
   try {
     const id = await open("cli agent tab");
-    const shim = process.platform === "win32";
     // First turn: explicit model + agent
     assert.equal((await send(id, { provider: "opencode", model: "opencode/mimo-v2.6-pro", agent: "build" })).status, 200);
     await idle(id);
     assert.deepEqual(
       askCalls[0].args,
-      shim
-        ? ["/c", "/fake/opencode.cmd", "run", "--model", "opencode/mimo-v2.6-pro", "--agent", "build", "go"]
-        : ["run", "--model", "opencode/mimo-v2.6-pro", "--agent", "build", "go"],
+      ["run", "--model", "opencode/mimo-v2.6-pro", "--agent", "build", "go"],
     );
     assert.equal((await tab(id)).providerAgent, "build");
     // Second turn: no agent in body — the sticky providerAgent is used; no model (model does not stick)
@@ -676,18 +671,14 @@ test("CLI turn: --model and --agent appear in argv when set; providerAgent stick
     await idle(id);
     assert.deepEqual(
       askCalls[1].args,
-      shim
-        ? ["/c", "/fake/opencode.cmd", "run", "--agent", "build", "User: go\nAssistant: answer\n\nsecond"]
-        : ["run", "--agent", "build", "User: go\nAssistant: answer\n\nsecond"],
+      ["run", "--agent", "build", "User: go\nAssistant: answer\n\nsecond"],
     );
     // Third turn: a different agent overrides the sticky one
     assert.equal((await send(id, { prompt: "third", agent: "explore" })).status, 200);
     await idle(id);
     assert.deepEqual(
       askCalls[2].args,
-      shim
-        ? ["/c", "/fake/opencode.cmd", "run", "--agent", "explore", "User: go\nAssistant: answer\nUser: second\nAssistant: answer\n\nthird"]
-        : ["run", "--agent", "explore", "User: go\nAssistant: answer\nUser: second\nAssistant: answer\n\nthird"],
+      ["run", "--agent", "explore", "User: go\nAssistant: answer\nUser: second\nAssistant: answer\n\nthird"],
     );
     assert.equal((await tab(id)).providerAgent, "explore");
     agent.closeTab(id);
@@ -726,20 +717,16 @@ test("CLI turn without model/agent: argv stays clean (no --model, no --agent)", 
   const realRun = providersHost.providerExec.run;
   const realFind = providersHost.providerExec.find;
   const askCalls: { cmd: string; args: string[] }[] = [];
-  providersHost.providerExec.find = (n: string) => (n === "codex" || n === "codex.cmd" ? `/fake/${n}` : null);
+  providersHost.providerExec.find = (n: string) => (n === "codex" ? "/fake/codex" : null);
   providersHost.providerExec.run = ((cmd: string, args: string[]) => {
     askCalls.push({ cmd, args });
     return Promise.resolve({ stdout: "ok", stderr: "" });
   }) as unknown as typeof providersHost.providerExec.run;
   try {
     const id = await open("cli clean tab");
-    const shim = process.platform === "win32";
     assert.equal((await send(id, { provider: "codex" })).status, 200);
     await idle(id);
-    assert.deepEqual(
-      askCalls[0].args,
-      shim ? ["/c", "/fake/codex.cmd", "exec", "--sandbox", "read-only", "go"] : ["exec", "--sandbox", "read-only", "go"],
-    );
+    assert.deepEqual(askCalls[0].args, ["exec", "--sandbox", "read-only", "go"]);
     assert.equal((await tab(id)).providerAgent, null, "no agent set");
     agent.closeTab(id);
   } finally {

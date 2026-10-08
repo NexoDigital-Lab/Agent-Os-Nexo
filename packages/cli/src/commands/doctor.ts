@@ -5,6 +5,7 @@ import { enabledTools, folder, readConfig, type EnvironmentConfig } from "../cor
 import { parseFrontmatter } from "../core/frontmatter.ts";
 import { isDir, listDir, readJson, readText } from "../core/fsx.ts";
 import { loadPermissions, validatePermissions } from "../core/permissions.ts";
+import { unenforced } from "../core/aitools.ts";
 import { listProjectDirs } from "../core/projects.ts";
 import { buildTarget, currentTarget } from "../core/osruntime.ts";
 import { activeVersion } from "../core/osversions.ts";
@@ -71,6 +72,15 @@ export function diagnose(root: string, quick = false): Finding[] {
     if (tool === "gemini" && !existsSync(join(root, ".gemini", "settings.json"))) {
       findings.push({ level: "error", area: "gemini", message: "missing .gemini/settings.json — run `nexo update`" });
     }
+    if (tool === "opencode" && !existsSync(join(root, "opencode.json"))) {
+      findings.push({ level: "error", area: "opencode", message: "missing opencode.json — run `nexo update`" });
+    }
+    if (tool === "codex" && !existsSync(join(root, ".codex", "rules", "nexo.rules"))) {
+      findings.push({ level: "error", area: "codex", message: "missing .codex/rules/nexo.rules — run `nexo update`" });
+    }
+    // Rules this AI's own files cannot express: the user should know they hold only for the others.
+    const gaps = unenforced(tool, loadPermissions(join(folder(root, config, "library"), "permissions.json")));
+    if (gaps.length) findings.push({ level: "warn", area: tool, message: `not enforced by ${tool}: ${gaps.join("; ")}` });
   }
   const stale = staleAnalysis(config);
   if (stale) findings.push({ level: "warn", area: "analysis", message: stale });

@@ -11,6 +11,7 @@ import { os } from "./commands/os.ts";
 import { map } from "./commands/map.ts";
 import { dict } from "./commands/dict.ts";
 import { permissions } from "./commands/permissions.ts";
+import { importTool } from "./commands/import.ts";
 import { nexoVersion } from "./core/version.ts";
 
 const HELP = `nexo — install and maintain a Nexo agent environment
@@ -38,6 +39,9 @@ Usage: nexo <command> [options]
   clone <repo-url> [--ws <name>] [--name <part>]
                                     Clone into projects/ with context ready
   new <name> [--ws <name>]          Create an empty project
+  import <claude|codex|gemini|opencode> [--apply] [--from <home>]
+                                    Bring another AI's MCP servers and permissions into the library
+                                    (shows the plan; --apply writes it; never weakens a rule)
   connect [name] --command <cmd> [--args a,b] [--env K=V] [--remote]
               [--description <d>] [--tools claude,gemini]
                                     Add a connection; without a name, list them
@@ -90,6 +94,7 @@ async function main(argv: string[]): Promise<number> {
       alias: { type: "string" },
       body: { type: "string" },
       project: { type: "string" },
+      apply: { type: "boolean" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -124,6 +129,8 @@ async function main(argv: string[]): Promise<number> {
       return print(map(rest[0], values));
     case "dict":
       return print(dict(rest[0], rest.slice(1), values));
+    case "import":
+      return print(importTool(rest[0], values));
     case "permissions":
       return print(permissions(rest[0], rest.slice(1), values));
     case "os":

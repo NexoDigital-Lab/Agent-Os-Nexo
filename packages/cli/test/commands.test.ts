@@ -130,11 +130,13 @@ test("init refuses an existing environment and unknown options", async () => {
   await assert.rejects(init({ root: join(tempDir(), "y"), yes: true, preset: "yolo" }), /Unknown preset/);
 });
 
-test("doctor: a fresh environment only asks for an OS analysis", async () => {
+test("doctor: a fresh environment only asks for an OS analysis, and says what Gemini cannot enforce", async () => {
   const root = await freshEnv();
   const findings = diagnose(root);
-  assert.deepEqual(findings.map((f) => f.area), ["analysis"]);
-  assert.equal(findings[0]?.level, "warn");
+  assert.deepEqual(findings.map((f) => f.area), ["gemini", "analysis"]);
+  assert.ok(findings.every((f) => f.level === "warn"));
+  assert.match(findings[0]!.message, /^not enforced by gemini: command deny rules/);
+  assert.deepEqual(diagnose(await freshEnv("claude")).map((f) => f.area), ["analysis"], "Claude enforces every rule");
 });
 
 test("doctor: flags broken skills and agents above the model ceiling", async () => {
@@ -163,7 +165,7 @@ test("analyze records the OS summary and clears the doctor warning", async () =>
   const system = readConfig(root).system;
   assert.ok(system);
   assert.equal(system.toolchains.node, process.versions.node);
-  assert.deepEqual(diagnose(root), []);
+  assert.deepEqual(diagnose(root).filter((f) => f.area !== "gemini"), [], "only Gemini's known gaps remain");
 });
 
 test("update keeps user-owned items and restores factory ones", async () => {

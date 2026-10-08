@@ -61,3 +61,11 @@ export function tryRun(cmd: string, args: string[], timeoutMs = 5000): string | 
 export function gitConfig(key: string): string {
   return tryRun("git", ["config", "--get", key]) ?? "";
 }
+
+/** True when `bin` is an executable on PATH (with Windows' .cmd/.exe/.bat forms). */
+export function onPath(bin: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform, exists: (p: string) => boolean = existsSync): boolean {
+  const sep = platform === "win32" ? ";" : ":";
+  const join = platform === "win32" ? win32.join : (a: string, b: string) => `${a.replace(/\/+$/, "")}/${b}`;
+  const names = platform === "win32" ? [`${bin}.cmd`, `${bin}.exe`, `${bin}.bat`, bin] : [bin];
+  return String(env.PATH ?? env.Path ?? "").split(sep).filter(Boolean).some((dir) => names.some((n) => exists(join(dir, n))));
+}

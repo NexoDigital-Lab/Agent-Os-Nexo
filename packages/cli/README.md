@@ -13,6 +13,7 @@ nexo doctor                             # check everything; never changes anythi
 nexo dict add "Active customer" --summary "Bought in the last 90 days"   # a concept every agent reads
 nexo permissions allow commands "npm run test*"                         # one rule, validated, every AI updated
 nexo os desktop                         # the desktop app installer for this OS (checksum-verified)
+nexo import opencode --apply            # bring another AI's MCP servers and permissions into the library
 ```
 
 Commands: `init`, `update`, `doctor`, `analyze`, `index`, `clone`, `new`, `map`, `connect`, `os`.

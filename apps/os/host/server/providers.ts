@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join as pathJoin } from "node:path";
 import { findBin, httpError, run, writeJson } from "./http.ts";
-import { CMD_META, cmdShimTargets } from "./winshell.ts";
+import { CMD_META, launcher, shimScript } from "./winshell.ts";
 
 export type ProviderId = "claude" | "opencode" | "codex" | "gemini";
 export type ProviderKind = "sdk" | "cli";
@@ -115,20 +115,14 @@ export function resolveCli(
   names: string[],
   platform: NodeJS.Platform = process.platform,
   find: (name: string) => string | null = findBin,
-  script: (cmdFile: string) => string | null = (f) => cmdShimTargets(f).find((t) => /\.(c|m)?js$/i.test(t)) ?? null,
+  script: (cmdFile: string) => string | null = shimScript,
 ): { cmd: string; pre: string[]; path: string; viaCmd: boolean } | null {
   const order = (name: string): string[] =>
     platform === "win32" ? [`${name}.cmd`, `${name}.bat`, name] : [name, `${name}.cmd`, `${name}.bat`];
   for (const name of names) {
     for (const candidate of order(name)) {
       const hit = find(candidate);
-      if (!hit) continue;
-      if (/\.(cmd|bat)$/i.test(hit)) {
-        const js = script(hit);
-        if (js) return { cmd: process.execPath, pre: [js], path: hit, viaCmd: false };
-        return { cmd: process.env.ComSpec ?? "cmd.exe", pre: ["/c", hit], path: hit, viaCmd: true };
-      }
-      return { cmd: hit, pre: [], path: hit, viaCmd: false };
+      if (hit) return { ...launcher(hit, script), path: hit };
     }
   }
   return null;
@@ -146,14 +140,24 @@ export type ProviderMode = "default" | "acceptEdits" | "plan" | "bypassPermissio
 /**
  * Codex exec is read-only unless told otherwise (developers.openai.com/codex/noninteractive): plan/default keep that,
  * accept-edits and bypass allow edits in the workspace — never `danger-full-access`. OpenCode run's `--auto`
- * auto-approves what is not explicitly denied (opencode.ai/docs/cli): only on bypass. Gemini gets no
- * flag (not verified): they keep their own defaults and the environment's generated settings.
+ * auto-approves what is not explicitly denied (opencode.ai/docs/cli): only on bypass.
  */
 export function modeArgs(id: ProviderId, mode: string = "default"): string[] {
   if (id === "codex") return ["--sandbox", mode === "acceptEdits" || mode === "bypassPermissions" ? "workspace-write" : "read-only"];
   if (id === "opencode" && mode === "bypassPermissions") return ["--auto"];
+  // Gemini's approval modes (geminicli.com/docs/cli/cli-reference): plan is read-only (docs/cli/plan-mode); edits are
+  // auto-approved on accept-edits and bypass — never yolo, which would also run every shell command unasked.
+  if (id === "gemini" && mode === "plan") return ["--approval-mode", "plan"];
+  if (id === "gemini" && (mode === "acceptEdits" || mode === "bypassPermissions")) return ["--approval-mode", "auto_edit"];
   return [];
 }
+
+/**
+ * CLIs with a documented read-only headless mode, so a one-shot question (a skill recommendation) may run through
+ * them with mode "plan": Codex `--sandbox read-only`, Gemini `--approval-mode plan`. OpenCode documents no read-only
+ * mode for `opencode run`, so its one-shots stay on the bundled SDK.
+ */
+export const READ_ONLY_ONE_SHOT: ReadonlySet<ProviderId> = new Set<ProviderId>(["codex", "gemini"]);
 
 /**
  * Shared shape validator for model values (and non-agent choices) that reach a CLI spawn: provider/model ids
@@ -191,6 +195,7 @@ function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; a
   // `gemini -p "…" [--model <id>] [--extensions <name>]`
   if (id === "gemini") {
     return [
+      ...modeArgs(id, opts?.mode),
       "-p",
       prompt,
       ...(opts?.model ? ["--model", opts.model] : []),

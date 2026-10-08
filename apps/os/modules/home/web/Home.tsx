@@ -4,8 +4,6 @@ import { locale } from "@os/i18n";
 import { usd } from "@os/lib/format";
 import { call, hostApi } from "@os/lib/http";
 import { renderMarkdown } from "@os/lib/markdown";
-import { readStr, writeStr } from "@os/lib/storage";
-import { goTo } from "../../shell/web/nav";
 import { openDeleteProject, openNewProject } from "../../projects/web/events";
 import { useProjects } from "../../projects/web/store";
 import { sessionsApi, type HistoryItem } from "../../sessions/web/api";
@@ -22,10 +20,6 @@ const homeApi = {
   inbox: (text: string, project: string | null) => call("POST", "/api/home/inbox", { text, project }),
 };
 
-/** localStorage key for the first-run provider strip: once dismissed, it stays hidden (Settings → Providers
- *  is the durable surface). Guarded reads/writes live in @os/lib/storage. */
-const PROVIDERS_STRIP_KEY = "agent-os-nexo.providers-strip-dismissed";
-
 export function Home() {
   const projects = useProjects();
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -37,7 +31,6 @@ export function Home() {
   const [log, setLog] = useState("");
   const [cost, setCost] = useState(0);
   const [capture, setCapture] = useState("");
-  const [providersStrip, setProvidersStrip] = useState(false);
 
   const load = () => {
     void homeApi.doc("goals").then((r) => setGoals(r.text), () => {});
@@ -53,14 +46,6 @@ export function Home() {
     const loadHistory = () => void sessionsApi.history(10).then(setHistory, () => {});
     loadHistory();
     const id = setInterval(loadHistory, 5000);
-    // Non-blocking first-run hint: nothing usable is enabled/detected (T1 route, server-cached 20s).
-    // A fetch failure shows no strip — never block Home on provider detection.
-    if (!readStr(PROVIDERS_STRIP_KEY)) {
-      void call<{ providers: { id: string; found: boolean }[]; enabled: string[] }>("GET", "/api/providers").then((r) => {
-        const usable = r.providers.some((p) => p.found && r.enabled.includes(p.id));
-        setProvidersStrip(!r.enabled.length || !usable);
-      }, () => {});
-    }
     return () => clearInterval(id);
   }, []);
 
@@ -70,22 +55,6 @@ export function Home() {
 
   return (
     <div className="page">
-      {providersStrip && (
-        <div className="card" role="status" style={{ marginBottom: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ flex: 1, minWidth: 200 }}>{t("No AI provider is ready yet")}</span>
-          <button className="btn sm" onClick={() => goTo("providers")}>{t("Open Providers")}</button>
-          <button
-            className="btn sm ghost"
-            aria-label={t("Dismiss")}
-            onClick={() => {
-              writeStr(PROVIDERS_STRIP_KEY, "1");
-              setProvidersStrip(false);
-            }}
-          >
-            {t("Dismiss")}
-          </button>
-        </div>
-      )}
       <h1>{user ? `${hello}, ${user.split(" ")[0]}` : hello}</h1>
       <p className="sub">
         {new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" })} ·{" "}

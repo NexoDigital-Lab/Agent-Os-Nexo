@@ -1,7 +1,6 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
   "Delete {name}…": "Borrar {name}…",
-  "Dismiss": "Descartar",
   "Drop an idea or a task, then Enter": "Tirá una idea o tarea y Enter",
   "Edit": "Editar",
   "Goals": "Objetivos",
@@ -11,11 +10,9 @@ export const es: Record<string, string> = {
   "Home": "Inicio",
   "Inbox": "Inbox",
   "New project": "Nuevo proyecto",
-  "No AI provider is ready yet": "Todavía no hay ningún proveedor de IA listo.",
   "No goals yet. Press Edit.": "Todavía no hay objetivos. Tocá Editar.",
   "No projects yet. Create one or clone one of yours.": "Todavía no hay proyectos. Creá uno o cloná uno tuyo.",
   "Nothing yet today.": "Nada todavía hoy.",
-  "Open Providers": "Abrir Proveedores",
   "Projects": "Proyectos",
   "Recent sessions": "Sesiones recientes",
   "Save": "Guardar",

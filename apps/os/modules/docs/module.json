@@ -1,7 +1,7 @@
 {
   "name": "docs",
   "version": "1.0.0",
-  "description": "The agent-os documentation in the app, in its language: an index, full-text search and a reader",
+  "description": "The agent-os-nexo documentation in the app, in its language: an index, full-text search and a reader",
   "owner": "nexo",
   "dependsOn": ["shell"],
   "entry": { "server": "server/index.ts", "web": "web/index.tsx" },

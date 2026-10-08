@@ -1,4 +1,4 @@
-// Material Icon Theme icons (same set and rules as the VS Code extension), served by the agent-os server.
+// Material Icon Theme icons (same set and rules as the VS Code extension), served by the agent-os-nexo server.
 import { useEffect, useState } from "react";
 import { editorApi as api, type IconManifest } from "./api";
 import { languageOf } from "./monaco";

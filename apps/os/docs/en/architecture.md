@@ -1,18 +1,18 @@
 ---
-title: How agent-os works
+title: How agent-os-nexo works
 summary: The server, the web app, where things live in an environment, and how modules cooperate.
 order: 1
 ---
 
-# How agent-os works
+# How agent-os-nexo works
 
-agent-os is one Node.js process that serves an HTTP API and a React app on `127.0.0.1`. Everything it
+agent-os-nexo is one Node.js process that serves an HTTP API and a React app on `127.0.0.1`. Everything it
 does — projects, AI session tabs, the editor, Docker, SSH… — comes from **modules**; the host only
 discovers them, mounts them, and gives them a few shared services.
 
 ```
 browser / desktop window ──HTTP + WebSocket──▶ host/server/main.ts (127.0.0.1:4780)
-                                                 ├── guardRequest          same-origin + X-Agent-OS header
+                                                 ├── guardRequest          same-origin + X-Agent-OS-Nexo header
                                                  ├── /api/os/*             host routes (info, modules, prefs)
                                                  ├── /api/…                each active module's register(ctx)
                                                  ├── WebSocket upgrades    terminals, LSP, SSH console
@@ -21,11 +21,11 @@ browser / desktop window ──HTTP + WebSocket──▶ host/server/main.ts (12
 
 ## Where it runs
 
-agent-os always runs inside a **Nexo environment** (the folder `nexo init` creates):
+agent-os-nexo always runs inside a **Nexo environment** (the folder `nexo init` creates):
 
-| Path | What agent-os keeps there |
+| Path | What agent-os-nexo keeps there |
 |---|---|
-| `os/source/` | The user's editable copy of agent-os (this package) |
+| `os/source/` | The user's editable copy of agent-os-nexo (this package) |
 | `os/versions/<x.y.z>/` | Builds: `dist/web` + the server code + `build.json` |
 | `os/runtime/<hash>/` | Dependencies, shared by every build with the same set (`node_modules` of a build links here) |
 | `os/data/` | Persistent: `prefs.json`, `modules.json`, and `os/data/<module>/` per module |

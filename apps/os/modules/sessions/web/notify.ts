@@ -1,5 +1,5 @@
 // Notifications when a tab finishes or needs the user while they are not looking at it: native in the desktop app
-// (tauri-plugin-notification), the Web Notification API in a browser, and the page title ("(N) agent-os") as the
+// (tauri-plugin-notification), the Web Notification API in a browser, and the page title ("(N) agent-os-nexo") as the
 // last resort. Fed by the shared tab list (tabs/store.ts).
 import { useEffect } from "react";
 import { t as i18n } from "@os/i18n";
@@ -54,7 +54,7 @@ function web(title: string, body: string, tabId: string): boolean {
 }
 
 async function notify(t: Tab) {
-  const title = "agent-os";
+  const title = "agent-os-nexo";
   const body = `${t.title}: ${t.status === "needs_you" ? i18n("needs you") : t.status === "error" ? i18n("finished with an error") : i18n("finished")}`;
   if (await native(title, body)) return;
   web(title, body, t.id);
@@ -73,7 +73,7 @@ export function onTabs(list: Tab[]) {
   setTitle(attention(list));
 }
 
-const BASE_TITLE = typeof document === "undefined" ? "agent-os" : document.title || "agent-os";
+const BASE_TITLE = typeof document === "undefined" ? "agent-os-nexo" : document.title || "agent-os-nexo";
 function setTitle(n: number) {
   if (typeof document !== "undefined") document.title = n > 0 ? `(${n}) ${BASE_TITLE}` : BASE_TITLE;
 }

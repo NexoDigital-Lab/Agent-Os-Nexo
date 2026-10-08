@@ -28,7 +28,7 @@ const jsonLines = <T>(out: string): T[] => out.split("\n").filter(Boolean).map((
 
 export type Container = {
   id: string; name: string; image: string; state: string; status: string; ports: string; created: string;
-  project: string | null; // set on agent-os dev containers (label agent-os.project)
+  project: string | null; // set on agent-os-nexo dev containers (label agent-os-nexo.project)
 };
 export type Image = { id: string; repo: string; tag: string; size: string; created: string; inUse: boolean };
 
@@ -46,7 +46,7 @@ export async function containers(): Promise<Container[]> {
   const rows = jsonLines<Row>(await dockerRun(["ps", "-a", "--no-trunc", "--format", "{{json .}}"]));
   return rows.map((r) => ({
     id: r.ID.slice(0, 12), name: r.Names, image: r.Image, state: r.State, status: r.Status, ports: r.Ports, created: r.CreatedAt,
-    project: /(?:^|,)agent-os\.project=([^,]+)/.exec(r.Labels)?.[1] ?? null,
+    project: /(?:^|,)agent-os-nexo\.project=([^,]+)/.exec(r.Labels)?.[1] ?? null,
   }));
 }
 
@@ -76,9 +76,9 @@ function ref(x: string) {
   return x;
 }
 
-/** The agent-os project a container was created for (label agent-os.project), or null. */
+/** The agent-os-nexo project a container was created for (label agent-os-nexo.project), or null. */
 export const projectLabel = (id: string) =>
-  dockerRun(["inspect", "-f", '{{index .Config.Labels "agent-os.project"}}', ref(id)], 8000).then((o) => o.trim() || null, () => null);
+  dockerRun(["inspect", "-f", '{{index .Config.Labels "agent-os-nexo.project"}}', ref(id)], 8000).then((o) => o.trim() || null, () => null);
 
 export type ContainerAction = "start" | "stop" | "restart" | "rm";
 export async function containerAction(id: string, action: ContainerAction) {

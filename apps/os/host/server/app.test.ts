@@ -6,12 +6,12 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { tempDir, tempEnv } from "../test/harness.ts";
-import { createAgentOs } from "./app.ts";
+import { createAgentOsNexo } from "./app.ts";
 import { readVersion } from "./routes.ts";
 
-/** An agent-os folder: a working module, a module whose server throws, a broken manifest, and a built UI. */
+/** An agent-os-nexo folder: a working module, a module whose server throws, a broken manifest, and a built UI. */
 function appDir(withWeb = true): string {
-  const dir = tempDir("agent-os-app-");
+  const dir = tempDir("agent-os-nexo-app-");
   const mod = (id: string, manifest: Record<string, unknown>, server?: string) => {
     mkdirSync(join(dir, "modules", id, "server"), { recursive: true });
     writeFileSync(join(dir, "modules", id, "module.json"), JSON.stringify({ name: id, version: "1.2.3", description: id, ...manifest }));
@@ -24,7 +24,7 @@ function appDir(withWeb = true): string {
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "1.0.0" }));
   if (withWeb) {
     mkdirSync(join(dir, "dist", "web"), { recursive: true });
-    writeFileSync(join(dir, "dist", "web", "index.html"), "<!doctype html><title>agent-os</title>");
+    writeFileSync(join(dir, "dist", "web", "index.html"), "<!doctype html><title>agent-os-nexo</title>");
     writeFileSync(join(dir, "dist", "web", "app.js"), "console.log(1)");
   }
   return dir;
@@ -41,7 +41,7 @@ const port = await new Promise<number>((r) => {
     probe.close(() => r(p));
   });
 });
-const { server, token, failed } = await createAgentOs({ appDir: dir, env, port, dev: false, version: readVersion(dir), warn: (m) => warnings.push(m) });
+const { server, token, failed } = await createAgentOsNexo({ appDir: dir, env, port, dev: false, version: readVersion(dir), warn: (m) => warnings.push(m) });
 await new Promise<void>((r) => server.listen(port, "127.0.0.1", r));
 after(() => (server.closeAllConnections(), server.close()));
 
@@ -105,12 +105,12 @@ test("a module's routes, its errors, and unknown API routes", async () => {
 
 test("the built UI: static files, and index.html for every other page", async () => {
   assert.equal((await call("GET", "/app.js")).body, "console.log(1)");
-  assert.match((await call("GET", "/settings/themes")).body, /<title>agent-os<\/title>/);
+  assert.match((await call("GET", "/settings/themes")).body, /<title>agent-os-nexo<\/title>/);
 });
 
 test("a build without its web UI refuses to start", async () => {
   await assert.rejects(
-    createAgentOs({ appDir: appDir(false), env: tempEnv(), port: 0, dev: false, version: "1.0.0", warn: () => {} }),
+    createAgentOsNexo({ appDir: appDir(false), env: tempEnv(), port: 0, dev: false, version: "1.0.0", warn: () => {} }),
     /This build has no web UI/,
   );
 });

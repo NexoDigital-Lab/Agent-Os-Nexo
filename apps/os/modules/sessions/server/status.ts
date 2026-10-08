@@ -44,7 +44,7 @@ export function parseWorkStatus(status: unknown, note: unknown, now = Date.now()
 }
 
 export const WORK_NOTE =
-  "agent-os shows your progress on the tab: call the set_work_status tool (mcp__work__set_work_status) when you start a task (\"doing\"), when it needs the user's review (\"review\"), when you finish (\"done\") or when you get blocked (\"blocked\"), with a short note (max 120 chars) in the user's language.";
+  "agent-os-nexo shows your progress on the tab: call the set_work_status tool (mcp__work__set_work_status) when you start a task (\"doing\"), when it needs the user's review (\"review\"), when you finish (\"done\") or when you get blocked (\"blocked\"), with a short note (max 120 chars) in the user's language.";
 
 export const WORK_TOOL_PREFIX = "mcp__work__";
 
@@ -55,7 +55,7 @@ export function createWorkServer(onSet: (w: WorkStatus) => void) {
     tools: [
       tool(
         "set_work_status",
-        "Updates the work status the user sees on the agent-os tab. Call it when you start, when the work needs review, when you finish or when you are blocked.",
+        "Updates the work status the user sees on the agent-os-nexo tab. Call it when you start, when the work needs review, when you finish or when you are blocked.",
         {
           status: z.enum(WORK_STATUSES),
           note: z.string().max(MAX_NOTE).optional().describe("One line (max 120 characters): what you are doing or what is missing"),

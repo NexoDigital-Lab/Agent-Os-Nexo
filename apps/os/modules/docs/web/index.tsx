@@ -1,4 +1,4 @@
-// docs: the agent-os documentation inside the app, in the app's language.
+// docs: the agent-os-nexo documentation inside the app, in the app's language.
 import { BookOpen } from "lucide-react";
 import { defineModule } from "@os/registry";
 import { Docs } from "./Docs";

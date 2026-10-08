@@ -1,4 +1,4 @@
-// home: goals, inbox and today's log (/api/home/*); every agent-os turn is logged here.
+// home: goals, inbox and today's log (/api/home/*); every agent-os-nexo turn is logged here.
 import { h, httpError, ok } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
 import { contributeToSessions } from "../../sessions/server/contributions.ts";

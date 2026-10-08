@@ -17,7 +17,7 @@ test("build: a version carries the server code and build.json, never tests or we
   const out = join(tempDir(), "1.0.4");
   const r = build("--out", out, "--version", "1.0.4", "--notes", "a fix", "--runtime", "abc", "--skip-web");
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /agent-os 1\.0\.4 built \(\d+ modules, no web UI\)/);
+  assert.match(r.stdout, /agent-os-nexo 1\.0\.4 built \(\d+ modules, no web UI\)/);
   assert.deepEqual({ ...JSON.parse(readFileSync(join(out, "build.json"), "utf8")), builtAt: undefined }, { version: "1.0.4", notes: "a fix", runtime: "abc", builtAt: undefined });
   assert.ok(existsSync(join(out, "host", "server", "main.ts")));
   assert.ok(existsSync(join(out, "modules", "docs", "module.json")));

@@ -11,7 +11,7 @@ const skip = process.platform === "win32" ? "the fake code is a unix script" : f
 
 /** A `code` that lists two extensions (and counts its calls) or fails installs when FAKE_CODE_FAIL is set. */
 function fakeCode() {
-  const dir = tempDir("agent-os-code-");
+  const dir = tempDir("agent-os-nexo-code-");
   const bin = join(dir, "code");
   const log = join(dir, "log");
   writeFileSync(bin, `#!${process.execPath}
@@ -23,12 +23,12 @@ else if (process.env.FAKE_CODE_FAIL) (process.stderr.write("marketplace down\\n"
   return { bin, calls: () => readFileSync(log, "utf8").split("\n").filter(Boolean) };
 }
 
-test("extension ids: marketplace shape, and agent-os.* belongs to our own editor", () => {
+test("extension ids: marketplace shape, and agent-os-nexo.* belongs to our own editor", () => {
   assert.ok(VSCODE_ID.test("ms-python.python"));
   assert.ok(!VSCODE_ID.test("nodots"));
   assert.ok(!VSCODE_ID.test("a b.c"));
-  assert.ok(isEditorOnly("agent-os.theme"));
-  assert.ok(!isEditorOnly("ms.agent-os"));
+  assert.ok(isEditorOnly("agent-os-nexo.theme"));
+  assert.ok(!isEditorOnly("ms.agent-os-nexo"));
 });
 
 test("no code binary means no installed list (null), cached for a moment", async () => {
@@ -54,7 +54,7 @@ test("installExtension runs code --install-extension and answers ok", { skip }, 
 });
 
 test("installExtension rejects bad and editor-only ids before running anything", async () => {
-  for (const id of ["nope", "agent-os.theme", "x y.z"]) {
+  for (const id of ["nope", "agent-os-nexo.theme", "x y.z"]) {
     await assert.rejects(installExtension(id, join(tempDir(), "never-run")), (e: any) => e.status === 400 && /Invalid extension id/.test(e.message));
   }
 });

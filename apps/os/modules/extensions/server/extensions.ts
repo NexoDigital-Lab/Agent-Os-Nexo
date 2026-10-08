@@ -1,5 +1,5 @@
 // Extensions per project: one catalog of VS Code extensions (installable with `code`), some with an equivalent
-// that runs inside agent-os's own editor. General ones apply to every project (library/extensions.json); each
+// that runs inside agent-os-nexo's own editor. General ones apply to every project (library/extensions.json); each
 // project's list lives in its context/extensions.json and is mirrored to code/.vscode/extensions.json on request.
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -19,7 +19,7 @@ let GENERAL_FILE = "";
 export function initExtensions(env: Env): void {
   GENERAL_FILE = path.join(env.library, "extensions.json");
 }
-const DEFAULT_GENERAL = ["pkief.material-icon-theme", "esbenp.prettier-vscode", "usernamehw.errorlens", "agent-os.brackets", "agent-os.emmet"];
+const DEFAULT_GENERAL = ["pkief.material-icon-theme", "esbenp.prettier-vscode", "usernamehw.errorlens", "agent-os-nexo.brackets", "agent-os-nexo.emmet"];
 
 type AiRec = { id: string; name: string; why: string };
 type ProjectFile = { extensions: string[]; dismissed: string[]; ai: AiRec[]; aiAt?: string; aiCost?: number };
@@ -94,7 +94,7 @@ export type ProjectExt = {
   recommended: Rec[];
   dismissed: string[];
   custom: AiRec[]; // names/reasons for ids that aren't in the catalog
-  editor: EditorPlugin[]; // plugins the agent-os editor turns on for this project
+  editor: EditorPlugin[]; // plugins the agent-os-nexo editor turns on for this project
   managed: boolean; // has its own context/extensions.json
   vscode: { exists: boolean; ignored: boolean; inSync: boolean; invalid: boolean };
   aiAt?: string;

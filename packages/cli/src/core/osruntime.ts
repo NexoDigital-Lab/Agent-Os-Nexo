@@ -1,4 +1,4 @@
-// agent-os in an environment: the user's source copy (os/source), its builds (os/versions/<x.y.z>), the
+// agent-os-nexo in an environment: the user's source copy (os/source), its builds (os/versions/<x.y.z>), the
 // dependencies they share (os/runtime/<hash>, one per dependency set, linked as node_modules), and the running
 // processes (pid + log in .state/os). Everything here shells out to node, npm and tar: no runtime dependencies.
 import { spawn, spawnSync } from "node:child_process";
@@ -11,7 +11,7 @@ import { spawnable, tryRun } from "./exec.ts";
 import { activeVersion, listVersions, nextVersion } from "./osversions.ts";
 import { commitChanges, initSourceRepo, tagBuild } from "./osupdate.ts";
 
-export const OS_PACKAGE = "@nexodigital-lab/agent-os";
+export const OS_PACKAGE = "@nexodigital-lab/agent-os-nexo";
 export const PORTS = { app: 4780, preview: 4781 } as const;
 export type OsProcess = keyof typeof PORTS;
 
@@ -30,7 +30,7 @@ const SKIP = new Set(["node_modules", "dist", ".git"]);
 
 export function copySource(from: string, to: string): void {
   if (!existsSync(join(from, "package.json")) || !existsSync(join(from, "modules"))) {
-    throw new Error(`${from} is not an agent-os source (no package.json or modules/).`);
+    throw new Error(`${from} is not an agent-os-nexo source (no package.json or modules/).`);
   }
   cpSync(from, to, { recursive: true, filter: (p) => !relative(from, p).split(/[\\/]/).some((part) => SKIP.has(part)) });
 }
@@ -59,7 +59,7 @@ export function ensureRuntime(osDir: string, sourceDir: string, run: Runner = de
   if (existsSync(join(dir, READY)) && existsSync(join(dir, "node_modules"))) return { hash, dir, installed: false };
   rmSync(join(dir, "node_modules"), { recursive: true, force: true }); // a previous install that never finished
   ensureDir(dir);
-  writeJson(join(dir, "package.json"), { name: "agent-os-runtime", private: true, type: "module", dependencies: runtimeDeps(pkg) });
+  writeJson(join(dir, "package.json"), { name: "agent-os-nexo-runtime", private: true, type: "module", dependencies: runtimeDeps(pkg) });
   run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error"], dir);
   if (!existsSync(join(dir, "node_modules"))) throw new Error(`npm did not create ${join(dir, "node_modules")}.`);
   writeText(join(dir, READY), new Date().toISOString());
@@ -70,7 +70,7 @@ export function ensureRuntime(osDir: string, sourceDir: string, run: Runner = de
 export function linkRuntime(target: string, runtimeDir: string): void {
   const link = join(target, "node_modules");
   if (existsSync(link) || isLink(link)) {
-    if (!isLink(link)) throw new Error(`${link} is a real folder; agent-os expects a link to os/runtime/. Remove it first.`);
+    if (!isLink(link)) throw new Error(`${link} is a real folder; agent-os-nexo expects a link to os/runtime/. Remove it first.`);
     rmSync(link);
   }
   linkDir(join(runtimeDir, "node_modules"), link);
@@ -84,9 +84,9 @@ function isLink(p: string): boolean {
   }
 }
 
-/** Copies the agent-os package into os/source: from a local folder, or from npm (`npm pack` + tar). */
+/** Copies the agent-os-nexo package into os/source: from a local folder, or from npm (`npm pack` + tar). */
 /**
- * A release of agent-os, ready in a folder: `from` itself (a checkout), or downloaded from npm (`npm pack` + tar)
+ * A release of agent-os-nexo, ready in a folder: `from` itself (a checkout), or downloaded from npm (`npm pack` + tar)
  * into a temporary folder. `use` gets the folder; the download is removed afterwards.
  */
 export function withRelease<T>(from: string | undefined, run: Runner, use: (dir: string, label: string) => T): T {
@@ -107,11 +107,11 @@ export function withRelease<T>(from: string | undefined, run: Runner, use: (dir:
   }
 }
 
-/** Copies the agent-os package into os/source and starts its history (osupdate.ts). */
+/** Copies the agent-os-nexo package into os/source and starts its history (osupdate.ts). */
 export function fetchSource(osDir: string, from: string | undefined, run: Runner = defaultRunner): string {
   const source = join(osDir, "source");
   if (existsSync(source) && readdirSync(source).length) {
-    throw new Error(`${source} already holds agent-os (your personal copy). Remove it first to install again.`);
+    throw new Error(`${source} already holds agent-os-nexo (your personal copy). Remove it first to install again.`);
   }
   return withRelease(from, run, (dir, label) => {
     copySource(dir, source);
@@ -123,13 +123,13 @@ export function fetchSource(osDir: string, from: string | undefined, run: Runner
 /** Builds os/source into os/versions/<next> (written to a temp folder first, so a failed build leaves nothing). */
 export function buildVersion(osDir: string, notes = "", run: Runner = defaultRunner): string {
   const source = join(osDir, "source");
-  if (!existsSync(join(source, "scripts", "build.ts"))) throw new Error(`No agent-os source in ${source}. Run \`nexo os install\` first.`);
+  if (!existsSync(join(source, "scripts", "build.ts"))) throw new Error(`No agent-os-nexo source in ${source}. Run \`nexo os install\` first.`);
   const runtime = ensureRuntime(osDir, source, run);
   linkRuntime(source, runtime.dir);
   const version = nextVersion(listVersions(osDir).at(-1) ?? null);
   // The source as built is a commit of the user's branch, so every version can be told apart and updated later.
   initSourceRepo(source);
-  commitChanges(source, `agent-os ${version}${notes ? `: ${notes}` : ""}`);
+  commitChanges(source, `agent-os-nexo ${version}${notes ? `: ${notes}` : ""}`);
   const final = join(osDir, "versions", version);
   const tmp = `${final}.building`;
   rmSync(tmp, { recursive: true, force: true });
@@ -208,26 +208,26 @@ export function killTree(pid: number, platform: NodeJS.Platform = process.platfo
   }
 }
 
-/** A pid file can outlive its process (reboot, crash) and the pid can be reused: only an agent-os server counts. */
-const isAgentOs = (cmd: string | null) => !!cmd && /host[\\/]server[\\/]main\.ts/.test(cmd);
+/** A pid file can outlive its process (reboot, crash) and the pid can be reused: only an agent-os-nexo server counts. */
+const isAgentOsNexo = (cmd: string | null) => !!cmd && /host[\\/]server[\\/]main\.ts/.test(cmd);
 
-/** The pid of a running agent-os process, cleaning up a stale pid file. */
+/** The pid of a running agent-os-nexo process, cleaning up a stale pid file. */
 export function runningPid(stateDir: string, p: OsProcess): number | null {
   const file = pidFile(stateDir, p);
   if (!existsSync(file)) return null;
   const pid = Number(readText(file).trim());
-  if (Number.isInteger(pid) && pid > 0 && isAgentOs(commandOf(pid))) return pid;
+  if (Number.isInteger(pid) && pid > 0 && isAgentOsNexo(commandOf(pid))) return pid;
   rmSync(file, { force: true });
   return null;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Answers like agent-os: 200 from /api/os/info, stamped X-Agent-OS (a foreign program on the port doesn't count). */
+/** Answers like agent-os-nexo: 200 from /api/os/info, stamped X-Agent-OS-Nexo (a foreign program on the port doesn't count). */
 async function answers(port: number): Promise<boolean> {
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/os/info`, { signal: AbortSignal.timeout(1500) });
-    return res.ok && res.headers.get("x-agent-os") === "1";
+    return res.ok && res.headers.get("x-agent-os-nexo") === "1";
   } catch {
     return false;
   }
@@ -243,13 +243,13 @@ export async function startProcess(
   root: string, osDir: string, stateDir: string, p: OsProcess, port: number = PORTS[p], timeoutMs = 60_000,
 ): Promise<{ pid: number; version: string }> {
   const existing = runningPid(stateDir, p);
-  if (existing) throw new Error(`agent-os ${p === "app" ? "is" : "preview is"} already running (pid ${existing}). Stop it with \`nexo os stop${p === "preview" ? " --preview" : ""}\`.`);
-  if (await answers(port)) throw new Error(`An agent-os is already answering on port ${port}. Use another one with --port.`);
+  if (existing) throw new Error(`agent-os-nexo ${p === "app" ? "is" : "preview is"} already running (pid ${existing}). Stop it with \`nexo os stop${p === "preview" ? " --preview" : ""}\`.`);
+  if (await answers(port)) throw new Error(`An agent-os-nexo is already answering on port ${port}. Use another one with --port.`);
   let dir: string;
   let version: string;
   if (p === "app") {
     const active = activeVersion(osDir);
-    if (!active) throw new Error("agent-os has no builds yet. Run `nexo os install` (or `nexo os build`).");
+    if (!active) throw new Error("agent-os-nexo has no builds yet. Run `nexo os install` (or `nexo os build`).");
     dir = join(osDir, "versions", active);
     if (!existsSync(dir)) throw new Error(`The pinned build ${active} is missing from os/versions/. Run \`nexo os use latest\`.`);
     version = active;
@@ -270,7 +270,7 @@ export async function startProcess(
   }
   child.unref();
   const pid = child.pid;
-  if (!pid) throw new Error("agent-os did not start.");
+  if (!pid) throw new Error("agent-os-nexo did not start.");
   let exited = false;
   child.once("exit", () => (exited = true));
   writeText(pidFile(stateDir, p), String(pid));
@@ -280,10 +280,10 @@ export async function startProcess(
   }
   if (!exited) stopProcesses(stateDir, [p]);
   rmSync(pidFile(stateDir, p), { force: true });
-  throw new Error(`agent-os ${exited ? "exited" : "did not answer"} on port ${port}. End of ${log}:\n${lastLines(log)}`);
+  throw new Error(`agent-os-nexo ${exited ? "exited" : "did not answer"} on port ${port}. End of ${log}:\n${lastLines(log)}`);
 }
 
-/** Stops the given agent-os processes; returns the ones that were running. */
+/** Stops the given agent-os-nexo processes; returns the ones that were running. */
 export function stopProcesses(stateDir: string, which: OsProcess[]): OsProcess[] {
   const stopped: OsProcess[] = [];
   for (const p of which) {

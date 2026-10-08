@@ -124,7 +124,7 @@ function writeDevcontainer(project: string, repo: string, cfg: DevEnvConfig, ima
     workspaceMount: "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
     workspaceFolder: "${localWorkspaceFolder}",
     forwardPorts: cfg.ports,
-    customizations: { "agent-os": { lang: cfg.lang, version: cfg.version, shims: SHIMS[cfg.lang] } },
+    customizations: { "agent-os-nexo": { lang: cfg.lang, version: cfg.version, shims: SHIMS[cfg.lang] } },
   };
   writeJson(file, doc);
   return true;
@@ -139,11 +139,11 @@ function writeShims(project: string, lang: Lang) {
   mkdirSync(dir, { recursive: true });
   const c = containerName(project);
   const head = (what: string) => `#!/bin/sh
-# agent-os shim: ${what} inside the project's dev container, where projects/ is mounted at the same path.
+# agent-os-nexo shim: ${what} inside the project's dev container, where projects/ is mounted at the same path.
 C=${shq(c)}; ROOT=${shq(ROOT)}; D=${shq(dockerBin())}
 export DOCKER_CLI_HINTS=false
 case "$PWD/" in "$ROOT"/*) W=$PWD ;; *) W=$ROOT ;; esac
-[ "$("$D" inspect -f '{{.State.Running}}' "$C" 2>/dev/null)" = true ] || "$D" start "$C" >/dev/null 2>&1 || { echo "agent-os: could not start the container $C. Is Docker running? If you removed it, create it again from the tab's Terminal view." >&2; exit 125; }
+[ "$("$D" inspect -f '{{.State.Running}}' "$C" 2>/dev/null)" = true ] || "$D" start "$C" >/dev/null 2>&1 || { echo "agent-os-nexo: could not start the container $C. Is Docker running? If you removed it, create it again from the tab's Terminal view." >&2; exit 125; }
 if [ -t 0 ] && [ -t 1 ]; then T=-it; else T=-i; fi
 `;
   const write = (name: string, body: string) => {
@@ -153,7 +153,7 @@ if [ -t 0 ] && [ -t 1 ]; then T=-it; else T=-i; fi
   for (const cmd of SHIMS[lang]) write(cmd, `${head(`runs \`${cmd}\``)}exec "$D" exec $T -w "$W" -e TERM "$C" ${cmd} "$@"\n`);
   // ctr <cmd…>: anything else in the container (apt-get, pytest, make…); bare `ctr` opens a shell there.
   write("ctr", `${head("runs any command")}[ $# -gt 0 ] || set -- sh -c 'command -v bash >/dev/null && exec bash -l || exec sh -l'\nexec "$D" exec $T -w "$W" -e TERM "$C" "$@"\n`);
-  writeFileSync(envFile(project), `# agent-os: the dev container's ${SHIMS[lang].join(", ")} come first on PATH.\nexport PATH=${shq(dir)}":$PATH"\nexport AGENT_OS_CONTAINER=${shq(c)}\n`);
+  writeFileSync(envFile(project), `# agent-os-nexo: the dev container's ${SHIMS[lang].join(", ")} come first on PATH.\nexport PATH=${shq(dir)}":$PATH"\nexport AGENT_OS_CONTAINER=${shq(c)}\n`);
   // rcfile for the tab's host terminals: the same startup files `bash -l` reads (other tabs use a login shell),
   // then the shims win on PATH.
   const login = "if [ -f ~/.bash_profile ]; then . ~/.bash_profile; elif [ -f ~/.bash_login ]; then . ~/.bash_login; elif [ -f ~/.profile ]; then . ~/.profile; fi";
@@ -217,7 +217,7 @@ async function doCreate(project: string, repo: string, cfg: DevEnvConfig): Promi
   try {
     await dockerRun([
       "run", "-d", "--init", "--name", name,
-      "--label", `agent-os.project=${project}`, "--label", `agent-os.repo=${repo}`,
+      "--label", `agent-os-nexo.project=${project}`, "--label", `agent-os-nexo.repo=${repo}`,
       "-e", "PIP_ROOT_USER_ACTION=ignore", "-e", "PIP_DISABLE_PIP_VERSION_CHECK=1",
       "-e", "HUSKY=0", // .git is read-only in here, so husky's install step must not try to write hooks
       "-v", `${ROOT}:${ROOT}:ro`, ...rw.flatMap((p) => ["-v", `${p}:${p}`]),

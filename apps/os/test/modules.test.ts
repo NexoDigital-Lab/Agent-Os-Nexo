@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { activeModules, discoverModules, loadOrder, readState, setEnabled, writeState } from "../src/core/modules.ts";
 import { buildToLoad, newerBuild } from "../src/core/versions.ts";
 
-const root = mkdtempSync(join(tmpdir(), "agent-os-test-"));
+const root = mkdtempSync(join(tmpdir(), "agent-os-nexo-test-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 
 let n = 0;

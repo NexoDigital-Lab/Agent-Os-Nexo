@@ -9,7 +9,7 @@ test("every catalog id is a valid, unique Marketplace id", () => {
   assert.equal(byId.size, CATALOG.length);
 });
 
-test("agent-os.* entries are editor-only and always map to an editor plugin", () => {
+test("agent-os-nexo.* entries are editor-only and always map to an editor plugin", () => {
   const only = CATALOG.filter((e) => isEditorOnly(e.id));
   assert.ok(only.length > 0);
   for (const e of only) assert.ok(e.editor, e.id);

@@ -29,7 +29,7 @@ async function project(id: string, files: Record<string, string> = {}) {
   return { dir, code };
 }
 const generalFile = join(env.library, "extensions.json");
-const DEFAULT = ["pkief.material-icon-theme", "esbenp.prettier-vscode", "usernamehw.errorlens", "agent-os.brackets", "agent-os.emmet"];
+const DEFAULT = ["pkief.material-icon-theme", "esbenp.prettier-vscode", "usernamehw.errorlens", "agent-os-nexo.brackets", "agent-os-nexo.emmet"];
 
 test("general list defaults, then saves only valid unique ids", async () => {
   const first = (await m.get("/extensions")).body;
@@ -42,9 +42,9 @@ test("general list defaults, then saves only valid unique ids", async () => {
   await m.call("PUT", "/extensions/general", { general: DEFAULT });
 });
 
-test("install rejects ids that are invalid or only exist in agent-os", async () => {
+test("install rejects ids that are invalid or only exist in agent-os-nexo", async () => {
   assert.equal((await m.call("POST", "/extensions/install", { id: "no-dot" })).status, 400);
-  assert.equal((await m.call("POST", "/extensions/install", { id: "agent-os.emmet" })).status, 400);
+  assert.equal((await m.call("POST", "/extensions/install", { id: "agent-os-nexo.emmet" })).status, 400);
   assert.equal((await m.call("POST", "/extensions/install", {})).status, 400);
 });
 
@@ -150,7 +150,7 @@ test("recommendWithClaude filters ids, canonicalizes catalog ids, stores the res
         recommendations: [
           { id: "prisma.PRISMA", name: "Prisma", why: "schema.prisma found" },
           { id: "someone.custom-tool", name: "N".repeat(200), why: "w".repeat(500) },
-          { id: "agent-os.emmet", name: "Emmet", why: "editor only" },
+          { id: "agent-os-nexo.emmet", name: "Emmet", why: "editor only" },
           { id: "invalid id", name: "x", why: "y" },
         ],
       },

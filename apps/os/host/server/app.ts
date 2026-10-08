@@ -1,4 +1,4 @@
-// The agent-os server, assembled: discovers the modules, mounts the active ones and serves the web UI on one HTTP
+// The agent-os-nexo server, assembled: discovers the modules, mounts the active ones and serves the web UI on one HTTP
 // server. main.ts starts it on the command line; tests start it on a free port.
 import { existsSync, mkdirSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -14,7 +14,7 @@ import { mountModules } from "./mount.ts";
 import { hostRoutes } from "./routes.ts";
 
 export interface AppOptions {
-  /** The agent-os folder: a build (os/versions/<x.y.z>) or the source. */
+  /** The agent-os-nexo folder: a build (os/versions/<x.y.z>) or the source. */
   appDir: string;
   env: Env;
   port: number;
@@ -34,7 +34,7 @@ export interface App {
 }
 
 /** Builds the server, ready to `listen(port, "127.0.0.1")`. Throws when a build has no web UI. */
-export async function createAgentOs(opts: AppOptions): Promise<App> {
+export async function createAgentOsNexo(opts: AppOptions): Promise<App> {
   const { appDir, env, port, dev, version, warn = console.warn } = opts;
   const discovery = discoverModules(join(appDir, "modules"));
   for (const problem of discovery.problems) warn(`[modules] ${problem}`);

@@ -163,7 +163,7 @@ function repoWithUpstream(id: string) {
   writeFileSync(join(code, "a.txt"), "a");
   git(code, "add", "-A");
   git(code, "commit", "-q", "-m", "one");
-  const bare = join(tempDir("agent-os-bare-"), "origin.git");
+  const bare = join(tempDir("agent-os-nexo-bare-"), "origin.git");
   execFileSync("git", ["init", "-q", "--bare", bare]);
   git(code, "remote", "add", "origin", bare);
   git(code, "push", "-q", "-u", "origin", "main");

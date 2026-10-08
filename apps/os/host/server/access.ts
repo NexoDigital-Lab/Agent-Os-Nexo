@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 const tokens = new Map<number, string>();
 
-/** Cookies ignore the port, so each agent-os on this machine (app, preview, desktop) has its own name. */
+/** Cookies ignore the port, so each agent-os-nexo on this machine (app, preview, desktop) has its own name. */
 export const cookieName = (port: number) => `nexo_os_${port}`;
 export const accessFile = (stateDir: string, port: number) => join(stateDir, `token-${port}`);
 

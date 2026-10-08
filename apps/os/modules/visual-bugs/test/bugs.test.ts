@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bugPath, deleteBug, initBugs, listBugs, saveBug, setNote } from "../server/bugs.ts";
 
-const dir = mkdtempSync(join(tmpdir(), "agent-os-bugs-"));
+const dir = mkdtempSync(join(tmpdir(), "agent-os-nexo-bugs-"));
 after(() => rmSync(dir, { recursive: true, force: true }));
 initBugs(dir);
 

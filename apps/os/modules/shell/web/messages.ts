@@ -5,7 +5,7 @@ export const es: Record<string, string> = {
   "Language": "Idioma",
   "No views are active. Turn modules on in Settings.": "No hay vistas activas. Activá módulos en Ajustes.",
   "Reset zoom ({pct}%)": "Restablecer zoom ({pct}%)",
-  "Saved in this environment (os/data), so every build of agent-os keeps them.": "Se guarda en este entorno (os/data), así todas las versiones de agent-os lo conservan.",
+  "Saved in this environment (os/data), so every build of agent-os-nexo keeps them.": "Se guarda en este entorno (os/data), así todas las versiones de agent-os-nexo lo conservan.",
   "Settings": "Ajustes",
   "Views": "Vistas",
   "Zoom in": "Acercar",

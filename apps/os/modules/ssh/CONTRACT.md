@@ -1,4 +1,4 @@
-# SSH in agent-os — design contract (server ↔ web). Types: modules/ssh/server/types.ts (do not change shapes without
+# SSH in agent-os-nexo — design contract (server ↔ web). Types: modules/ssh/server/types.ts (do not change shapes without
 updating both sides; adding optional fields is fine).
 
 ## Goals (from the user, verbatim intent)
@@ -82,7 +82,7 @@ updating both sides; adding optional fields is fine).
 - System prompt note for SSH tabs: what the tools do, the read/plan rules, never ask the user for credentials in
   chat (ask them to type passwords in the console), sensitive files are off-limits.
 
-## Barriers for the agent in ALL agent-os sessions (agent.ts `hooks.PreToolUse`, works in bypass mode too)
+## Barriers for the agent in ALL agent-os-nexo sessions (agent.ts `hooks.PreToolUse`, works in bypass mode too)
 - policy.blockedToolUse(toolName, input) → reason | null. Check ONLY: Bash `command`; file paths of
   Read/Edit/Write/NotebookEdit/MultiEdit (`file_path`, `notebook_path`), Grep/Glob (`path`, `pattern` for Glob).
   Block: the module's folders (`os/data/ssh`, `.state/os/ssh`, by name and by absolute path), `/api/ssh`, direct `ssh`/`scp`/`sftp`/`sshpass`/`ssh-add`/

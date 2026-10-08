@@ -1,4 +1,4 @@
-# agent-os
+# agent-os-nexo
 
 The local app of a Nexo environment: projects, AI sessions as tabs, a full editor, notes and features,
 Docker, SSH and more — every part of it a **module** under `modules/<name>/`. One Node.js process on

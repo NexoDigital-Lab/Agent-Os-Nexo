@@ -1,7 +1,7 @@
 [package]
-name = "agent-os-desktop"
+name = "agent-os-nexo-desktop"
 version = "0.1.0"
-description = "agent-os desktop shell"
+description = "agent-os-nexo desktop shell"
 license-file = "../../../LICENSE"
 edition = "2021"
 

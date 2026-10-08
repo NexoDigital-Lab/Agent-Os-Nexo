@@ -15,7 +15,7 @@ import type { ModuleContext, ModuleServer } from "../server/module-api.ts";
 process.env.GIT_CONFIG_PARAMETERS = "'core.autocrlf=false' 'core.eol=lf'";
 
 /** A temporary folder, removed when the test file ends. */
-export function tempDir(prefix = "agent-os-test-"): string {
+export function tempDir(prefix = "agent-os-nexo-test-"): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   after(() => {
     try {
@@ -30,7 +30,7 @@ export function tempDir(prefix = "agent-os-test-"): string {
 
 /** A minimal Nexo environment (environment.config.json and its folders) in a temporary folder. */
 export function tempEnv(config: Record<string, unknown> = {}): Env {
-  const root = tempDir("agent-os-env-");
+  const root = tempDir("agent-os-nexo-env-");
   writeFileSync(join(root, CONFIG_FILE), JSON.stringify({ name: "test", ...config }));
   const env = envAt(root);
   for (const dir of [env.library, env.projects, env.blueprints, env.data, env.state]) mkdirSync(dir, { recursive: true });

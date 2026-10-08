@@ -1,10 +1,10 @@
-// agent-os server: discovers the modules, mounts the active ones, and serves the web UI — one process,
+// agent-os-nexo server: discovers the modules, mounts the active ones, and serves the web UI — one process,
 // one port, localhost only. `--dev` serves the UI through Vite (used for the preview of os/source).
 // Everything but reading the command line and listening lives in app.ts.
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { createAgentOs } from "./app.ts";
+import { createAgentOsNexo } from "./app.ts";
 import { loadEnv } from "./env.ts";
 import { readVersion } from "./routes.ts";
 
@@ -19,12 +19,12 @@ const port = Number(values.port ?? process.env.AGENT_OS_PORT ?? (dev ? 4781 : 47
 const env = loadEnv(appDir);
 const version = dev ? "source" : readVersion(appDir);
 
-const { server, token } = await createAgentOs({ appDir, env, port, dev, version });
+const { server, token } = await createAgentOsNexo({ appDir, env, port, dev, version });
 
 server.listen(port, HOST, () => {
-  console.log(`agent-os ${version} → http://localhost:${port}/?token=${token} (environment: ${env.root})`);
+  console.log(`agent-os-nexo ${version} → http://localhost:${port}/?token=${token} (environment: ${env.root})`);
 });
 // Open WebSockets (terminals, sessions) would keep close() waiting; the process owns nothing that needs draining.
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => process.exit(0));
 // Last line of defense: a promise some module forgot to handle is logged, not allowed to end every session.
-process.on("unhandledRejection", (error) => console.error("[agent-os] unhandled rejection:", error));
+process.on("unhandledRejection", (error) => console.error("[agent-os-nexo] unhandled rejection:", error));

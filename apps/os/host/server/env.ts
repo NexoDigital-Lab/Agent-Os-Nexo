@@ -1,4 +1,4 @@
-// Where things live: the Nexo environment agent-os runs in (folders from environment.config.json).
+// Where things live: the Nexo environment agent-os-nexo runs in (folders from environment.config.json).
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
@@ -12,7 +12,7 @@ export interface Env {
   blueprints: string;
   /** <root>/os: source/, versions/, runtime/, data/. */
   os: string;
-  /** <root>/os/data: what agent-os keeps for the user; builds never touch it. */
+  /** <root>/os/data: what agent-os-nexo keeps for the user; builds never touch it. */
   data: string;
   /** <root>/.state/os: generated, safe to delete (logs, caches, search index, shims). */
   state: string;
@@ -53,7 +53,7 @@ export function envAt(root: string): Env {
 }
 
 /**
- * The environment to serve: NEXO_ROOT when set, otherwise the one this copy of agent-os lives in
+ * The environment to serve: NEXO_ROOT when set, otherwise the one this copy of agent-os-nexo lives in
  * (a build sits at <root>/os/versions/<x.y.z>, the editable copy at <root>/os/source).
  */
 export function loadEnv(appDir: string, override = process.env.NEXO_ROOT): Env {

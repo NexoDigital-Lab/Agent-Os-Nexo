@@ -1,8 +1,8 @@
 // Spanish for this module's UI text (English is the key). Generated and merged while porting; edit freely.
 export const es: Record<string, string> = {
   "The link is also printed by `nexo os start`. The desktop app opens it by itself.": "`nexo os start` también muestra el link. La app de escritorio lo abre sola.",
-  "Each run of agent-os has its own access link, so no other program on this computer can use it.": "Cada ejecución de agent-os tiene su propio link de acceso, así ningún otro programa de esta computadora puede usarlo.",
-  "Open agent-os with its access link": "Abrí agent-os con su link de acceso",
+  "Each run of agent-os-nexo has its own access link, so no other program on this computer can use it.": "Cada ejecución de agent-os-nexo tiene su propio link de acceso, así ningún otro programa de esta computadora puede usarlo.",
+  "Open agent-os-nexo with its access link": "Abrí agent-os-nexo con su link de acceso",
   "OK": "OK",
   "Cancel": "Cancelar",
   "Click again to confirm. It cancels itself in 4 seconds.": "Hacé clic de nuevo para confirmar. Se cancela sola en 4 segundos.",
@@ -15,7 +15,7 @@ export const es: Record<string, string> = {
   "Delete?": "¿Borrar?",
   "It can't be undone": "No se puede deshacer",
   "No active module provides the app frame (shell).": "Ningún módulo activo provee el marco de la app (shell).",
-  "agent-os could not start": "agent-os no pudo arrancar",
+  "agent-os-nexo could not start": "agent-os-nexo no pudo arrancar",
   "now": "ahora",
   "{n} d ago": "hace {n} d",
   "{n} h ago": "hace {n} h",

@@ -40,7 +40,7 @@ const register: ModuleServer = (ctx) => {
   setSearchDb(join(ctx.stateDir, "search.db"));
   initSkills(ctx.env);
   agent.restoreTabs(agent.tabsFileName(ctx.dataDir));
-  // Every agent session: no reaching agent-os's own API or private data (guard.ts).
+  // Every agent session: no reaching agent-os-nexo's own API or private data (guard.ts).
   contributeToSessions({
     hooks: { PreToolUse: [osGuard({ ports: [...new Set([ctx.port, 4780, 4781, 47470])], dirs: [ctx.env.data, ctx.env.state] })] },
   });
@@ -102,7 +102,7 @@ const register: ModuleServer = (ctx) => {
   });
   api.delete("/tabs/:id/uploads/:name", h((req) => (deleteUpload(String(req.params.id), String(req.params.name)), ok)));
 
-  // Recent sessions (terminal and agent-os), resumable in a tab with one click.
+  // Recent sessions (terminal and agent-os-nexo), resumable in a tab with one click.
   api.get("/sessions/history", h((req) =>
     listSessions(30)
       .slice(0, Number(req.query.limit ?? 10))

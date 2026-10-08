@@ -1,18 +1,18 @@
 ---
-title: Cómo funciona agent-os
+title: Cómo funciona agent-os-nexo
 summary: El servidor, la app web, dónde vive cada cosa en un entorno y cómo cooperan los módulos.
 order: 1
 ---
 
-# Cómo funciona agent-os
+# Cómo funciona agent-os-nexo
 
-agent-os es un único proceso de Node.js que sirve una API HTTP y una app React en `127.0.0.1`. Todo lo
+agent-os-nexo es un único proceso de Node.js que sirve una API HTTP y una app React en `127.0.0.1`. Todo lo
 que hace —proyectos, pestañas de sesiones de IA, el editor, Docker, SSH…— sale de **módulos**; el host
 solo los descubre, los monta y les da algunos servicios compartidos.
 
 ```
 navegador / ventana de escritorio ──HTTP + WebSocket──▶ host/server/main.ts (127.0.0.1:4780)
-                                                          ├── guardRequest          mismo origen + header X-Agent-OS
+                                                          ├── guardRequest          mismo origen + header X-Agent-OS-Nexo
                                                           ├── /api/os/*             rutas del host (info, módulos, preferencias)
                                                           ├── /api/…                register(ctx) de cada módulo activo
                                                           ├── upgrades WebSocket    terminales, LSP, consola SSH
@@ -21,9 +21,9 @@ navegador / ventana de escritorio ──HTTP + WebSocket──▶ host/server/ma
 
 ## Dónde corre
 
-agent-os siempre corre dentro de un **entorno Nexo** (la carpeta que crea `nexo init`):
+agent-os-nexo siempre corre dentro de un **entorno Nexo** (la carpeta que crea `nexo init`):
 
-| Ruta | Qué guarda agent-os ahí |
+| Ruta | Qué guarda agent-os-nexo ahí |
 |---|---|
 | `os/source/` | La copia editable del usuario (este paquete) |
 | `os/versions/<x.y.z>/` | Builds: `dist/web` + el código de servidor + `build.json` |

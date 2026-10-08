@@ -62,7 +62,7 @@ test("lspStatus reports an unknown language, a found server and a missing one wi
   found = fake;
   const py = await lspStatus("python");
   assert.equal(py.name, "pyright");
-  assert.equal(py.available, true, "pyright ships with agent-os");
+  assert.equal(py.available, true, "pyright ships with agent-os-nexo");
 });
 
 const open = (path: string, origin: string | null = `http://127.0.0.1:${port}`) =>

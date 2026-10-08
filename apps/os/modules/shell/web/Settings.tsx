@@ -38,7 +38,7 @@ export function Settings() {
   return (
     <div className="page settings">
       <h1>{t("Settings")}</h1>
-      <p className="sub">{t("Saved in this environment (os/data), so every build of agent-os keeps them.")}</p>
+      <p className="sub">{t("Saved in this environment (os/data), so every build of agent-os-nexo keeps them.")}</p>
       {sections.map((s) => (
         <section key={s.id} className="settings-section" aria-labelledby={`settings-${s.id}`}>
           <h2 id={`settings-${s.id}`}>{t(s.label)}</h2>

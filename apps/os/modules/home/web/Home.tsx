@@ -57,7 +57,7 @@ export function Home() {
       <h1>{user ? `${hello}, ${user.split(" ")[0]}` : hello}</h1>
       <p className="sub">
         {new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" })} ·{" "}
-        {t("today you've spent")} <span className="num" style={{ color: "var(--accent-text)" }}>{usd(cost)}</span> {t("from agent-os")}
+        {t("today you've spent")} <span className="num" style={{ color: "var(--accent-text)" }}>{usd(cost)}</span> {t("from agent-os-nexo")}
       </p>
 
       <div className="eyebrow" style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 10 }}>

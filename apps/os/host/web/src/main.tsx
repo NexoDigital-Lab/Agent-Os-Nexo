@@ -12,7 +12,7 @@ const root = createRoot(document.getElementById("root")!);
 function BootError({ message }: { message: string }) {
   return (
     <div className="boot-error">
-      <h1>{t("agent-os could not start")}</h1>
+      <h1>{t("agent-os-nexo could not start")}</h1>
       <pre>{message}</pre>
     </div>
   );
@@ -36,8 +36,8 @@ async function boot() {
 function AccessNeeded() {
   return (
     <div className="boot-error">
-      <h1>{t("Open agent-os with its access link")}</h1>
-      <p>{t("Each run of agent-os has its own access link, so no other program on this computer can use it.")}</p>
+      <h1>{t("Open agent-os-nexo with its access link")}</h1>
+      <p>{t("Each run of agent-os-nexo has its own access link, so no other program on this computer can use it.")}</p>
       <pre>nexo os open</pre>
       <p className="faint">{t("The link is also printed by `nexo os start`. The desktop app opens it by itself.")}</p>
     </div>

@@ -23,9 +23,9 @@ export interface InitOptions {
   email?: string;
   language?: string;
   factory?: string;
-  /** "yes" installs agent-os right away (`nexo os install`); it can always be added later. */
+  /** "yes" installs agent-os-nexo right away (`nexo os install`); it can always be added later. */
   os?: string;
-  /** Where to copy agent-os from instead of npm (a local checkout). */
+  /** Where to copy agent-os-nexo from instead of npm (a local checkout). */
   from?: string;
 }
 
@@ -52,8 +52,8 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
     const language = opts.language ?? (await asker.ask("Language agents should answer in", "en"));
     const factorySet = opts.factory ?? (await asker.ask(`Default skills, agents, hooks and commands (${FACTORY_SETS.join(", ")})`, "all"));
     if (!isFactorySet(factorySet)) throw new Error(`Unknown factory set "${factorySet}". Choose from: ${FACTORY_SETS.join(", ")}.`);
-    const withOs = (opts.os ?? (await asker.ask("Install agent-os, the local app (yes, no)", "no"))).toLowerCase();
-    if (withOs !== "yes" && withOs !== "no") throw new Error(`Answer yes or no for agent-os, not "${withOs}".`);
+    const withOs = (opts.os ?? (await asker.ask("Install agent-os-nexo, the local app (yes, no)", "no"))).toLowerCase();
+    if (withOs !== "yes" && withOs !== "no") throw new Error(`Answer yes or no for agent-os-nexo, not "${withOs}".`);
 
     const config: EnvironmentConfig = {
       nexo: { version: nexoVersion(), updatePolicy: "owner" },
@@ -90,7 +90,7 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
     const osLine =
       withOs === "yes"
         ? (await os("install", undefined, { root, from: opts.from } satisfies OsOptions, run)).split("\n")[0]
-        : "agent-os not installed (add it any time with `nexo os install`).";
+        : "agent-os-nexo not installed (add it any time with `nexo os install`).";
 
     return [
       `Nexo environment created at ${root}`,

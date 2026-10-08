@@ -8,7 +8,7 @@ import { tempDir } from "../../../host/test/harness.ts";
 import { detectStacks } from "../server/stacks.ts";
 
 function repo(files: Record<string, string>) {
-  const dir = tempDir("agent-os-stacks-");
+  const dir = tempDir("agent-os-nexo-stacks-");
   execFileSync("git", ["init", "-q"], { cwd: dir });
   for (const [f, text] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, f)), { recursive: true });
@@ -69,5 +69,5 @@ test("static sites: html without package.json, and loose js", async () => {
 });
 
 test("a folder that is not a repository has no stacks", async () => {
-  assert.deepEqual(await detectStacks(tempDir("agent-os-norepo-")), []);
+  assert.deepEqual(await detectStacks(tempDir("agent-os-nexo-norepo-")), []);
 });

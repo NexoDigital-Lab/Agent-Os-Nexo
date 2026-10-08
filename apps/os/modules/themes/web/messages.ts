@@ -16,5 +16,5 @@ export const es: Record<string, string> = {
   "Pure black, white text and light accents. Every text pair passes AAA.": "Negro puro, texto blanco y acentos claros. Todo el texto pasa AAA.",
   "Teal accent with Nexo's violet as the second hue, on a very dark green ground. Calmer for long sessions.": "Turquesa como acento y el violeta de Nexo como secundario, sobre verde muy oscuro. Más calma para sesiones largas.",
   "The palette of the desktop app's splash screen, based on Tokyo Night: blue and pink on a night-blue ground.": "La paleta de la pantalla de carga de la app de escritorio, basada en Tokyo Night: azul y rosa sobre azul noche.",
-  "The warm palette of the first agent-os: warm graphite with an amber accent.": "La paleta cálida del primer agent-os: grafito tibio con acento ámbar."
+  "The warm palette of the first agent-os-nexo: warm graphite with an amber accent.": "La paleta cálida del primer agent-os-nexo: grafito tibio con acento ámbar."
 };

@@ -6,7 +6,7 @@ order: 5
 
 # Modules
 
-Every module of agent-os: what it does, what it depends on, what it exposes and where it keeps data.
+Every module of agent-os-nexo: what it does, what it depends on, what it exposes and where it keeps data.
 Routes are under `/api`. "Core" modules cannot be turned off. When a module changes, its entry here
 changes in the same commit, in both languages (rule R11).
 
@@ -73,7 +73,7 @@ Start page: projects, recent sessions, goals, an inbox and today's log.
 
 ## editor
 A full editor in each project tab: file tree, Monaco with palette-aware themes, search and replace,
-a bottom panel with Problems and Run, editor settings, and the agent-os equivalents of VS Code
+a bottom panel with Problems and Run, editor settings, and the agent-os-nexo equivalents of VS Code
 extensions.
 - **Depends on:** themes, sessions, extensions. **Contributes:** `tab.views` (Editor).
 - **Shared web code:** `web/bus.ts` (`openInEditor`, `usePanelHeight`).
@@ -150,13 +150,13 @@ Token use and estimated cost of every AI session, and the plan's usage limits in
 
 ## extensions
 VS Code extensions per project (recommended by stack or by an agent, synced to `.vscode/extensions.json`)
-and their agent-os editor equivalents.
+and their agent-os-nexo editor equivalents.
 - **Depends on:** shell, projects, sessions. **View:** Extensions.
 - **Routes:** `GET /extensions`, `PUT /extensions/general`, `POST /extensions/install`,
   `GET/PUT /projects/:id/extensions`, `POST /projects/:id/extensions/sync|recommend`.
 
 ## visual-bugs
-A gallery of screenshots of what looks wrong in agent-os, with notes, for an agent to read and fix.
+A gallery of screenshots of what looks wrong in agent-os-nexo, with notes, for an agent to read and fix.
 - **Depends on:** shell. **View:** Visual bugs.
 - **Routes:** `GET/POST /visual-bugs` (POST takes the raw image), `GET/PATCH/DELETE /visual-bugs/:name`.
   **Stores:** data (images + `index.json` of notes).

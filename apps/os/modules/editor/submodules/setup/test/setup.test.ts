@@ -182,7 +182,7 @@ test(".env values are merged in place, quoted when needed, and .env is gitignore
 
 test("extensions, .vscode, VS Code installs and run commands are planned and applied", async () => {
   const p = project({ "go.mod": "module x\n" });
-  const body = { recipe: "go", answers: { module: "m" }, extensions: ["golang.go", "agent-os.next", "bad id; rm"], installExtensions: true, writeVscode: true, addRun: true };
+  const body = { recipe: "go", answers: { module: "m" }, extensions: ["golang.go", "agent-os-nexo.next", "bad id; rm"], installExtensions: true, writeVscode: true, addRun: true };
   const plan = await planSetup(p.id, p.code, body);
   assert.deepEqual(plan.writes.map((w) => w.path).sort(), [".gitignore", ".vscode/extensions.json", "context/extensions.json", "context/run.json", "main.go"]);
   assert.deepEqual(plan.commands.filter((c) => c.label.startsWith("VS Code")), [{ label: "VS Code: golang.go", cmd: "code --install-extension golang.go" }]);

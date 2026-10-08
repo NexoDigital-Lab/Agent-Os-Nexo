@@ -1,10 +1,10 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Paletas de agent-os</title>
+<title>Paletas de agent-os-nexo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: the page chrome is Nexo's own dark identity; one big live mockup of agent-os on top,
+/* Layout: the page chrome is Nexo's own dark identity; one big live mockup of agent-os-nexo on top,
    palette cards with measured contrast below. Single dark look on purpose (Nexo is dark-only). */
 :root {
   color-scheme: dark;
@@ -45,7 +45,7 @@ p { margin: 0; color: var(--page-fg-2); }
 .switch .dots i:first-child { margin-left: 0; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--page-cyan); outline-offset: 2px; }
 
-/* ---------- agent-os mockup: every color comes from the palette vars set on .app ---------- */
+/* ---------- agent-os-nexo mockup: every color comes from the palette vars set on .app ---------- */
 .stage { display: grid; gap: 14px; }
 .stage-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; }
 .app { --r: 8px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: grid; grid-template-columns: 52px 210px minmax(0, 1fr); min-height: 520px; font: 13.5px/1.5 var(--body); transition: background .25s, color .25s; }
@@ -153,8 +153,8 @@ td:last-child { text-align: right; width: 48px; }
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">agent-os · módulo de temas</div>
-    <h1>Paletas para <span>agent-os</span></h1>
+    <div class="eyebrow">agent-os-nexo · módulo de temas</div>
+    <h1>Paletas para <span>agent-os-nexo</span></h1>
     <p class="lead">La paleta por defecto sale de la web de Nexo Digital: fondo casi negro, violeta como acento y el degradé cyan → violeta → magenta como firma. Las otras opciones respetan esa misma estructura. Cada usuario elige la suya desde la configuración del os.</p>
   </header>
 
@@ -162,7 +162,7 @@ td:last-child { text-align: right; width: 48px; }
     <div class="stage-head">
       <div style="display:grid;gap:4px">
         <h2 id="prev-title">Vista previa en vivo</h2>
-        <p>Un mockup de agent-os con la paleta elegida: chat, pedido de permiso, diff, terminal y estados.</p>
+        <p>Un mockup de agent-os-nexo con la paleta elegida: chat, pedido de permiso, diff, terminal y estados.</p>
       </div>
     </div>
     <div class="switch" id="switch" role="group" aria-label="Elegir paleta para la vista previa"></div>
@@ -245,11 +245,11 @@ const P = [
     c: { bg:"#0a0a0f", bg2:"#0f0f1a", panel:"#12121f", panel2:"#1a1a2e", line:"#24203a", line2:"#352d55", text:"#f0f0ff", text2:"#babac2", text3:"#9a9ab0",
       accent:"#a855f7", ink:"#0a0a0f", accentText:"#c084fc", info:"#00f5ff", ok:"#4ade80", bad:"#ff2d78", violet:"#818cf8", add:"#0d2a1c", del:"#2e0e1d",
       kw:"#c084fc", fn:"#00f5ff", str:"#86efac", num:"#ff7aa8", com:"#8a8aa3", brand:"linear-gradient(135deg,#00f5ff,#a855f7,#ff2d78)" } },
-  { id: "ambar", name: "Ámbar", tag: "agent-os v1", desc: "La paleta cálida que usa hoy agent-os: grafito tibio con acento ámbar. Sirve para quien prefiera la versión anterior.",
+  { id: "ambar", name: "Ámbar", tag: "agent-os-nexo v1", desc: "La paleta cálida que usa hoy agent-os-nexo: grafito tibio con acento ámbar. Sirve para quien prefiera la versión anterior.",
     c: { bg:"#0e0d0c", bg2:"#151412", panel:"#1a1917", panel2:"#211f1c", line:"#2c2a26", line2:"#3a3732", text:"#ece6dc", text2:"#b3aca1", text3:"#958f85",
       accent:"#f0a53a", ink:"#1a1206", accentText:"#f0a53a", info:"#7fb4e8", ok:"#7fc98f", bad:"#ec7a6a", violet:"#b79cf0", add:"#16301d", del:"#3a1c19",
       kw:"#f0a53a", fn:"#7fb4e8", str:"#7fc98f", num:"#e8a0c8", com:"#8a847a", brand:"linear-gradient(135deg,#f0a53a,#ec7a6a)" } },
-  { id: "noche", name: "Noche", tag: "agent-os escritorio", desc: "La paleta de la pantalla de carga de la app de escritorio, basada en Tokyo Night: azul y rosa sobre azul noche. Es la más cercana a Nexo sin ser la misma.",
+  { id: "noche", name: "Noche", tag: "agent-os-nexo escritorio", desc: "La paleta de la pantalla de carga de la app de escritorio, basada en Tokyo Night: azul y rosa sobre azul noche. Es la más cercana a Nexo sin ser la misma.",
     c: { bg:"#111318", bg2:"#16161e", panel:"#1a1b26", panel2:"#24283b", line:"#292e42", line2:"#3b4261", text:"#c9ced8", text2:"#a9b1d6", text3:"#8b93be",
       accent:"#7aa2f7", ink:"#111318", accentText:"#7aa2f7", info:"#7dcfff", ok:"#9ece6a", bad:"#f7768e", violet:"#bb9af7", add:"#1d2b1f", del:"#33202a",
       kw:"#bb9af7", fn:"#7aa2f7", str:"#9ece6a", num:"#ff9e64", com:"#7a83b0", brand:"linear-gradient(135deg,#7aa2f7,#bb9af7,#f7768e)" } },
@@ -347,7 +347,7 @@ const out = document.getElementById("out");
 function sync() {
   for (const card of grid.children) card.classList.toggle("sel", chosen.has(card.dataset.id));
   const names = P.filter((p) => chosen.has(p.id)).map((p) => p.id === "nexo" ? `${p.name} (por defecto)` : p.name);
-  out.value = `Paletas para agent-os: ${names.join(", ")}.`;
+  out.value = `Paletas para agent-os-nexo: ${names.join(", ")}.`;
   store.set("paletas-sel", JSON.stringify([...chosen].filter((x) => x !== "nexo")));
 }
 grid.addEventListener("change", (e) => {

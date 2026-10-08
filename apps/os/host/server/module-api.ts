@@ -18,7 +18,7 @@ export interface ModuleContext {
   port: number;
   /** True when running from source with Vite's dev server (the preview), false for a build. */
   dev: boolean;
-  /** The agent-os version running (package version for a build, "source" in dev). */
+  /** The agent-os-nexo version running (package version for a build, "source" in dev). */
   version: string;
 }
 

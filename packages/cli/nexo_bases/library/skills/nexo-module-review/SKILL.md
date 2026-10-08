@@ -1,6 +1,6 @@
 ---
 name: nexo-module-review
-description: Review an agent-os module (or a change to one) against the module rules and report what to fix, by rule, severity and file:line. Use when asked to review a module, a PR or branch that touches modules, the user's os/source before a build, or code a third party wrote for agent-os.
+description: Review an agent-os-nexo module (or a change to one) against the module rules and report what to fix, by rule, severity and file:line. Use when asked to review a module, a PR or branch that touches modules, the user's os/source before a build, or code a third party wrote for agent-os-nexo.
 owner: nexo
 version: 1.0.0
 ---
@@ -8,7 +8,7 @@ version: 1.0.0
 # nexo-module-review
 
 The rules live with the code: `docs/en/module-rules.md` (Spanish: `docs/es/module-rules.md`) in the
-agent-os source — `os/source/docs/` in an environment, `apps/os/docs/` in the Nexo repository. The full
+agent-os-nexo source — `os/source/docs/` in an environment, `apps/os/docs/` in the Nexo repository. The full
 method is `docs/en/review.md`. Read both before the first review in a session; cite rules by ID (M1–M6,
 R1–R12).
 
@@ -43,4 +43,4 @@ when routes, slots or data change.
 
 - Approve without having run step 2 in this session.
 - Restyle code the rules don't cover, or rewrite a module when a targeted fix does.
-- Build or restart agent-os (`nexo os build` / `start` are the user's call).
+- Build or restart agent-os-nexo (`nexo os build` / `start` are the user's call).

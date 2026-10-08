@@ -41,7 +41,7 @@ export const PALETTES: Palette[] = [
     brand: "linear-gradient(135deg, #7aa2f7, #bb9af7, #f7768e)",
   },
   {
-    id: "ambar", name: "Amber", description: "The warm palette of the first agent-os: warm graphite with an amber accent.", dark: true,
+    id: "ambar", name: "Amber", description: "The warm palette of the first agent-os-nexo: warm graphite with an amber accent.", dark: true,
     fonts: { sans: PLEX, display: PLEX },
     colors: { bg: "#0e0d0c", bg2: "#151412", panel: "#1a1917", panel2: "#211f1c", line: "#2c2a26", line2: "#3a3732", text: "#ece6dc", text2: "#b3aca1", text3: "#958f85",
       accent: "#f0a53a", accentInk: "#1a1206", accentText: "#f0a53a", ok: "#7fc98f", bad: "#ec7a6a", info: "#7fb4e8", warn: "#e8c46a", violet: "#b79cf0", add: "#16301d", del: "#3a1c19" },

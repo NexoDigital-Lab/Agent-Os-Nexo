@@ -1,4 +1,4 @@
-// Settings → Versions: your builds of agent-os. Picking one only decides what the next start loads.
+// Settings → Versions: your builds of agent-os-nexo. Picking one only decides what the next start loads.
 import { useEffect, useState } from "react";
 import { locale, t } from "@os/i18n";
 import { versionsApi, type BuildsState } from "./api";
@@ -15,7 +15,7 @@ export function Versions() {
       <p className="faint" style={{ margin: 0 }}>
         {s.running === "source"
           ? t("This is the preview of os/source. Approve it to make a new build.")
-          : t("Running {v}. Changes you approve become a new build; agent-os never restarts on its own.", { v: s.running })}
+          : t("Running {v}. Changes you approve become a new build; agent-os-nexo never restarts on its own.", { v: s.running })}
       </p>
       {error && <div className="pill bad" role="alert">{error}</div>}
       {s.builds.length === 0 ? (

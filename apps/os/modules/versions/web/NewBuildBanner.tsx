@@ -1,4 +1,4 @@
-// "New version detected — restart agent-os to load it." Checked every minute; agent-os never restarts itself.
+// "New version detected — restart agent-os-nexo to load it." Checked every minute; agent-os-nexo never restarts itself.
 import { useEffect, useState } from "react";
 import { t } from "@os/i18n";
 import { hostApi } from "@os/lib/http";
@@ -15,7 +15,7 @@ export function NewBuildBanner() {
   if (!newer || newer === dismissed) return null;
   return (
     <div className="banner" role="status">
-      <span>{t("Version {v} is ready. Restart agent-os to load it.", { v: newer })}</span>
+      <span>{t("Version {v} is ready. Restart agent-os-nexo to load it.", { v: newer })}</span>
       <button className="btn sm ghost" onClick={() => setDismissed(newer)}>{t("Later")}</button>
     </div>
   );

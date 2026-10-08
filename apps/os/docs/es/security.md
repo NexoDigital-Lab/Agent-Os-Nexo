@@ -6,9 +6,9 @@ order: 7
 
 # Seguridad
 
-agent-os corre agentes de IA con los permisos del propio usuario, en su máquina. El diseño deja afuera
+agent-os-nexo corre agentes de IA con los permisos del propio usuario, en su máquina. El diseño deja afuera
 tres cosas: otros sitios web (no pueden manejar la API local), otros programas de la máquina (no se pueden
-confundir con agent-os) y los propios agentes (no pueden llegar a credenciales ni actuar sobre servidores
+confundir con agent-os-nexo) y los propios agentes (no pueden llegar a credenciales ni actuar sobre servidores
 sin la aprobación del usuario).
 
 ## El servidor
@@ -17,18 +17,18 @@ sin la aprobación del usuario).
 - **Chequeos de host y origen** (`guardRequest`, `host/server/http.ts`), en cada pedido:
   - el header `Host` tiene que ser este servidor (frena el DNS rebinding: `evil.com` resolviendo a
     127.0.0.1 conserva su propio Host);
-  - todo lo que cambia estado tiene que venir de la propia página de agent-os o de un cliente sin `Origin`
+  - todo lo que cambia estado tiene que venir de la propia página de agent-os-nexo o de un cliente sin `Origin`
     (curl, el CLI): un sitio que el usuario visita no puede hacer POST a la API.
 - **Un token de acceso por ejecución** (`host/server/access.ts`): al arrancar, el servidor escribe un token al
   azar en `.state/os/token-<puerto>` (0600). El navegador entra una vez con `?token=…` (`nexo os open`, o el
   link que muestra `nexo os start`; la app de escritorio lo hace sola), que se convierte en una cookie HttpOnly y
   SameSite=Strict. Toda llamada a `/api` salvo el chequeo de salud `/api/os/info`, y todo WebSocket, la necesitan:
-  ningún otro programa de la máquina puede manejar agent-os, y los agentes no pueden leer el token (la guardia
+  ningún otro programa de la máquina puede manejar agent-os-nexo, y los agentes no pueden leer el token (la guardia
   los mantiene fuera de `.state/os`).
 - **Los WebSockets** (terminales, servidores de lenguaje, la consola SSH) chequean `sameOrigin` —origen, host y
   token de acceso— antes del upgrade.
 - Cada respuesta lleva `X-Content-Type-Options: nosniff` (los archivos del usuario nunca se interpretan como
-  HTML) y `X-Agent-OS: 1`, que el CLI y la app de escritorio chequean antes de confiar en un puerto.
+  HTML) y `X-Agent-OS-Nexo: 1`, que el CLI y la app de escritorio chequean antes de confiar en un puerto.
 - **Un módulo roto nunca detiene a los demás** (`host/server/mount.ts`).
 
 Reglas para módulos: R3 (validar toda entrada, `safePath` para rutas, lista de argumentos para procesos) y
@@ -39,8 +39,8 @@ R9 en [module-rules.md](module-rules.md).
 - **Las lecturas se quedan en el proyecto.** Un hook PreToolUse (`confineHook`,
   `modules/sessions/server/claude.ts`) deja que el agente de una sesión lea solo dentro de sus carpetas de
   trabajo, no `~/.ssh`, secretos ni otros proyectos.
-- **agent-os mismo está fuera de alcance.** Un segundo hook PreToolUse (`modules/sessions/server/guard.ts`)
-  rechaza las llamadas a herramientas que llegan a la API de agent-os (sus puertos en loopback) o a sus datos
+- **agent-os-nexo mismo está fuera de alcance.** Un segundo hook PreToolUse (`modules/sessions/server/guard.ts`)
+  rechaza las llamadas a herramientas que llegan a la API de agent-os-nexo (sus puertos en loopback) o a sus datos
   privados (`os/data`, `.state/os`, con las rutas resueltas desde la carpeta del agente). Como la guardia de
   ssh, lee lo que dice la llamada: frena el camino directo, no una ofuscación decidida de un agente al que el
   usuario dejó correr cualquier cosa.
@@ -72,11 +72,11 @@ El contrato completo está en `modules/ssh/CONTRACT.md`. En resumen:
 
 ## El CLI y la app de escritorio
 
-- `nexo os start|preview` confía en un archivo pid solo si ese proceso es un servidor de agent-os (por su
-  línea de comando), y solo informa "arrancó" cuando el servidor responde como agent-os.
+- `nexo os start|preview` confía en un archivo pid solo si ese proceso es un servidor de agent-os-nexo (por su
+  línea de comando), y solo informa "arrancó" cuando el servidor responde como agent-os-nexo.
 - `nexo os stop` detiene solo la app; la vista previa necesita `--preview`: un agente que limpia su vista
-  previa no puede tumbar el agent-os en el que corre.
-- La app de escritorio solo carga su puerto si `/api/os/info` responde con `X-Agent-OS: 1`, y sus permisos
+  previa no puede tumbar el agent-os-nexo en el que corre.
+- La app de escritorio solo carga su puerto si `/api/os/info` responde con `X-Agent-OS-Nexo: 1`, y sus permisos
   nativos (notificaciones, zoom) están limitados a `http://127.0.0.1:47470`.
 
 ## Límites conocidos

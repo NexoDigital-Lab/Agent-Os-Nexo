@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { addToInbox, initData, logSession, readDoc, todayCost, writeDoc } from "../server/data.ts";
 
-const root = mkdtempSync(join(tmpdir(), "agent-os-home-"));
+const root = mkdtempSync(join(tmpdir(), "agent-os-nexo-home-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 initData({ data: join(root, "data"), state: join(root, "state") });
 

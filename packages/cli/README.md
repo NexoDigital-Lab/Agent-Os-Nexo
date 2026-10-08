@@ -10,6 +10,9 @@ cd ~/environments
 nexo analyze                            # record OS and toolchains
 nexo clone git@github.com:you/app.git   # projects/app/{AGENTS.md, code/, context/, secrets/}
 nexo doctor                             # check everything; never changes anything
+nexo dict add "Active customer" --summary "Bought in the last 90 days"   # a concept every agent reads
+nexo permissions allow commands "npm run test*"                         # one rule, validated, every AI updated
+nexo os desktop                         # the desktop app installer for this OS (checksum-verified)
 ```
 
 Commands: `init`, `update`, `doctor`, `analyze`, `index`, `clone`, `new`, `map`, `connect`, `os`.

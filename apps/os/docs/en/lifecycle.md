@@ -19,10 +19,19 @@ nexo os install --from <Agent-Os-Nexo>/apps/os  # from a checkout (until the pac
 
 1. The package is copied into `os/source/` (without `node_modules`, `dist`, `.git`). This is the user's
    own copy from now on; install refuses to overwrite it.
-2. Its dependencies are installed once into `os/runtime/<hash>/`, where the hash names the dependency
-   set (`dependencies` + `devDependencies`). The runtime counts as ready only after npm finishes
-   (`.ready`), so an interrupted install is redone, never reused.
-3. `os/source/node_modules` links to that runtime, and the first build becomes `1.0.0`.
+2. A preflight checks this machine: a supported OS and CPU (Linux, macOS, Windows; x64, arm64) and the Node
+   version in `engines`, with how to update Node on this OS when it is too old.
+3. Its dependencies are installed once into `os/runtime/<hash>/`, where the hash names the dependency
+   set (`dependencies` + `devDependencies`) **and the machine** (OS, CPU, Node ABI — written to `.target`): native
+   modules such as node-pty only work where they were installed, so an environment used from two machines gets one
+   runtime per machine. The runtime counts as ready only after npm finishes (`.ready`), so an interrupted install
+   is redone, never reused.
+4. `os/source/node_modules` links to that runtime, and the build is **test-started** on a free port: it is kept only
+   if it answers as agent-os-nexo and every module loads; otherwise it is removed and the reason shown. The first
+   build becomes `1.0.0`. `nexo doctor` warns when the active build was installed for another machine.
+
+The desktop app's installer for this machine (AppImage, dmg or the Windows setup, built per OS by the release
+workflow) comes with `nexo os desktop`, which refuses it unless its SHA-256 matches the release's checksums.
 
 If a step fails, run `nexo os install` again: it resumes with the source already copied.
 

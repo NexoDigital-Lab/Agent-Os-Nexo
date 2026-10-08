@@ -44,6 +44,7 @@ Usage: nexo <command> [options]
   os [status|versions|next|use <x.y.z|latest>]
                                     agent-os-nexo builds
   os install [--from <dir>]         Copy agent-os-nexo into os/source, install its runtime, build 1.0.0
+  os desktop [<tag>]                Download the desktop app installer for this OS (checksum-verified)
   os build [--notes <text>]         Build os/source into the next version
   os start|preview [--port <n>]     Run the active build (4780) / the source with hot reload (4781)
   os stop [--preview|--all]         Stop the app (default), the preview, or both

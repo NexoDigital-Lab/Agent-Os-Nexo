@@ -6,6 +6,8 @@ import { parseFrontmatter } from "../core/frontmatter.ts";
 import { isDir, listDir, readJson, readText } from "../core/fsx.ts";
 import { loadPermissions, validatePermissions } from "../core/permissions.ts";
 import { listProjectDirs } from "../core/projects.ts";
+import { buildTarget, currentTarget } from "../core/osruntime.ts";
+import { activeVersion } from "../core/osversions.ts";
 
 export type Level = "ok" | "warn" | "error";
 export interface Finding {
@@ -118,6 +120,13 @@ export function diagnose(root: string, quick = false): Finding[] {
     for (const problem of validatePermissions(loadPermissions(join(dir, "context", "permissions.json")))) {
       findings.push({ level: "error", area: `${rel}/context/permissions.json`, message: problem });
     }
+  }
+  // The build agent-os-nexo starts must have been installed for this machine (an environment used from two OSes).
+  const osDir = folder(root, config, "os");
+  const active = activeVersion(osDir);
+  const target = active ? buildTarget(osDir, active) : null;
+  if (active && target && target !== currentTarget()) {
+    findings.push({ level: "error", area: "agent-os-nexo", message: `build ${active} was installed for ${target}, this machine is ${currentTarget()}: run \`nexo os build\`` });
   }
   return findings;
 }

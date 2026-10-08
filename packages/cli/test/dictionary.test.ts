@@ -97,3 +97,18 @@ test("nexo dict: add, list, show, rm, and library/index.json lists every term wi
   assert.throws(() => dict("show", ["nada"], { root }), /No term "nada"/);
   assert.throws(() => dict("explode", ["x"], { root }), /Usage/);
 });
+
+test("nexo dict --json and plain forms for terms with and without aliases or a body", async () => {
+  const root = await freshEnv("claude");
+  assert.equal(dict(undefined, [], { root, json: true }), "[]");
+  dict("add", ["Solo"], { root, summary: "Sin alias ni cuerpo" });
+  dict("add", ["Con", "todo"], { root, summary: "Completo", alias: "ct", body: "Cuerpo." });
+  assert.equal(dict("show", ["solo"], { root }), "Solo\nSin alias ni cuerpo");
+  const listed = JSON.parse(dict("list", [], { root, json: true })) as { term: string; body?: string }[];
+  assert.deepEqual(listed.map((t) => t.term), ["Con todo", "Solo"]);
+  assert.ok(listed.every((t) => t.body === undefined), "the list leaves the bodies out");
+  assert.equal(JSON.parse(dict("show", ["ct"], { root, json: true })).body, "Cuerpo.");
+  assert.equal(dict("list", [], { root }), "Con todo (ct) — Completo\nSolo — Sin alias ni cuerpo");
+  assert.throws(() => dict("show", [], { root }), /Usage/);
+  assert.throws(() => dict("rm", [], { root }), /Usage/);
+});

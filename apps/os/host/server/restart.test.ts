@@ -6,7 +6,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tempDir, tempEnv } from "../test/harness.ts";
 import { takeInheritedToken, issueAccess } from "./access.ts";
-import { relaunchPlan, startRelaunch } from "./restart.ts";
+import { EventEmitter } from "node:events";
+import { exitForRestart, relaunchPlan, startRelaunch } from "./restart.ts";
 
 const TOKEN = "ab".repeat(24);
 
@@ -81,4 +82,33 @@ test("the helper waits for the old process, then starts the new one with the tok
   assert.ok(started.at - t0 >= 500, "it waited for the old process to end");
   assert.match(readFileSync(join(dir, "app.pid"), "utf8"), /^\d+$/);
   assert.ok(existsSync(join(dir, "logs", "restart.log")), "the log folder is created");
+});
+
+test("exit: the process group on POSIX, then exit 0; only this process on Windows or when not a group leader", () => {
+  const seen: string[] = [];
+  const kill = (pid: number, signal: string) => void seen.push(`kill ${pid} ${signal}`);
+  const exit = (code: number) => void seen.push(`exit ${code}`);
+  exitForRestart("linux", kill, exit);
+  assert.deepEqual(seen, [`kill ${-process.pid} SIGTERM`, "exit 0"]);
+  seen.length = 0;
+  exitForRestart("win32", kill, exit);
+  assert.deepEqual(seen, ["exit 0"]);
+  seen.length = 0;
+  exitForRestart("darwin", () => { throw new Error("ESRCH"); }, exit);
+  assert.deepEqual(seen, ["exit 0"]);
+});
+
+test("a helper that cannot start is logged, not thrown, and gets the plan on stdin", () => {
+  const child = Object.assign(new EventEmitter(), { stdin: { written: "", end(s: string) { this.written = s; } }, unref() {} });
+  const errors: unknown[] = [];
+  const original = console.error;
+  console.error = (...a: unknown[]) => void errors.push(a);
+  try {
+    startRelaunch({ waitFor: 1, command: "x", args: [], cwd: ".", env: {}, token: TOKEN, log: "l", pidFile: null }, (() => child) as never);
+    assert.match(child.stdin.written, new RegExp(TOKEN), "the plan (with the token) went to stdin");
+    child.emit("error", new Error("EACCES"));
+    assert.equal(errors.length, 1);
+  } finally {
+    console.error = original;
+  }
 });

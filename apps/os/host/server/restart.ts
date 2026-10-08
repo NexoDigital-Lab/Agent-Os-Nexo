@@ -52,13 +52,17 @@ export function startRelaunch(plan: RelaunchPlan, launch: typeof spawn = spawn):
 }
 
 /** Ends this server so the helper can take the port: the whole process group on POSIX (agents, language servers). */
-export function exitForRestart(platform: NodeJS.Platform = process.platform): void {
+export function exitForRestart(
+  platform: NodeJS.Platform = process.platform,
+  kill: (pid: number, signal: NodeJS.Signals) => void = process.kill,
+  exit: (code: number) => void = process.exit,
+): void {
   if (platform !== "win32") {
     try {
-      process.kill(-process.pid, "SIGTERM"); // only works when this server leads its group, as `nexo os` and the desktop app start it
+      kill(-process.pid, "SIGTERM"); // only works when this server leads its group, as `nexo os` and the desktop app start it
     } catch {
       // not a group leader (started by hand): just this process
     }
   }
-  process.exit(0);
+  exit(0);
 }

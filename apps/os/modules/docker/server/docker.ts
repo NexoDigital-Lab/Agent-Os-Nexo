@@ -1,6 +1,7 @@
 // Docker through its own CLI, so it talks to whatever engine the active context points at (Docker Desktop here)
 // with no socket path guessing. Containers and images for the Docker view; devenv.ts builds on dockerRun().
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { httpError, userBinPath } from "../../../host/server/http.ts";
 
@@ -9,7 +10,38 @@ export const DOCKER_ENV = { ...process.env, PATH: userBinPath().join(path.delimi
 /** The process launcher; tests swap `execFile` for a fake so no real docker runs. */
 export const dockerExec: { execFile: typeof execFile } = { execFile };
 
-const DAEMON_DOWN = /Cannot connect to the Docker daemon|docker daemon is not running|error during connect/i;
+/** Docker Desktop's exe on Windows when installed, else null. */
+function winDesktopExe(): string | null {
+  if (process.platform !== "win32") return null;
+  return [process.env.ProgramFiles, process.env["ProgramFiles(x86)"]]
+    .filter((d): d is string => !!d)
+    .map((d) => path.join(d, "Docker", "Docker", "Docker Desktop.exe"))
+    .find((f) => existsSync(f)) ?? null;
+}
+
+/** The platform and the installed Desktop path; tests swap both so no real Desktop starts. */
+export const dockerSys: {
+  platform: NodeJS.Platform;
+  /** Docker Desktop's exe on Windows when installed; null otherwise (tests set this). */
+  desktop: string | null;
+  /** The Desktop launcher; tests swap it so no real Docker Desktop starts. */
+  spawnDesktop: (exe: string) => void;
+} = {
+  platform: process.platform,
+  desktop: winDesktopExe(),
+  spawnDesktop: (exe) => {
+    spawn(exe, [], { detached: true, stdio: "ignore", windowsHide: false }).unref();
+  },
+};
+
+const DAEMON_DOWN = /Cannot connect to the Docker daemon|docker daemon is not running|error during connect|failed to connect to the docker API/i;
+
+const daemonDownMessage = () => {
+  if (dockerSys.platform !== "win32") return "Docker is not running (open Docker Desktop or start the daemon)";
+  return "Docker is not running. The Docker CLI is installed — start Docker Desktop or your Docker daemon to use containers.";
+};
+
+const missingCliMessage = () => "The Docker CLI was not found.";
 
 export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
   return new Promise((resolve, reject) =>
@@ -17,9 +49,10 @@ export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
       if (!err) return resolve(stdout);
       // A killed process is our own timeout (stderr is empty then, so check it first).
       if (err.killed) return reject(httpError(504, `docker took more than ${Math.round(timeout / 1000)} s to answer`));
-      if (DAEMON_DOWN.test(stderr)) return reject(httpError(503, "Docker is not running (open Docker Desktop or start the daemon)"));
+      if (DAEMON_DOWN.test(stderr)) return reject(httpError(503, daemonDownMessage()));
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return reject(httpError(503, missingCliMessage()));
       const msg = (stderr || err.message).trim().split("\n").pop() || "docker failed";
-      reject(httpError((err as NodeJS.ErrnoException).code === "ENOENT" ? 503 : 400, msg));
+      reject(httpError(400, msg));
     }),
   );
 }
@@ -32,13 +65,49 @@ export type Container = {
 };
 export type Image = { id: string; repo: string; tag: string; size: string; created: string; inUse: boolean };
 
-export async function info() {
-  try {
-    const [version, context] = await Promise.all([dockerRun(["version", "--format", "{{.Server.Version}}"], 8000), dockerRun(["context", "show"], 8000)]);
-    return { ok: true, version: version.trim(), context: context.trim() };
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
+export type DockerAction = "open-desktop" | "install-cli" | null;
+
+export type DockerCliInfo = { found: boolean; version: string | null };
+
+export type DockerInfo = {
+  ok: boolean; // daemon answering
+  cli: DockerCliInfo;
+  version?: string; // SERVER version, only when ok
+  context?: string; // only when ok
+  error?: string; // when !ok
+  action?: DockerAction;
+  installHint?: string; // only when action === "install-cli"
+};
+
+/** Probes the CLI first (works with the daemon down), then the daemon itself. */
+export async function info(): Promise<DockerInfo> {
+  const cliLine = await dockerRun(["--version"], 8000).then((o) => o.trim().split("\n")[0] ?? "", () => null);
+  const cli: DockerCliInfo = cliLine ? { found: true, version: cliLine } : { found: false, version: null };
+  if (!cli.found) {
+    return {
+      ok: false,
+      cli,
+      error: "The Docker CLI was not found.",
+      action: "install-cli",
+      installHint: dockerSys.platform === "win32" ? "winget install Docker.DockerDesktop" : "https://docs.docker.com/get-docker/",
+    };
   }
+  try {
+    const [version, context] = await Promise.all([
+      dockerRun(["version", "--format", "{{.Server.Version}}"], 8000),
+      dockerRun(["context", "show"], 8000),
+    ]);
+    return { ok: true, cli, version: version.trim(), context: context.trim() };
+  } catch (e) {
+    return { ok: false, cli, error: (e as Error).message, action: dockerSys.desktop ? "open-desktop" : null };
+  }
+}
+
+/** Starts Docker Desktop (Windows-only in practice: desktop is null elsewhere). */
+export function openDockerDesktop(): { ok: true; path: string } {
+  if (!dockerSys.desktop) throw httpError(400, "Docker Desktop is not installed");
+  dockerSys.spawnDesktop(dockerSys.desktop);
+  return { ok: true, path: dockerSys.desktop };
 }
 
 export async function containers(): Promise<Container[]> {

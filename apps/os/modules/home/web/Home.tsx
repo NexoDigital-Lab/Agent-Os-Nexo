@@ -50,7 +50,8 @@ export function Home() {
   }, []);
 
   const hour = new Date().getHours();
-  const hello = hour < 13 ? t("Good morning") : hour < 20 ? t("Good afternoon") : t("Good evening");
+  // 3 a.m. is still night: morning starts at 5, afternoon at 13, evening otherwise (20–4).
+  const hello = hour >= 5 && hour < 13 ? t("Good morning") : hour >= 13 && hour < 20 ? t("Good afternoon") : t("Good evening");
 
   return (
     <div className="page">

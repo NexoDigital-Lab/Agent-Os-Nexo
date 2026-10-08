@@ -149,7 +149,12 @@ test("chats of a project run one after another, and a failing one does not block
   assert.equal(a!.status, 200);
   assert.equal(b!.status, 500);
   assert.equal(c!.status, 200);
-  assert.deepEqual(order, ["start one", "end one", "start boom", "end boom", "start three", "end three"]);
+  // HTTP does not promise arrival order — Promise.all can deliver boom before one. The contract is
+  // serialization: every chat runs start→end without interleaving, and the failing one does not block.
+  assert.deepEqual([...order].sort(), ["end boom", "end one", "end three", "start boom", "start one", "start three"]);
+  for (const tag of ["one", "boom", "three"]) {
+    assert.equal(order.indexOf(`end ${tag}`), order.indexOf(`start ${tag}`) + 1, `${tag} ran to completion before the next chat started`);
+  }
 });
 
 test("a long past message is shortened in later prompts", async () => {

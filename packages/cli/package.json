@@ -1,5 +1,5 @@
 {
-  "name": "@nexodigital-lab/nexo",
+  "name": "@nexodigital/nexo",
   "version": "0.1.0",
   "description": "Nexo CLI: installs and maintains a Nexo agent environment.",
   "license": "PolyForm-Noncommercial-1.0.0",

@@ -92,6 +92,12 @@ export async function os(action: string | undefined, arg: string | undefined, op
     }
     case "start":
     case "preview": {
+      // The OS calls `nexo` back (project create/clone); point it at this very CLI when it is not on PATH.
+      if (!process.env.NEXO_CLI) {
+        const dir = dirname(fileURLToPath(import.meta.url));
+        const bin = ["bin.ts", "bin.js"].map((f) => join(dir, "..", f)).find((p) => existsSync(p));
+        if (bin) process.env.NEXO_CLI = bin;
+      }
       const which = action === "start" ? "app" : "preview";
       const { pid, version } = await startProcess(root, osDir, stateDir, which, port);
       const url = accessLink(stateDir, port ?? PORTS[which]);

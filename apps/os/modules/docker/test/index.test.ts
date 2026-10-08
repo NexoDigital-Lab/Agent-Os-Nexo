@@ -16,6 +16,8 @@ let reply: (args: string[]) => { stdout?: string; stderr?: string; err?: boolean
 beforeEach(() => {
   calls = [];
   reply = () => ({ stdout: "" });
+  docker.dockerSys.platform = process.platform;
+  docker.dockerSys.desktop = null;
   docker.dockerExec.execFile = ((_f: string, args: string[], _o: unknown, cb: (e: unknown, o: string, s: string) => void) => {
     calls.push(args);
     const r = reply(args);
@@ -38,8 +40,17 @@ function fakeDevEnv(project: string) {
 }
 
 test("info and listings go through the docker CLI", async () => {
-  reply = (a) => ({ stdout: a[0] === "version" ? "27\n" : "ctx\n" });
-  assert.deepEqual((await m.get("/docker/info")).body, { ok: true, version: "27", context: "ctx" });
+  reply = (a) => {
+    if (a[0] === "--version") return { stdout: "Docker version 27, build abc\n" };
+    if (a[0] === "version") return { stdout: "27\n" };
+    return { stdout: "ctx\n" };
+  };
+  assert.deepEqual((await m.get("/docker/info")).body, {
+    ok: true,
+    cli: { found: true, version: "Docker version 27, build abc" },
+    version: "27",
+    context: "ctx",
+  });
   reply = () => ({ stdout: "" });
   assert.deepEqual((await m.get("/docker/containers")).body, []);
   assert.deepEqual((await m.get("/docker/images")).body, []);
@@ -50,6 +61,22 @@ test("a dead daemon is a 503 with a readable error", async () => {
   const r = await m.get("/docker/containers");
   assert.equal(r.status, 503);
   assert.match(r.body.error, /Docker is not running/);
+});
+
+test("info failure carries the action, and opening the Desktop without one is a 400", async () => {
+  // CLI present (--version ok), daemon down: the softer signal keeps the CLI visible.
+  reply = (a) => {
+    if (a[0] === "--version") return { stdout: "Docker version 27, build abc\n" };
+    return { err: true, stderr: "Cannot connect to the Docker daemon" };
+  };
+  const r = await m.get("/docker/info");
+  assert.equal(r.body.ok, false);
+  assert.equal(r.body.cli.found, true);
+  assert.match(r.body.error, /Docker is not running/);
+  assert.equal(r.body.action, null, "no Desktop installed: nothing to open");
+  const open = await m.call("POST", "/docker/desktop/open");
+  assert.equal(open.status, 400);
+  assert.match(open.body.error, /not installed/);
 });
 
 test("container actions: unknown action 400, bad id 400, rm forgets the project's shims", async () => {

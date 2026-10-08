@@ -1,13 +1,14 @@
 import { call } from "@os/lib/http";
 import type { TermInfo } from "../../editor/submodules/terminal/server/terminal.ts";
-import type { Container, ContainerAction, Image } from "../server/docker.ts";
+import type { Container, ContainerAction, DockerInfo, Image } from "../server/docker.ts";
 import type { DevEnvConfig, DevEnvStatus } from "../server/devenv.ts";
 export type { TermInfo } from "../../editor/submodules/terminal/server/terminal.ts";
-export type { Container, ContainerAction, Image } from "../server/docker.ts";
+export type { Container, ContainerAction, DockerCliInfo, DockerInfo, Image } from "../server/docker.ts";
 export type { DevEnvConfig, DevEnvStatus, Lang, Detected } from "../server/devenv.ts";
 
 export const dockerApi = {
-  info: () => call<{ ok: boolean; version?: string; context?: string; error?: string }>("GET", "/api/docker/info"),
+  info: () => call<DockerInfo>("GET", "/api/docker/info"),
+  openDesktop: () => call<{ ok: boolean; path?: string; error?: string }>("POST", "/api/docker/desktop/open"),
   containers: () => call<Container[]>("GET", "/api/docker/containers"),
   images: () => call<Image[]>("GET", "/api/docker/images"),
   containerAction: (id: string, action: ContainerAction) => call("POST", `/api/docker/containers/${encodeURIComponent(id)}/${action}`),

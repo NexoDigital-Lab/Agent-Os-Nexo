@@ -56,6 +56,7 @@ const register: ModuleServer = (ctx) => {
 
   const api = ctx.api;
   api.get("/docker/info", h(() => docker.info()));
+  api.post("/docker/desktop/open", h(async () => docker.openDockerDesktop()));
   api.get("/docker/containers", h(() => docker.containers()));
   api.get("/docker/images", h(() => docker.images()));
   api.post("/docker/containers/:id/:action", h(async (req) => {

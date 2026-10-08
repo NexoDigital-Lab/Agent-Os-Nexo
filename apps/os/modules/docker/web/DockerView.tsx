@@ -62,7 +62,11 @@ export function DockerView() {
     if (!info?.ok) return;
     const timer = setInterval(() => {
       // A failing poll means the engine went away: show the "not reachable" screen instead of a banner every 5 s.
-      if (busy.current.size === 0) void fetchContainers((error) => setInfo({ ok: false, error }));
+      if (busy.current.size === 0) {
+        void fetchContainers((error) =>
+          setInfo((prev) => ({ ok: false, cli: prev?.cli ?? { found: false, version: null }, error })),
+        );
+      }
     }, 5000);
     return () => clearInterval(timer);
   }, [info?.ok, fetchContainers]);
@@ -93,17 +97,51 @@ export function DockerView() {
     <div className="dk">
       <div className="page dk-main">
         <div className="dk-top">
-          <div>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <h1>Docker</h1>
             {info === null ? (
               <p className="sub"><span className="spin" /> {t("Connecting to Docker…")}</p>
-            ) : info.ok ? (
-              <p className="sub">{t("Docker {version} · context {context}", { version: info.version ?? "", context: info.context ?? "" })}</p>
             ) : (
-              <div className="sub">
-                <div className="errline">{t("Docker is not reachable: {error}", { error: info.error ?? "" })}</div>
-                <button className="btn sm" style={{ marginTop: 8 }} disabled={refreshing} onClick={refreshAll}>{t("Retry")}</button>
-              </div>
+              <>
+                {/* CLI status card — always visible: the CLI is the product, the daemon is a softer signal. */}
+                <div
+                  className="sub"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+                    border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px", marginBottom: 12,
+                  }}
+                >
+                  <span className="eyebrow">{t("Docker CLI")}</span>
+                  <span className="mono" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {info.cli?.version ?? t("CLI not found")}
+                  </span>
+                  <span className={info.cli?.found ? "pill ok" : "pill bad"}>
+                    {info.cli?.found ? t("Available") : t("Not available")}
+                  </span>
+                </div>
+                {info.ok ? (
+                  <p className="sub">{t("Docker {version} · context {context}", { version: info.version ?? "", context: info.context ?? "" })}</p>
+                ) : (
+                  <div className="sub">
+                    <div className="errline">{t("Docker is not reachable: {error}", { error: info.error ?? "" })}</div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      {info.action === "open-desktop" && (
+                        <button
+                          className="btn sm"
+                          disabled={refreshing}
+                          onClick={() => api.openDesktop().then(() => refreshAll(), (e) => fail((e as Error).message))}
+                        >
+                          {t("Open Docker Desktop")}
+                        </button>
+                      )}
+                      <button className="btn sm" disabled={refreshing} onClick={refreshAll}>{t("Retry")}</button>
+                    </div>
+                    {info.action === "install-cli" && (
+                      <div className="faint" style={{ marginTop: 8 }}>{t("Install Docker with: {command}", { command: info.installHint ?? "" })}</div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
           <button className="btn sm ghost" title={t("Refresh")} aria-label={t("Refresh Docker")} disabled={refreshing} onClick={refreshAll}>

@@ -1,7 +1,6 @@
 {
-  "name": "@nexodigital-lab/agent-os-nexo",
+  "name": "@nexodigital/agent-os-nexo",
   "version": "1.0.0",
-  "private": true,
   "description": "agent-os-nexo: the local app of a Nexo environment, built from modules.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",

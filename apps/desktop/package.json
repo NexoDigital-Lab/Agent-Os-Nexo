@@ -1,5 +1,5 @@
 {
-  "name": "@nexodigital-lab/agent-os-nexo-desktop",
+  "name": "@nexodigital/agent-os-nexo-desktop",
   "version": "0.1.0",
   "private": true,
   "description": "agent-os-nexo as a desktop window: a Tauri shell that runs the environment's active agent-os-nexo build.",

@@ -5,7 +5,7 @@ import { EventEmitter } from "node:events";
 import { chmodSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tempDir } from "../../../host/test/harness.ts";
-import { installExtension, installed, isEditorOnly, openInEditor, VSCODE_ID } from "../server/vscode.ts";
+import { codeRun, installExtension, installed, isEditorOnly, openInEditor, resolveCodeBin, VSCODE_ID, vscodeExec } from "../server/vscode.ts";
 
 const skip = process.platform === "win32" ? "the fake code is a unix script" : false;
 
@@ -29,6 +29,87 @@ test("extension ids: marketplace shape, and agent-os-nexo.* belongs to our own e
   assert.ok(!VSCODE_ID.test("a b.c"));
   assert.ok(isEditorOnly("agent-os-nexo.theme"));
   assert.ok(!isEditorOnly("ms.agent-os-nexo"));
+});
+
+/** Sets an env var for the test and restores the previous value (or absence) afterwards. */
+function withEnv(name: string, value: string | undefined, fn: () => void) {
+  const prev = process.env[name];
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+  try {
+    fn();
+  } finally {
+    if (prev === undefined) delete process.env[name];
+    else process.env[name] = prev;
+  }
+}
+
+test("resolveCodeBin on win32 searches code.cmd in the Windows install dirs", () => {
+  withEnv("LOCALAPPDATA", "C:/Users/u/AppData/Local", () =>
+    withEnv("ProgramFiles", "C:/Program Files", () =>
+      withEnv("ProgramFiles(x86)", undefined, () => {
+        const dirs = [join("C:/Users/u/AppData/Local", "Programs", "Microsoft VS Code", "bin"), join("C:/Program Files", "Microsoft VS Code", "bin")];
+        const calls: [string, string[]][] = [];
+        const fakeFind = (name: string, found: string[] = []) => {
+          calls.push([name, found]);
+          return name === "code.cmd" && found[0]!.includes("AppData") ? "C:/Users/u/…/bin/code.cmd" : null;
+        };
+        assert.equal(resolveCodeBin("win32", fakeFind), "C:/Users/u/…/bin/code.cmd");
+        assert.deepEqual(calls, [["code.cmd", dirs]], "stops at the first hit");
+        // When code.cmd is absent it tries plain `code` in the same dirs.
+        calls.length = 0;
+        assert.equal(
+          resolveCodeBin("win32", (name, found = []) => (calls.push([name, found]), name === "code" ? "C:/bin/code" : null)),
+          "C:/bin/code",
+        );
+        assert.deepEqual(calls.map((c) => c[0]), ["code.cmd", "code"]);
+      }),
+    ),
+  );
+});
+
+test("resolveCodeBin on win32 falls back to code.cmd when nothing is found", () => {
+  withEnv("LOCALAPPDATA", undefined, () =>
+    withEnv("ProgramFiles", undefined, () =>
+      withEnv("ProgramFiles(x86)", undefined, () => {
+        assert.equal(resolveCodeBin("win32", () => null), "code.cmd");
+      }),
+    ),
+  );
+});
+
+test("resolveCodeBin on POSIX keeps the flatpak chain", () => {
+  const flatpak = ["/var/lib/flatpak/exports/bin"];
+  const seen: string[] = [];
+  assert.equal(
+    resolveCodeBin("linux", (name, dirs = []) => (seen.push(`${name}:${dirs.join(",")}`), name === "code" ? "/flatpak/code" : null)),
+    "/flatpak/code",
+  );
+  assert.deepEqual(seen, [`code:${flatpak}`]);
+  assert.equal(
+    resolveCodeBin("linux", (name) => (name === "com.visualstudio.code" ? "/flatpak/com.visualstudio.code" : null)),
+    "/flatpak/com.visualstudio.code",
+  );
+  assert.equal(resolveCodeBin("linux", () => null), "code");
+});
+
+test("codeRun routes a .cmd bin through cmd.exe /c, a plain bin directly", async () => {
+  const real = vscodeExec.run;
+  const calls: { cmd: string; args: string[] }[] = [];
+  vscodeExec.run = (async (cmd: string, args: string[]) => {
+    calls.push({ cmd, args });
+    return { stdout: "x" };
+  }) as never;
+  try {
+    assert.deepEqual(await codeRun("foo.cmd", ["--list-extensions"], { timeout: 5 }), { stdout: "x" });
+    const comspec = process.env.ComSpec ?? "cmd.exe";
+    assert.deepEqual(calls, [{ cmd: comspec, args: ["/c", "foo.cmd", "--list-extensions"] }]);
+    calls.length = 0;
+    assert.deepEqual(await codeRun("code", ["--list-extensions"]), { stdout: "x" });
+    assert.deepEqual(calls, [{ cmd: "code", args: ["--list-extensions"] }]);
+  } finally {
+    vscodeExec.run = real;
+  }
 });
 
 test("no code binary means no installed list (null), cached for a moment", async () => {
@@ -105,18 +186,30 @@ test("openInEditor refuses a file outside the project and never launches", () =>
   assert.equal(l.launched.length, 0);
 });
 
-test("when code cannot start, the desktop default (xdg-open) is tried", () => {
+test("when code cannot start, the desktop default is tried", () => {
   const root = tempDir();
   mkdirSync(join(root, "d"));
   const l = launcher();
   openInEditor(root, "d", undefined, l.launch, "code-bin");
-  // The fallback's own child must be unref'able too.
+  // The fallback's own child must be unref'able too. Windows opens the target through cmd.exe, not xdg-open.
   l.children[0]!.emit("error", new Error("ENOENT"));
-  assert.deepEqual(l.launched[1], { cmd: "xdg-open", args: [join(root, "d")] });
+  const comspec = process.env.ComSpec ?? "cmd.exe";
+  const fallback = (target: string) =>
+    process.platform === "win32" ? { cmd: comspec, args: ["/c", "start", "", target] } : { cmd: "xdg-open", args: [target] };
+  assert.deepEqual(l.launched[1], fallback(join(root, "d")));
   const l2 = launcher();
   openInEditor(root, undefined, undefined, l2.launch, "code-bin");
   l2.children[0]!.emit("error", new Error("ENOENT"));
-  assert.deepEqual(l2.launched[1]!.args, [root]);
+  assert.deepEqual(l2.launched[1], fallback(root));
+});
+
+test("openInEditor launches a .cmd bin through cmd.exe /c start with no error listener", () => {
+  const root = tempDir();
+  const l = launcher();
+  openInEditor(root, undefined, undefined, l.launch, "C:/VS Code/bin/code.cmd");
+  const comspec = process.env.ComSpec ?? "cmd.exe";
+  assert.deepEqual(l.launched, [{ cmd: comspec, args: ["/c", "start", "", "C:/VS Code/bin/code.cmd", root] }]);
+  assert.equal(l.children[0]!.listeners("error").length, 0);
 });
 
 test("openInEditor does not follow a symlink out of the project", { skip }, () => {

@@ -12,7 +12,7 @@ Noncommercial License 1.0.0 (see LICENSE). Contributions welcome.
 
 ## What gets installed
 
-`npx @nexodigital-lab/nexo init` creates one environment (default `~/environments`):
+`npx @nexodigital/nexo init` creates one environment (default `~/environments`):
 
 ```
 environments/

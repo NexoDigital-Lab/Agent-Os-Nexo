@@ -13,7 +13,7 @@ agent-os-nexo es opcional en un entorno Nexo. Todo lo de acá es un comando `nex
 
 ```bash
 nexo init --os yes                              # al crear el entorno, o después:
-nexo os install                                 # desde npm (@nexodigital-lab/agent-os-nexo)
+nexo os install                                 # desde npm (@nexodigital/agent-os-nexo)
 nexo os install --from <Agent-Os-Nexo>/apps/os  # desde un checkout (hasta que el paquete se publique)
 ```
 

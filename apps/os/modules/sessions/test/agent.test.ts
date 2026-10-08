@@ -552,10 +552,10 @@ test("parseSendBody: a registry provider id passes; an unknown one is a 400", ()
 test("send with a CLI provider: the same chat events, headless argv, no SDK call; the provider sticks", async () => {
   const realRun = providersHost.providerExec.run;
   const realFind = providersHost.providerExec.find;
-  const askCalls: { cmd: string; args: string[] }[] = [];
+  const askCalls: { cmd: string; args: string[]; opts: { timeout?: number } }[] = [];
   providersHost.providerExec.find = (n: string) => (n === "opencode" || n === "opencode.cmd" ? `/fake/${n}` : null);
-  providersHost.providerExec.run = ((cmd: string, args: string[]) => {
-    askCalls.push({ cmd, args });
+  providersHost.providerExec.run = ((cmd: string, args: string[], opts: { timeout?: number }) => {
+    askCalls.push({ cmd, args, opts });
     return Promise.resolve({ stdout: "  CLI answer one\n", stderr: "" });
   }) as unknown as typeof providersHost.providerExec.run;
   try {
@@ -576,12 +576,14 @@ test("send with a CLI provider: the same chat events, headless argv, no SDK call
     // resolveCli prefers the .cmd shim on win32 and wraps it in cmd.exe /c; posix runs the bare bin.
     const shim = process.platform === "win32";
     assert.deepEqual(askCalls[0].args, shim ? ["/c", "/fake/opencode.cmd", "run", "go"] : ["run", "go"]);
+    // A session turn is a whole-task headless run: 10 minutes, not the 120s one-shot budget.
+    assert.equal(askCalls[0].opts.timeout, 600_000);
     const t = await tab(id);
     assert.equal(t.provider, "opencode");
     assert.equal(t.sdkSessionId, null);
     // A second send without a provider keeps the session's provider and prefixes the transcript.
-    providersHost.providerExec.run = ((cmd: string, args: string[]) => {
-      askCalls.push({ cmd, args });
+    providersHost.providerExec.run = ((cmd: string, args: string[], opts: { timeout?: number }) => {
+      askCalls.push({ cmd, args, opts });
       return Promise.resolve({ stdout: "CLI answer two", stderr: "" });
     }) as unknown as typeof providersHost.providerExec.run;
     assert.equal((await send(id, { prompt: "second" })).status, 200);

@@ -257,6 +257,10 @@ function transcriptPrefix(s: Session): string {
   return prior.length ? `${prior.slice(-20).join("\n")}\n\n` : "";
 }
 
+/** A CLI turn is one headless run that must finish the whole task: minutes, not the 120s one-shot
+ *  budget — "create an app" on a slow model legitimately exceeds two minutes. */
+const CLI_TURN_MS = 600_000;
+
 /** One headless CLI turn: the same chat events the claude path emits (user → text → result → activity →
  *  status), without the SDK. Cost is unknown → 0; usage.ts reads Claude transcripts only, so CLI turns
  *  are never recorded there (nothing to corrupt). Mid-turn quick prompts queue via afterRun; interrupt
@@ -267,7 +271,7 @@ async function runCliTurn(s: Session, provider: ProviderId, opts: SendOpts, tran
   let ok = false;
   try {
     const agentName = opts.agent ?? s.providerAgent ?? undefined;
-    const { text } = await askWithProvider(provider, transcript + opts.prompt, { cwd: s.dir, model: opts.model, agent: agentName });
+    const { text } = await askWithProvider(provider, transcript + opts.prompt, { cwd: s.dir, model: opts.model, agent: agentName, timeoutMs: CLI_TURN_MS });
     if (signal.aborted) return;
     emit(s, { kind: "text", text, sub: false });
     emit(s, { kind: "result", cost: 0, turns: 1, ms: Date.now() - started, ok: true, text });

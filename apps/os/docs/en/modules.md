@@ -109,6 +109,14 @@ index are the same from here, an agent or a terminal.
 - **Depends on:** shell, projects. **View:** Dictionary.
 - **Routes:** `GET/POST /dictionary`, `GET/PUT/DELETE /dictionary/:term` (PUT may rename). **Stores:** library (dictionary/).
 
+## permissions
+What agents may do alone, in Settings → Agent permissions: the global rules (`library/permissions.json`) or a
+project's own on top of them (`context/permissions.json`), as allow / ask / deny columns per area plus the single
+decisions (default, building, restarting, the SSH vault). Every change goes through `nexo permissions` — validated,
+written atomically — and every AI's files are regenerated, so it applies to the next action.
+- **Depends on:** shell, projects. **Contributes:** `settings.sections`.
+- **Routes:** `GET /permissions?project=`, `POST /permissions/rule`, `POST /permissions/setting`. **Stores:** library, project context.
+
 ## docker
 The engine's containers, images, logs and shells; and a mirror dev container per project whose tools
 (python, node, go…) the tab's terminals and agent use first.

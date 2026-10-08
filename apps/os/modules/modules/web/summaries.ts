@@ -2,7 +2,7 @@
 // shows its manifest description and a generic icon.
 import {
   Activity, ArrowLeftRight, BookA, BookOpen, Blocks, Box, Braces, Bug, Code, Container, FileText, FolderGit2, GitBranch,
-  GraduationCap, History, House, KeyRound, MessagesSquare, Network, Palette, PanelLeft, Puzzle, SquareTerminal, Wrench,
+  GraduationCap, History, House, KeyRound, MessagesSquare, Network, Palette, PanelLeft, ShieldCheck, Puzzle, SquareTerminal, Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,6 +23,7 @@ export const SUMMARIES: Record<string, string> = {
   modules: "Turns modules on and off",
   monitor: "Tokens and cost of every AI session",
   notes: "Notes per project that an AI turns into features",
+  permissions: "What agents may do on their own",
   projects: "Create, clone and manage projects",
   sessions: "AI chat tabs, with agents and change review",
   shell: "The app frame: rail, views and settings",
@@ -36,7 +37,7 @@ const ICONS: Record<string, LucideIcon> = {
   architecture: Network, dictionary: BookA, docker: Container, docs: BookOpen, editor: Code, "editor/lsp": Braces,
   "editor/practice": GraduationCap, "editor/scm": GitBranch, "editor/setup": Wrench, "editor/terminal": SquareTerminal,
   extensions: Puzzle, home: House, http: ArrowLeftRight, modules: Blocks, monitor: Activity, notes: FileText,
-  projects: FolderGit2, sessions: MessagesSquare, shell: PanelLeft, ssh: KeyRound, themes: Palette, versions: History,
+  permissions: ShieldCheck, projects: FolderGit2, sessions: MessagesSquare, shell: PanelLeft, ssh: KeyRound, themes: Palette, versions: History,
   "visual-bugs": Bug,
 };
 

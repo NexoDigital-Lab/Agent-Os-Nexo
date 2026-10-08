@@ -110,6 +110,15 @@ con `nexo dict`, así el formato y el índice son los mismos desde acá, un agen
 - **Depende de:** shell, projects. **Vista:** Diccionario.
 - **Rutas:** `GET/POST /dictionary`, `GET/PUT/DELETE /dictionary/:term` (PUT puede renombrar). **Guarda:** library (dictionary/).
 
+## permissions
+Lo que los agentes pueden hacer solos, en Ajustes → Permisos de los agentes: las reglas globales
+(`library/permissions.json`) o las de un proyecto encima de ellas (`context/permissions.json`), en columnas
+permitir / preguntar / nunca por área, más las decisiones sueltas (por defecto, generar versión, reiniciar, la bóveda
+SSH). Cada cambio pasa por `nexo permissions` — validado, escrito de forma atómica — y se regeneran los archivos de
+cada IA, así aplica desde la próxima acción.
+- **Depende de:** shell, projects. **Aporta:** `settings.sections`.
+- **Rutas:** `GET /permissions?project=`, `POST /permissions/rule`, `POST /permissions/setting`. **Guarda:** library, contexto del proyecto.
+
 ## docker
 Los contenedores, imágenes, logs y shells del motor; y un contenedor de desarrollo espejo por proyecto
 cuyas herramientas (python, node, go…) usan primero las terminales y el agente de la pestaña.

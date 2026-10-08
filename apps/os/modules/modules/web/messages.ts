@@ -49,6 +49,7 @@ export const es: Record<string, string> = {
   "Turns modules on and off": "Activa y desactiva módulos",
   "Tokens and cost of every AI session": "Tokens y costo de cada sesión de IA",
   "Notes per project that an AI turns into features": "Notas por proyecto que una IA convierte en features",
+  "What agents may do on their own": "Lo que los agentes pueden hacer solos",
   "Create, clone and manage projects": "Crear, clonar y administrar proyectos",
   "AI chat tabs, with agents and change review": "Pestañas de chat con IA, agentes y revisión de cambios",
   "The app frame: rail, views and settings": "El marco de la app: barra lateral, vistas y ajustes",

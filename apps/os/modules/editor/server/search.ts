@@ -42,8 +42,8 @@ export function replaceInRepo(root: string, o: SearchOpts & { replacement: strin
   let re: RegExp;
   try {
     re = toRegExp(o);
-  } catch (e: any) {
-    throw httpError(400, `Invalid regex: ${e.message}`);
+  } catch (e) {
+    throw httpError(400, `Invalid regex: ${(e as Error).message}`);
   }
   if (typeof o.replacement !== "string") throw httpError(400, "replacement must be text");
   if (!Array.isArray(o.files) || !o.files.every((f) => typeof f === "string")) throw httpError(400, "files must be a list of paths");

@@ -7,7 +7,8 @@ import { join } from "node:path";
 import { mountModule, tempDir, tempEnv } from "../../../host/test/harness.ts";
 import { addProjectHooks } from "../server/hooks.ts";
 import register from "../server/index.ts";
-import { nexo, nexoCommand, shimScript } from "../server/lifecycle.ts";
+import { nexo, nexoCommand } from "../server/lifecycle.ts";
+import { shimScript } from "../../../host/server/winshell.ts";
 import { installFakes } from "./fakes.ts";
 
 const skip = process.platform === "win32" ? "fakes are unix scripts" : false;

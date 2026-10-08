@@ -18,3 +18,22 @@ export function cmdShimTargets(cmdFile: string, read: (f: string) => string = (f
   const dir = win32.dirname(cmdFile);
   return [...text.matchAll(/"%(?:~dp0|dp0)%?\\?([^"%]+)"/gi)].map((m) => win32.resolve(dir, m[1] ?? ""));
 }
+
+/**
+ * npm's shim only runs `node "%dp0%\…\cli.js" %*`: that script, so the tool runs with node directly and no argument
+ * ever goes through cmd.exe. Null when the shim is not npm's.
+ */
+export function shimScript(cmdFile: string, read?: (f: string) => string): string | null {
+  return cmdShimTargets(cmdFile, read).find((t) => /\.(c|m)?js$/i.test(t)) ?? null;
+}
+
+/**
+ * How to run a binary found on PATH: as it is; an npm `.cmd` shim as node + its script; any other shim through cmd.exe,
+ * flagged `viaCmd` — the caller must then refuse every argument CMD_META matches.
+ */
+export function launcher(bin: string, script: (cmdFile: string) => string | null = shimScript): { cmd: string; pre: string[]; viaCmd: boolean } {
+  if (!/\.(cmd|bat)$/i.test(bin)) return { cmd: bin, pre: [], viaCmd: false };
+  const js = script(bin);
+  if (js) return { cmd: process.execPath, pre: [js], viaCmd: false };
+  return { cmd: process.env.ComSpec ?? "cmd.exe", pre: ["/c", bin], viaCmd: true };
+}

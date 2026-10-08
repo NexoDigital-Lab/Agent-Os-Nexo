@@ -1,14 +1,14 @@
 // The shared AI-provider registry: which providers agent-os-nexo knows, how to detect their CLIs on this
 // machine (Windows-safe — a .cmd shim runs its script with node, never through cmd.exe: winshell.ts), and
 // library/providers.json read/write. Sessions routing (T2) adapts claude.ts over this same registry.
-// Round 2 added codex profiles, antigravity agents/models and the gemini provider.
+// Round 2 added codex profiles and the gemini provider.
 import { readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join as pathJoin } from "node:path";
 import { findBin, httpError, run, writeJson } from "./http.ts";
 import { CMD_META, cmdShimTargets } from "./winshell.ts";
 
-export type ProviderId = "claude" | "opencode" | "codex" | "antigravity" | "gemini";
+export type ProviderId = "claude" | "opencode" | "codex" | "gemini";
 export type ProviderKind = "sdk" | "cli";
 
 export interface ProviderMeta {
@@ -80,18 +80,6 @@ export const PROVIDERS: ProviderMeta[] = [
     supports: { agent: true, model: true }, // agents are the profiles of $CODEX_HOME (--profile)
   },
   {
-    id: "antigravity",
-    label: "Antigravity (Google)",
-    kind: "cli",
-    binaries: ["agy"], // the legacy `gemini` binary belongs to the gemini provider below
-    install: {
-      win32: "irm https://antigravity.google/cli/install.ps1 | iex",
-      posix: "curl -fsSL https://antigravity.google/cli/install.sh | bash",
-    },
-    loginHint: "Run agy once and complete its Google sign-in.",
-    supports: { agent: true, model: true }, // `agy agents` and `agy models`
-  },
-  {
     id: "gemini",
     label: "Gemini CLI",
     kind: "cli",
@@ -158,7 +146,7 @@ export type ProviderMode = "default" | "acceptEdits" | "plan" | "bypassPermissio
 /**
  * Codex exec is read-only unless told otherwise (developers.openai.com/codex/noninteractive): plan/default keep that,
  * accept-edits and bypass allow edits in the workspace — never `danger-full-access`. OpenCode run's `--auto`
- * auto-approves what is not explicitly denied (opencode.ai/docs/cli): only on bypass. Antigravity and Gemini get no
+ * auto-approves what is not explicitly denied (opencode.ai/docs/cli): only on bypass. Gemini gets no
  * flag (not verified): they keep their own defaults and the environment's generated settings.
  */
 export function modeArgs(id: ProviderId, mode: string = "default"): string[] {
@@ -179,7 +167,7 @@ export const CHOICE_RE = /^[A-Za-z0-9][A-Za-z0-9 ._()/+:,@-]{0,199}$/;
 /** Agent/profile/extension names: a strict subset of CHOICE_RE (no spaces, no `:` or `/`). */
 const AGENT_RE = /^[A-Za-z0-9._-]{1,100}$/;
 
-/** Headless argv per CLI provider, prompt as ONE argument (verified where possible: opencode run, codex exec, agy/gemini -p). */
+/** Headless argv per CLI provider, prompt as ONE argument (verified where possible: opencode run, codex exec, gemini -p). */
 function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; agent?: string; mode?: string }): string[] {
   if (id === "opencode") {
     return [
@@ -200,14 +188,13 @@ function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; a
       prompt,
     ];
   }
-  // `agy -p "…" [--model <id>] [--agent <name>]` and `gemini -p "…" [--model <id>] [--extensions <name>]`
-  if (id === "antigravity" || id === "gemini") {
-    const agentFlag = id === "antigravity" ? "--agent" : "--extensions";
+  // `gemini -p "…" [--model <id>] [--extensions <name>]`
+  if (id === "gemini") {
     return [
       "-p",
       prompt,
       ...(opts?.model ? ["--model", opts.model] : []),
-      ...(opts?.agent ? [agentFlag, opts.agent] : []),
+      ...(opts?.agent ? ["--extensions", opts.agent] : []),
     ];
   }
   throw httpError(502, `Provider ${id} runs through the Claude SDK, not a headless CLI`);
@@ -218,7 +205,7 @@ function headlessArgs(id: ProviderId, prompt: string, opts?: { model?: string; a
  * on a non-zero exit (with a trimmed stderr/stdout tail, docker.ts style) or empty output; a killed
  * process (our own timeout) is a 504, same as docker. claude is not handled here — it is the SDK path.
  * `model`/`agent` are optional CLI selection flags (opencode --model/--agent, codex --model/--profile,
- * antigravity --model/--agent, gemini --model/--extensions); both are shape-validated before spawning.
+ * gemini --model/--extensions); both are shape-validated before spawning.
  */
 export async function askWithProvider(
   id: ProviderId,
@@ -279,7 +266,7 @@ export function clearChoicesCache(): void {
  * Turns one CLI's stdout into names: strip colour codes and list/table decoration, then keep only short,
  * plain, name-shaped lines — log lines (`14:32:11 INFO …: …`), sentences (`No extensions installed.`),
  * column tables and long paths all drop out. A trailing ` (role)` suffix is removed on agent lists, the
- * shape `opencode agent list` and `agy agents` print. Anything suspicious degrades away instead of being
+ * shape `opencode agent list` prints. Anything suspicious degrades away instead of being
  * guessed at: a missing name is an empty list, not a wrong one.
  */
 function parseNames(stdout: string | undefined, isAgent: boolean): string[] {
@@ -334,17 +321,6 @@ function codexProfiles(): { agents: string[]; models: string[] } {
   return { agents: [...names].sort(), models: [] };
 }
 
-/** `agy agents` (the agent list) and `agy models`, spawned in the project cwd. */
-async function agyChoices(cwd: string): Promise<{ agents: string[]; models: string[] }> {
-  const cli = resolveCli(["agy"], process.platform, providerExec.find);
-  if (!cli) return { agents: [], models: [] };
-  const [agentsOut, modelsOut] = await Promise.all([
-    providerExec.run(cli.cmd, [...cli.pre, "agents"], { timeout: 15_000, cwd }),
-    providerExec.run(cli.cmd, [...cli.pre, "models"], { timeout: 15_000, cwd }),
-  ]);
-  return { agents: parseNames(agentsOut.stdout, true), models: parseNames(modelsOut.stdout, false) };
-}
-
 /** `gemini -l` lists the installed extensions (usable as `--extensions <name>`); there is no model list. */
 async function geminiChoices(cwd: string): Promise<{ agents: string[]; models: string[] }> {
   const cli = resolveCli(["gemini"], process.platform, providerExec.find);
@@ -355,7 +331,7 @@ async function geminiChoices(cwd: string): Promise<{ agents: string[]; models: s
 
 /**
  * Agent and model lists for one provider in a project cwd: opencode (agent list + models), codex (a
- * $CODEX_HOME profile scan), antigravity (`agy agents`/`agy models`) and gemini (`gemini -l` extensions);
+ * $CODEX_HOME profile scan) and gemini (`gemini -l` extensions);
  * claude and unknown ids answer empty without spawning. Failures also answer empty — never throw. A
  * successful non-empty list is cached 60 s per id+cwd; empty and failed answers are not cached, so a CLI
  * that was cold the first time is retried instead of staying empty.
@@ -369,7 +345,6 @@ export async function listProviderChoices(id: ProviderId, cwd: string): Promise<
     const result =
       id === "opencode" ? await opencodeChoices(cwd)
       : id === "codex" ? codexProfiles()
-      : id === "antigravity" ? await agyChoices(cwd)
       : id === "gemini" ? await geminiChoices(cwd)
       : empty;
     if (result.agents.length || result.models.length) choicesCache.set(key, { at: Date.now(), ...result });
@@ -431,6 +406,17 @@ export interface ProvidersFile {
 
 const isProviderId = (x: unknown): x is ProviderId => typeof x === "string" && PROVIDERS.some((p) => p.id === x);
 
+/**
+ * A provider agent-os may run: the bundled SDK always (its sessions carry the OS's own guards), a CLI only when
+ * the environment enabled it (`environment.config.json` → `tools`), because only then does `nexo update` generate
+ * that CLI's permission files from library/permissions.json. A CLI enabled only in providers.json would run
+ * without Nexo's rules.
+ */
+export const isGoverned = (id: ProviderId, tools?: Record<string, boolean>): boolean => id === "claude" || tools?.[id] === true;
+
+/** The ids of every provider agent-os may run in this environment (isGoverned), in registry order. */
+export const governedIds = (tools?: Record<string, boolean>): ProviderId[] => PROVIDERS.map((p) => p.id).filter((id) => isGoverned(id, tools));
+
 /** Missing file (or nothing valid in it): seed from the CLI's tools map; no overlap falls back to claude. */
 function seedFromTools(tools?: Record<string, boolean>): ProvidersFile {
   const enabled = Object.entries(tools ?? {})
@@ -441,17 +427,21 @@ function seedFromTools(tools?: Record<string, boolean>): ProvidersFile {
   return { enabled, default: enabled[0] ?? null };
 }
 
-/** Reads providers.json; unknown ids are dropped and the default falls back to the first enabled provider. */
-export function readProvidersFile(file: string, fallbackTools?: Record<string, boolean>): ProvidersFile {
+/**
+ * Reads providers.json; unknown ids, and CLIs the environment's `tools` does not enable (isGoverned), are dropped,
+ * and the default falls back to the first enabled provider.
+ */
+export function readProvidersFile(file: string, tools?: Record<string, boolean>): ProvidersFile {
   let raw: unknown = null;
   try {
     raw = JSON.parse(readFileSync(file, "utf8"));
   } catch {
-    return seedFromTools(fallbackTools);
+    return seedFromTools(tools);
   }
   const obj = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
-  const enabled = Array.isArray(obj.enabled) ? [...new Set(obj.enabled.filter(isProviderId))] : [];
-  if (!enabled.length) return seedFromTools(fallbackTools);
+  const listed = Array.isArray(obj.enabled) ? obj.enabled.filter(isProviderId) : [];
+  const enabled = [...new Set(listed)].filter((id) => isGoverned(id, tools));
+  if (!enabled.length) return seedFromTools(tools);
   const def = isProviderId(obj.default) && enabled.includes(obj.default) ? obj.default : (enabled[0] ?? null);
   return { enabled, default: def };
 }

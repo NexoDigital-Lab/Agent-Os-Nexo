@@ -91,6 +91,7 @@ export function ProvidersView() {
       {state.providers.map((p) => {
         const enabled = state.enabled.includes(p.id);
         const isDefault = state.default === p.id;
+        const governed = state.governed.includes(p.id);
         return (
           <div key={p.id} className="card" style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -118,7 +119,7 @@ export function ProvidersView() {
                 <input
                   type="checkbox"
                   checked={enabled}
-                  disabled={saving || busyId !== null}
+                  disabled={saving || busyId !== null || !governed}
                   onChange={() => toggleEnabled(p.id)}
                 />
                 <span>{t("Enabled")}</span>
@@ -136,6 +137,11 @@ export function ProvidersView() {
                 </label>
               )}
             </div>
+            {!governed && (
+              <div className="faint" style={{ marginTop: 6, fontSize: 12 }}>
+                {t("Turn it on in environment.config.json → tools and run nexo update first, so it runs under your Nexo permissions.")}
+              </div>
+            )}
           </div>
         );
       })}

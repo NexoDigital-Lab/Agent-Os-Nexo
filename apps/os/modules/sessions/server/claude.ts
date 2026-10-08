@@ -6,7 +6,7 @@ import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { HookCallbackMatcher } from "@anthropic-ai/claude-agent-sdk";
 import { httpError } from "../../../host/server/http.ts";
-import type { ProviderId } from "../../../host/server/providers.ts";
+import type { ProviderId, ProvidersFile } from "../../../host/server/providers.ts";
 
 export const READ_ONLY = ["Read", "Glob", "Grep"];
 export const MODEL = "sonnet";
@@ -14,16 +14,23 @@ export const MODEL = "sonnet";
 /** The SDK's query function; the callers below take it as a parameter so tests can pass a fake stream. */
 export type QueryFn = typeof query;
 
-// The default provider for new tabs: library/providers.json, read when asked (not cached at boot), so changing it
-// in the Providers view applies to the next tab without a restart. sessions/server/index.ts points it at the file.
+// The default provider for new tabs and the providers a tab may route through: library/providers.json, read when
+// asked (not cached at boot), so a change in the Providers view applies to the next turn without a restart.
+// sessions/server/index.ts points it at the file.
+const CLAUDE_ONLY: ProvidersFile = { enabled: ["claude"], default: "claude" };
 let providersFile: string | null = null;
-let readDefault: (file: string) => ProviderId | null = () => "claude";
-export function useProvidersFile(file: string, read: (file: string) => ProviderId | null): void {
+let readProviders: (file: string) => ProvidersFile = () => CLAUDE_ONLY;
+export function useProvidersFile(file: string, read: (file: string) => ProvidersFile): void {
   providersFile = file;
-  readDefault = read;
+  readProviders = read;
 }
+const currentProviders = (): ProvidersFile => (providersFile ? readProviders(providersFile) : CLAUDE_ONLY);
 export function getActiveProviderId(): ProviderId | null {
-  return providersFile ? readDefault(providersFile) : "claude";
+  return currentProviders().default;
+}
+/** Whether a tab may route through this provider now (enabled, and for a CLI governed by the environment). */
+export function isProviderEnabled(id: ProviderId): boolean {
+  return currentProviders().enabled.includes(id);
 }
 
 // Real path when it exists, else the real path of the nearest existing ancestor + the rest (so a symlink can't smuggle a path out).

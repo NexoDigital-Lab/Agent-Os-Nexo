@@ -8,6 +8,10 @@ import { mountModule, tempDir, tempEnv } from "../../../host/test/harness.ts";
 import * as providers from "../../../host/server/providers.ts";
 import register from "../server/index.ts";
 
+// The environment enables claude, opencode and codex (as `nexo init` writes them); gemini stays off. Mounted before
+// any test is registered: awaiting with tests queued lets the runner finish the root early and delete temp dirs.
+const m = await mountModule(register, { id: "providers", env: tempEnv({ tools: { claude: true, opencode: true, codex: true, gemini: false } }) });
+
 let findHits: Record<string, string> = {};
 let runReply: (args: string[]) => { stdout?: string; err?: boolean } = () => ({ stdout: "" });
 let runCalls: string[][] = [];
@@ -52,9 +56,9 @@ test("resolveCli: on win32 the .cmd shim wins over a bare shell script of the sa
 
 test("resolveCli: nothing found is null; the first name in the list that resolves wins", () => {
   assert.equal(providers.resolveCli(["nope"], "linux", () => null), null);
-  const hit = providers.resolveCli(["agy", "gemini"], "linux", (n) =>
-    n === "gemini" ? "/usr/bin/gemini" : n === "agy" ? "/usr/bin/agy" : null);
-  assert.equal(hit?.path, "/usr/bin/agy");
+  const hit = providers.resolveCli(["codex", "gemini"], "linux", (n) =>
+    n === "gemini" ? "/usr/bin/gemini" : n === "codex" ? "/usr/bin/codex" : null);
+  assert.equal(hit?.path, "/usr/bin/codex");
 });
 
 test("detectProvider: a CLI provider reports the path and the first line of --version", async () => {
@@ -82,7 +86,7 @@ test("detectProvider: a failing --version still counts as found, with no version
 });
 
 test("detectProvider: a missing CLI is not found and carries the platform install hint", async () => {
-  const meta = providers.providerById("antigravity")!;
+  const meta = providers.providerById("gemini")!;
   const win = await providers.detectProvider(meta, "win32");
   assert.equal(win.found, false);
   assert.equal(win.path, null);
@@ -102,16 +106,13 @@ test("detectProvider: claude is the bundled SDK — found, no binary, version fr
 
 test("detectAll: every registry provider, in registry order", async () => {
   const list = await providers.detectAll();
-  assert.deepEqual(list.map((p) => p.id), ["claude", "opencode", "codex", "antigravity", "gemini"]);
+  assert.deepEqual(list.map((p) => p.id), ["claude", "opencode", "codex", "gemini"]);
 });
 
-test("the registry knows five providers; antigravity is agy-only and gemini is its own entry", () => {
-  assert.deepEqual(providers.PROVIDERS.map((p) => p.id), ["claude", "opencode", "codex", "antigravity", "gemini"]);
-  // The legacy `gemini` fallback binary moved out of antigravity into the gemini provider.
-  assert.deepEqual(providers.providerById("antigravity")!.binaries, ["agy"]);
-  const agyInstall = providers.providerById("antigravity")!.install;
-  assert.match(agyInstall.win32, /antigravity\.google/);
-  assert.doesNotMatch(agyInstall.win32, /gemini-cli/, "the install hint is agy-only");
+test("the registry knows four providers, every CLI installed through npm; Antigravity is not one of them", () => {
+  assert.deepEqual(providers.PROVIDERS.map((p) => p.id), ["claude", "opencode", "codex", "gemini"]);
+  assert.equal(providers.providerById("antigravity"), undefined, "agy's CLI is not verified: not offered");
+  for (const p of providers.PROVIDERS) assert.match(`${p.install.win32} ${p.install.posix}`, /^npm install -g \S+ npm install -g \S+$/, p.id);
   const gemini = providers.providerById("gemini")!;
   assert.equal(gemini.label, "Gemini CLI");
   assert.equal(gemini.kind, "cli");
@@ -133,12 +134,25 @@ test("readProvidersFile: a missing file seeds enabled/default from the environme
 
 test("readProvidersFile: unknown ids are dropped and the default falls back to the first enabled", () => {
   const file = join(tempDir(), "providers.json");
+  const tools = { claude: true, codex: true, opencode: true };
   writeFileSync(file, JSON.stringify({ enabled: ["codex", "bogus", "opencode"], default: "bogus" }));
-  assert.deepEqual(providers.readProvidersFile(file), { enabled: ["codex", "opencode"], default: "codex" });
+  assert.deepEqual(providers.readProvidersFile(file, tools), { enabled: ["codex", "opencode"], default: "codex" });
   writeFileSync(file, JSON.stringify({ enabled: ["claude", "codex"], default: "codex" }));
-  assert.deepEqual(providers.readProvidersFile(file), { enabled: ["claude", "codex"], default: "codex" });
+  assert.deepEqual(providers.readProvidersFile(file, tools), { enabled: ["claude", "codex"], default: "codex" });
   writeFileSync(file, JSON.stringify({ enabled: ["claude"], default: "claude" }));
+  assert.deepEqual(providers.readProvidersFile(file, tools), { enabled: ["claude"], default: "claude" });
+});
+
+test("readProvidersFile: a CLI the environment's tools do not enable is dropped (it would run without Nexo's rules)", () => {
+  const file = join(tempDir(), "providers.json");
+  writeFileSync(file, JSON.stringify({ enabled: ["claude", "opencode", "gemini"], default: "gemini" }));
+  // gemini is off in tools: hand-editing providers.json does not turn it on; the default falls back.
+  assert.deepEqual(providers.readProvidersFile(file, { claude: true, opencode: true, gemini: false }), { enabled: ["claude", "opencode"], default: "claude" });
+  // No tools at all: only the bundled SDK, which carries the OS's own guards.
   assert.deepEqual(providers.readProvidersFile(file), { enabled: ["claude"], default: "claude" });
+  writeFileSync(file, JSON.stringify({ enabled: ["gemini"], default: "gemini" }));
+  assert.deepEqual(providers.readProvidersFile(file, { gemini: false }), { enabled: ["claude"], default: "claude" });
+  assert.deepEqual(providers.governedIds({ claude: false, codex: true, gemini: false }), ["claude", "codex"]);
 });
 
 test("writeProvidersFile: pretty JSON with a trailing newline, parent dirs created, default kept inside enabled", () => {
@@ -150,22 +164,22 @@ test("writeProvidersFile: pretty JSON with a trailing newline, parent dirs creat
   assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { enabled: ["codex"], default: "codex" });
 });
 
-const m = await mountModule(register, { id: "providers" });
 
 test("GET /providers lists every registry provider with the seeded enabled set", async () => {
   const r = await m.get("/providers");
   assert.equal(r.status, 200);
-  assert.deepEqual(r.body.enabled, ["claude"]);
+  assert.deepEqual(r.body.enabled, ["claude", "opencode", "codex"], "seeded from the environment's tools");
   assert.equal(r.body.default, "claude");
+  assert.deepEqual(r.body.governed, ["claude", "opencode", "codex"]);
   assert.deepEqual(
     r.body.providers.map((p: providers.DetectedProvider) => p.id),
-    ["claude", "opencode", "codex", "antigravity", "gemini"],
+    ["claude", "opencode", "codex", "gemini"],
   );
   const claude = r.body.providers.find((p: providers.DetectedProvider) => p.id === "claude");
   assert.equal(claude.found, true);
   assert.equal(claude.path, null);
   assert.equal(claude.version, appPackageVersion());
-  for (const id of ["opencode", "codex", "antigravity", "gemini"]) {
+  for (const id of ["opencode", "codex", "gemini"]) {
     const p = r.body.providers.find((x: providers.DetectedProvider) => x.id === id);
     assert.equal(p.found, false, id);
     assert.ok(p.install.length > 0, `${id} carries an install hint`);
@@ -187,6 +201,9 @@ test("POST /providers/enabled rejects empty sets and a default outside enabled; 
   assert.equal((await m.call("POST", "/providers/enabled", { enabled: ["bogus"] })).status, 400);
   assert.equal((await m.call("POST", "/providers/enabled", { enabled: "claude" })).status, 400);
   assert.equal((await m.call("POST", "/providers/enabled", { enabled: ["claude"], default: "codex" })).status, 400);
+  const off = await m.call("POST", "/providers/enabled", { enabled: ["claude", "gemini"], default: "claude" });
+  assert.equal(off.status, 400, "gemini is off in tools: enabling it here would run it without Nexo's rules");
+  assert.match(off.body.error, /Gemini CLI is not enabled in this Nexo environment/);
   const ok = await m.call("POST", "/providers/enabled", { enabled: ["opencode", "claude"], default: null });
   assert.equal(ok.status, 200);
   assert.deepEqual(ok.body.enabled, ["opencode", "claude"]);
@@ -211,7 +228,7 @@ test("POST /providers/test re-detects one provider, bypassing the detect cache",
 });
 
 // ---- askWithProvider (T2 headless runners) -------------------------------------------------
-test("askWithProvider: headless argv per provider (opencode run / codex exec / agy -p)", async () => {
+test("askWithProvider: headless argv per provider (opencode run / codex exec / gemini -p)", async () => {
   findHits = { opencode: "/usr/bin/opencode" };
   runReply = () => ({ stdout: "  the answer\n" });
   const r = await providers.askWithProvider("opencode", "fix the bug", { cwd: "/tmp/proj" });
@@ -223,9 +240,9 @@ test("askWithProvider: headless argv per provider (opencode run / codex exec / a
   await providers.askWithProvider("codex", "do it", { cwd: "/tmp" });
   assert.deepEqual(runCalls.at(-1), ["exec", "--sandbox", "read-only", "do it"]);
 
-  findHits = { agy: "/usr/bin/agy" };
+  findHits = { gemini: "/usr/bin/gemini" };
   runReply = () => ({ stdout: "g" });
-  await providers.askWithProvider("antigravity", "hello", { cwd: "/tmp" });
+  await providers.askWithProvider("gemini", "hello", { cwd: "/tmp" });
   assert.deepEqual(runCalls.at(-1), ["-p", "hello"]);
 });
 
@@ -291,7 +308,7 @@ test("askWithProvider: claude is refused (SDK path), not spawned headless", asyn
 });
 
 // ---- T3: model/agent selection ---------------------------------------------------------------
-test("headlessArgs argv: opencode --model/--agent, codex --model/--profile, antigravity --model/--agent, gemini --model/--extensions", async () => {
+test("headlessArgs argv: opencode --model/--agent, codex --model/--profile, gemini --model/--extensions", async () => {
   findHits = { opencode: "/usr/bin/opencode" };
   runReply = () => ({ stdout: "ok" });
   await providers.askWithProvider("opencode", "fix", { cwd: "/tmp", model: "opencode/mimo-v2.6-pro", agent: "build" });
@@ -315,13 +332,6 @@ test("headlessArgs argv: opencode --model/--agent, codex --model/--profile, anti
 
   await providers.askWithProvider("codex", "do", { cwd: "/tmp" });
   assert.deepEqual(runCalls.at(-1), ["exec", "--sandbox", "read-only", "do"]);
-
-  findHits = { agy: "/usr/bin/agy" };
-  await providers.askWithProvider("antigravity", "hi", { cwd: "/tmp", model: "gemini-3.5-flash-medium", agent: "planner" });
-  assert.deepEqual(runCalls.at(-1), ["-p", "hi", "--model", "gemini-3.5-flash-medium", "--agent", "planner"]);
-
-  await providers.askWithProvider("antigravity", "hi", { cwd: "/tmp" });
-  assert.deepEqual(runCalls.at(-1), ["-p", "hi"]);
 
   findHits = { gemini: "/usr/bin/gemini" };
   await providers.askWithProvider("gemini", "hi", { cwd: "/tmp", model: "Gemini 3.5 Flash (Medium)", agent: "docs-helper" });
@@ -371,7 +381,7 @@ test("listProviderChoices parses opencode agent-list and models output, and cach
   assert.equal(runCalls.length, 6);
 });
 
-test("listProviderChoices: failures return empty lists; claude never spawns; codex scans the fs; agy/gemini spawn only when installed", async () => {
+test("listProviderChoices: failures return empty lists; claude never spawns; codex scans the fs; gemini spawns only when installed", async () => {
   findHits = { opencode: "/usr/bin/opencode" };
   runReply = () => ({ err: true });
   assert.deepEqual(await providers.listProviderChoices("opencode", "/proj"), { agents: [], models: [] });
@@ -392,16 +402,15 @@ test("listProviderChoices: failures return empty lists; claude never spawns; cod
   // Not installed: no binary resolves, so nothing spawns (the ENOENT-style failure arrives when a binary
   // resolves but the run rejects — the next block).
   const beforeIdle = runCalls.length;
-  assert.deepEqual(await providers.listProviderChoices("antigravity", "/proj"), { agents: [], models: [] });
   assert.deepEqual(await providers.listProviderChoices("gemini", "/proj"), { agents: [], models: [] });
   assert.deepEqual(await providers.listProviderChoices("claude", "/proj"), { agents: [], models: [] });
   assert.equal(runCalls.length, beforeIdle, "ids without an installed CLI never spawn");
 
-  // Installed but failing (ENOENT / nonzero exit / timeout): both agy commands are attempted, then it degrades.
-  findHits = { agy: "/usr/bin/agy" };
+  // Installed but failing (ENOENT / nonzero exit / timeout): `gemini -l` is attempted, then it degrades.
+  findHits = { gemini: "/usr/bin/gemini" };
   const beforeBroken = runCalls.length;
-  assert.deepEqual(await providers.listProviderChoices("antigravity", "/broken"), { agents: [], models: [] });
-  assert.equal(runCalls.length, beforeBroken + 2, "`agy agents` and `agy models` were attempted before the catch");
+  assert.deepEqual(await providers.listProviderChoices("gemini", "/broken"), { agents: [], models: [] });
+  assert.equal(runCalls.length, beforeBroken + 1, "`gemini -l` was attempted before the catch");
 });
 
 test("listProviderChoices: codex profiles come from a $CODEX_HOME scan (files + legacy tables), sorted and deduped", async () => {
@@ -431,11 +440,11 @@ test("listProviderChoices: codex profiles come from a $CODEX_HOME scan (files + 
   }
 });
 
-test("listProviderChoices: `agy agents`/`agy models` output is parsed conservatively — prose, logs and long lines degrade away", async () => {
-  findHits = { agy: "/usr/bin/agy" };
+test("listProviderChoices: `opencode agent list`/`models` output is parsed conservatively — prose, logs and long lines degrade away", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
   const longName = `model-${"x".repeat(80)}`; // > 80 chars: dropped even without a colon
   runReply = (args) => {
-    if (args.includes("agents")) {
+    if (args.includes("agent")) {
       // ANSI colour, CRLF, list/table decoration, an MCP-style log line and a sentence: only the names survive.
       return { stdout: "\u001b[32mbuild\u001b[0m (primary)\r\n- planner\r\n• reviewer\r\n| tester\r\n14:32:11 INFO registered MCP server foo:bar\r\nNo agent named that.\r\n" };
     }
@@ -444,7 +453,7 @@ test("listProviderChoices: `agy agents`/`agy models` output is parsed conservati
     }
     return { stdout: "" };
   };
-  assert.deepEqual(await providers.listProviderChoices("antigravity", "/agy-proj"), {
+  assert.deepEqual(await providers.listProviderChoices("opencode", "/oc-proj"), {
     agents: ["build", "planner", "reviewer", "tester"],
     models: ["gemini-3.5-flash-medium", "Gemini 3.5 Flash (Medium)"],
   });
@@ -496,10 +505,10 @@ mkdirSync(join(projectsEnv.projects, "shop", "code"), { recursive: true });
 writeFileSync(join(projectsEnv.projects, "shop", "AGENTS.md"), "# shop");
 initProjects(projectsEnv);
 
-test("GET /providers/choices: 400 for an unknown id; antigravity and gemini answer 200 with (usually empty) lists; 404 for unknown project", async () => {
+test("GET /providers/choices: 400 for an unknown id; gemini answers 200 with (usually empty) lists; 404 for unknown project", async () => {
   assert.equal((await m.get("/providers/choices?id=bogus&project=shop")).status, 400);
-  // Neither agy nor gemini is installed on this machine: 200 with empty lists, not an error.
-  assert.deepEqual((await m.get("/providers/choices?id=antigravity&project=shop")).body, { agents: [], models: [] });
+  // gemini is not installed on this machine: 200 with empty lists, not an error.
+  assert.equal((await m.get("/providers/choices?id=antigravity&project=shop")).status, 400, "Antigravity is gone");
   assert.deepEqual((await m.get("/providers/choices?id=gemini&project=shop")).body, { agents: [], models: [] });
   assert.equal((await m.get("/providers/choices?id=opencode&project=nope")).status, 404);
 });
@@ -523,11 +532,10 @@ test("GET /providers/choices: opencode returns parsed choices from the project c
   assert.deepEqual(r.body, { agents: ["build", "explore"], models: ["opencode/mimo-a"] });
 });
 
-test("ProviderMeta carries supports; claude model-only, opencode/codex/antigravity/gemini agent+model", () => {
+test("ProviderMeta carries supports; claude model-only, opencode/codex/gemini agent+model", () => {
   assert.deepEqual(providers.providerById("claude")!.supports, { model: true });
   assert.deepEqual(providers.providerById("opencode")!.supports, { agent: true, model: true });
   assert.deepEqual(providers.providerById("codex")!.supports, { agent: true, model: true });
-  assert.deepEqual(providers.providerById("antigravity")!.supports, { agent: true, model: true });
   assert.deepEqual(providers.providerById("gemini")!.supports, { agent: true, model: true });
 });
 

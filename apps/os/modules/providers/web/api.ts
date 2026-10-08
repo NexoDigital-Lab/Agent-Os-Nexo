@@ -6,6 +6,8 @@ export type { DetectedProvider, ProviderId, ProvidersFile };
 
 export interface ProvidersState extends ProvidersFile {
   providers: DetectedProvider[];
+  /** Providers this environment may run: claude, plus the CLIs enabled in environment.config.json → tools. */
+  governed: ProviderId[];
 }
 
 export interface ProviderChoices {

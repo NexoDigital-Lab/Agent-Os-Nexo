@@ -12,9 +12,9 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { join } from "node:path";
 import { httpError, readJson, writeJson } from "../../../host/server/http.ts";
-import { askWithProvider, MAX_PROMPT_ARG, type ProviderId } from "../../../host/server/providers.ts";
+import { askWithProvider, MAX_PROMPT_ARG, providerById, type ProviderId } from "../../../host/server/providers.ts";
 import { contributions, mergedHooks, safely, type TabContext, type TurnInfo } from "./contributions.ts";
-import { getActiveProviderId } from "./claude.ts";
+import { getActiveProviderId, isProviderEnabled } from "./claude.ts";
 import { lastTask, translate, type Ev } from "./sdkEvents.ts";
 import { createWorkServer, deriveStatus, trackWaiting, WORK_NOTE, WORK_TOOL_PREFIX, type AgentStatus, type TurnEnd, type WorkStatus } from "./status.ts";
 import { dropUploads, pruneUploads, uploadPath, userMessage } from "./uploads.ts";
@@ -306,6 +306,12 @@ async function runCliTurn(s: Session, provider: ProviderId, opts: SendOpts, tran
 export function send(id: string, opts: SendOpts): void {
   const s = get(id);
   if (s.running) throw httpError(409, "A task is already running in this tab");
+  // A CLI disabled since the tab chose it (or never enabled: a body can name any id) must not run: without its
+  // entry in the environment's tools it has no Nexo rules (providers.ts isGoverned).
+  const wanted = opts.provider ?? s.provider ?? getActiveProviderId() ?? "claude";
+  if (wanted !== "claude" && !isProviderEnabled(wanted)) {
+    throw httpError(400, `${providerById(wanted)?.label ?? wanted} is not enabled for this environment: pick another provider or enable it in Providers`);
+  }
   // The provider for this turn: the body's explicit choice sticks to the session; otherwise the session's
   // current provider, else the active default (library/providers.json, seeded at boot).
   if (opts.provider) {

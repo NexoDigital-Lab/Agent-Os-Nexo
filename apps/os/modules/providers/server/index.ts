@@ -1,11 +1,14 @@
 // providers: which AI provider CLIs are installed and which ones agent-os-nexo uses (/api/providers/*).
 // Detection lives in host/server/providers.ts; this module only serves it and owns library/providers.json.
 import { join } from "node:path";
+import { envTools } from "../../../host/server/env.ts";
 import { h, httpError } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
 import {
   detectAll,
   detectProvider,
+  governedIds,
+  isGoverned,
   listProviderChoices,
   providerById,
   readProvidersFile,
@@ -23,8 +26,9 @@ const register: ModuleServer = (ctx) => {
 
   const snapshot = async () => {
     if (!cache || Date.now() - cache.at > CACHE_MS) cache = { at: Date.now(), providers: await detectAll() };
-    const cfg = readProvidersFile(file(), ctx.env.tools);
-    return { providers: cache.providers, enabled: cfg.enabled, default: cfg.default };
+    const cfg = readProvidersFile(file(), envTools(ctx.env.root));
+    // governed: the providers this environment may run (a CLI needs its Nexo rules: providers.ts isGoverned).
+    return { providers: cache.providers, enabled: cfg.enabled, default: cfg.default, governed: governedIds(envTools(ctx.env.root)) };
   };
 
   const api = ctx.api;
@@ -41,13 +45,19 @@ const register: ModuleServer = (ctx) => {
     return listProviderChoices(meta.id, cwd);
   }));
 
-  // enabled: array of registry ids (unknowns dropped, must stay non-empty); default: an id in enabled, or null.
+  // enabled: array of registry ids (unknowns dropped, must stay non-empty; a CLI the environment does not govern is refused); default: an id in enabled, or null.
   api.post("/providers/enabled", h((req) => {
     const body = req.body ?? {};
     if (!Array.isArray(body.enabled)) throw httpError(400, "enabled must be an array of provider ids");
     const rawEnabled: unknown[] = body.enabled;
     const enabled: ProviderId[] = [...new Set(rawEnabled.filter((x): x is ProviderId => typeof x === "string" && providerById(x) !== undefined))];
     if (!enabled.length) throw httpError(400, "enabled must contain at least one known provider id");
+    const tools = envTools(ctx.env.root);
+    const ungoverned = enabled.filter((id) => !isGoverned(id, tools));
+    if (ungoverned.length) {
+      const names = ungoverned.map((id) => providerById(id)!.label).join(", ");
+      throw httpError(400, `${names} is not enabled in this Nexo environment, so it would run without its rules. Turn it on in environment.config.json → tools, then run nexo update.`);
+    }
     const raw = body.default;
     let def: ProviderId;
     if (raw === null || raw === undefined) def = enabled[0]!;

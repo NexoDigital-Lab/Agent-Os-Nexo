@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import * as providers from "../../../host/server/providers.ts";
-import { ask, getActiveProviderId, pathAllowed, structured, toolPaths, useProvidersFile, type QueryFn } from "../server/claude.ts";
+import { ask, getActiveProviderId, isProviderEnabled, pathAllowed, structured, toolPaths, useProvidersFile, type QueryFn } from "../server/claude.ts";
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), "conf-"));
 const cwd = path.join(tmp, "repo");
@@ -50,29 +50,35 @@ const fake = (msgs: unknown[]): QueryFn =>
 
 const realFind = providers.providerExec.find;
 
+const claudeOnly = () => ({ enabled: ["claude" as const], default: "claude" as const });
+
 test("the default chat provider is claude until a providers.json says otherwise, read on each call", () => {
   assert.equal(getActiveProviderId(), "claude");
+  assert.equal(isProviderEnabled("claude"), true);
+  assert.equal(isProviderEnabled("opencode"), false, "no providers.json: only the bundled SDK");
   let value: "opencode" | "codex" = "opencode";
-  useProvidersFile("/env/library/providers.json", () => value);
+  useProvidersFile("/env/library/providers.json", () => ({ enabled: ["claude", value], default: value }));
   try {
     assert.equal(getActiveProviderId(), "opencode");
     value = "codex"; // changed in the Providers view: no restart needed
     assert.equal(getActiveProviderId(), "codex");
+    assert.equal(isProviderEnabled("codex"), true);
+    assert.equal(isProviderEnabled("opencode"), false, "turned off: the next turn refuses it");
   } finally {
-    useProvidersFile("", () => "claude");
+    useProvidersFile("", claudeOnly);
   }
 });
 
 test("one-shot helpers stay on the bundled SDK whatever the default chat provider (they must stay read-only)", async () => {
   providers.providerExec.find = () => assert.fail("no CLI is spawned for a one-shot");
-  useProvidersFile("/env/library/providers.json", () => "opencode");
+  useProvidersFile("/env/library/providers.json", () => ({ enabled: ["opencode"], default: "opencode" }));
   try {
     const r = await ask("the question", "system prompt", cwd, fake([{ type: "result", subtype: "success", total_cost_usd: 0.5, result: "  sdk answer \n" }]));
     assert.deepEqual(r, { text: "sdk answer", cost: 0.5 });
     const s = await structured<{ a: number }>("p", cwd, {}, [], fake([{ type: "result", subtype: "success", total_cost_usd: 1, structured_output: { a: 1 } }]));
     assert.deepEqual(s.out, { a: 1 });
   } finally {
-    useProvidersFile("", () => "claude");
+    useProvidersFile("", claudeOnly);
     providers.providerExec.find = realFind;
   }
 });

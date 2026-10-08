@@ -12,6 +12,7 @@ export const es: Record<string, string> = {
   "Providers": "Proveedores",
   "Test": "Probar",
   "Test {name}": "Probar {name}",
+  "Turn it on in environment.config.json → tools and run nexo update first, so it runs under your Nexo permissions.": "Primero activalo en environment.config.json → tools y corré nexo update, así corre con tus permisos de Nexo.",
   "Use by default": "Usar por defecto",
   "close": "cerrar",
 };

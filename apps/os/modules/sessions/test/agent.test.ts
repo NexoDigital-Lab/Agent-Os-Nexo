@@ -11,7 +11,8 @@ import { tempDir, tempEnv, mountModule } from "../../../host/test/harness.ts";
 const home = tempDir("agent-home-");
 process.env.HOME = home;
 process.env.USERPROFILE = home;
-const env = tempEnv();
+// The CLIs the routing tests use are enabled in the environment (a CLI it does not enable never runs).
+const env = tempEnv({ tools: { claude: true, opencode: true, codex: true } });
 mkdirSync(join(env.projects, "shop", "code"), { recursive: true });
 writeFileSync(join(env.projects, "shop", "AGENTS.md"), "# shop");
 writeFileSync(join(env.projects, "shop", "code", "a.txt"), "hello");
@@ -629,6 +630,22 @@ test("a tab opens with the active provider as its default; an invalid provider i
   assert.equal((await send(id, { provider: "nope" })).status, 400);
   assert.equal((await tab(id)).status, "idle", "the 400 never starts a turn");
   agent.closeTab(id);
+});
+
+test("a CLI the environment does not enable in tools never runs, even when a body or a saved tab names it", async () => {
+  const realFind = providersHost.providerExec.find;
+  providersHost.providerExec.find = () => assert.fail("no CLI is spawned for an ungoverned provider");
+  const id = await open();
+  try {
+    const r = await send(id, { provider: "gemini" }); // installed or not, gemini is off in this environment's tools
+    assert.equal(r.status, 400);
+    assert.match(r.body.error, /Gemini CLI is not enabled/);
+    assert.equal((await tab(id)).status, "idle");
+    assert.equal((await tab(id)).provider, "claude", "the refused provider does not stick to the tab");
+  } finally {
+    agent.closeTab(id);
+    providersHost.providerExec.find = realFind;
+  }
 });
 
 // ---- T3: CLI model/agent selection ------------------------------------------------------------

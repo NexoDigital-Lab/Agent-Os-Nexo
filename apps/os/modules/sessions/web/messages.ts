@@ -11,7 +11,6 @@ export const es: Record<string, string> = {
   "All::skills": "Todas",
   "Allow": "Permitir",
   "Always allow": "Permitir siempre",
-  "Antigravity (Google)": "Antigravity (Google)",
   "Ask": "Preguntar",
   "Ask permission": "Pedir permiso",
   "Ask the agent in practice mode (it guides, it doesn't write code)": "Preguntale al agente en modo práctica (guía, no escribe código)",

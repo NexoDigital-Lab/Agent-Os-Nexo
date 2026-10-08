@@ -1,0 +1,8 @@
+{
+  "name": "permissions",
+  "version": "1.0.0",
+  "description": "What agents may do alone: the global and each project's permission rules, shown and edited in Settings",
+  "owner": "nexo",
+  "dependsOn": ["shell", "projects"],
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
+}

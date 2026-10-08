@@ -7,6 +7,7 @@ import type { Env } from "../../../host/server/env.ts";
 import { findBin, httpError, run, trash } from "../../../host/server/http.ts";
 import { projectHooks, type DeleteFacts, type DeleteOptions } from "./hooks.ts";
 import { projectDir, projectPath, readProject, projectIds } from "./projects.ts";
+import { CMD_META, cmdShimTargets } from "./winshell.ts";
 
 const NAME = /^[a-z0-9][a-z0-9._-]{0,99}$/;
 const FULL = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
@@ -28,30 +29,42 @@ const errText = (e: unknown) => {
 };
 
 /**
+ * npm's Windows shim (`nexo.cmd`) only runs `node "%dp0%\…\bin.js" %*`: take that script out of it, so the CLI runs
+ * with node directly and no argument ever goes through cmd.exe. Null when the shim is not npm's.
+ */
+export function shimScript(cmdFile: string, read?: (f: string) => string): string | null {
+  return cmdShimTargets(cmdFile, read).find((t) => /\.(c|m)?js$/i.test(t)) ?? null;
+}
+
+/** How to run the CLI: a checkout (NEXO_CLI), the shim's script with node, or the binary on PATH. */
+export function nexoCommand(platform = process.platform, find: typeof findBin = findBin, script = shimScript): { cmd: string; pre: string[]; viaCmd: boolean } | null {
+  const dev = process.env.NEXO_CLI;
+  if (dev) return { cmd: process.execPath, pre: [dev], viaCmd: false };
+  const bin = platform === "win32" ? find("nexo.cmd") ?? find("nexo") : find("nexo");
+  if (!bin) return null;
+  if (!/\.(cmd|bat)$/i.test(bin)) return { cmd: bin, pre: [], viaCmd: false };
+  const js = script(bin);
+  if (js) return { cmd: process.execPath, pre: [js], viaCmd: false };
+  return { cmd: process.env.ComSpec ?? "cmd.exe", pre: ["/c", bin], viaCmd: true };
+}
+
+/**
  * Runs the nexo CLI against this environment. NEXO_CLI points at a checkout (`…/packages/cli/src/bin.ts`)
- * during development; otherwise `nexo` must be on PATH (it is, when Nexo was installed with npm -g).
- * On Windows the global install is a `.cmd` shim that execFile cannot run directly — go through cmd.exe.
+ * during development; otherwise `nexo` must be on PATH (it is, when Nexo was installed with npm -g). On Windows the
+ * global install is a `.cmd` shim: its script runs with node directly (nexoCommand); only an unknown shim falls back
+ * to cmd.exe, and then no argument may carry a character cmd.exe would interpret.
  */
 export async function nexo(env: Env, args: string[]): Promise<string> {
-  const dev = process.env.NEXO_CLI;
-  let cmd: string;
-  let pre: string[];
-  if (dev) {
-    cmd = process.execPath;
-    pre = [dev];
-  } else {
-    const bin = process.platform === "win32" ? findBin("nexo.cmd") ?? findBin("nexo") : findBin("nexo");
-    if (!bin) throw httpError(500, "The nexo CLI was not found. Install it with: npm install -g @nexodigital/nexo");
-    if (/\.(cmd|bat)$/i.test(bin)) {
-      cmd = process.env.ComSpec ?? "cmd.exe";
-      pre = ["/c", bin];
-    } else {
-      cmd = bin;
-      pre = [];
-    }
+  const how = nexoCommand();
+  if (!how) throw httpError(500, "The nexo CLI was not found. Install it with: npm install -g @nexodigital/nexo");
+  if (how.viaCmd && args.some((a) => CMD_META.test(a))) {
+    throw httpError(400, "That text has characters the Windows command line would run (& | < > ^ % ! \"). Remove them, or reinstall nexo with npm.");
   }
+  // --root is an option, so it goes before a `--` (after which everything is a positional, e.g. a dictionary term).
+  const sep = args.indexOf("--");
+  const full = sep < 0 ? [...args, "--root", env.root] : [...args.slice(0, sep), "--root", env.root, ...args.slice(sep)];
   try {
-    return (await run(cmd, [...pre, ...args, "--root", env.root], { maxBuffer: 10 * 1024 * 1024 })).stdout.trim();
+    return (await run(how.cmd, [...how.pre, ...full], { maxBuffer: 10 * 1024 * 1024 })).stdout.trim();
   } catch (e) {
     throw httpError(500, `nexo ${args[0]} failed: ${errText(e)}`);
   }

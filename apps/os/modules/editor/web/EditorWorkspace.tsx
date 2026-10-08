@@ -195,7 +195,7 @@ export function EditorWorkspace({ tab, draft, handoff }: TabViewProps) {
   }
 
   async function runCmd(cmd: string) {
-    if (!has.terminal) return setError(t("The terminal submodule is off: turn it on in Settings → Modules."));
+    if (!has.terminal) return setError(t("The terminal submodule is off: turn it on in Modules."));
     if (term && panelApi.current) return panelApi.current.run(cmd);
     try {
       await api.newTerm(tab.id, { run: cmd });

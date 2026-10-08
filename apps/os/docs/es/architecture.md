@@ -46,7 +46,7 @@ El servidor encuentra el entorno por `NEXO_ROOT`, o subiendo desde su propia car
    un módulo cuya dependencia está apagada también queda apagado.
 4. En orden de dependencias, importa el `entry.server` de cada módulo activo y llama a `register(ctx)`. Un
    módulo que falla al cargar se saltea junto con los que dependen de él (`host/server/mount.ts`); el
-   resto arranca igual, y Ajustes → Módulos muestra el error.
+   resto arranca igual, y la vista Módulos muestra el error.
 5. Sirve la app web: Vite en modo middleware con HMR en el mismo puerto (`--dev`), o `dist/web`.
 
 Rutas del host: `GET /api/os/info` (versión, build más nuevo, entorno, idioma), `GET/PUT /api/os/modules`

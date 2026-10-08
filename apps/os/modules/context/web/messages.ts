@@ -1,0 +1,20 @@
+// Spanish for this module's UI text (English is the key).
+export const es: Record<string, string> = {
+  "Context": "Contexto",
+  "Edit": "Editar",
+  "Filter": "Filtrar",
+  "Filter documents": "Filtrar documentos",
+  "Loading…": "Cargando…",
+  "New document": "Documento nuevo",
+  "New document path, inside context/": "Ruta del documento nuevo, dentro de context/",
+  "No context yet.": "Todavía no hay contexto.",
+  "Open context/ in VS Code": "Abrir context/ en VS Code",
+  "Pick a document on the left.": "Elegí un documento a la izquierda.",
+  "Preview": "Vista previa",
+  "read-only: edit permissions in Settings": "solo lectura: los permisos se editan en Ajustes",
+  "Save": "Guardar",
+  "Saving…": "Guardando…",
+  "This tab has no project.": "Esta pestaña no tiene proyecto.",
+  "Unsaved changes": "Cambios sin guardar",
+  "VS Code": "VS Code",
+};

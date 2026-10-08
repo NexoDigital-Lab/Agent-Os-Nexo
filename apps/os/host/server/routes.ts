@@ -1,5 +1,6 @@
 // The host's own API (/api/os/*): what the web needs before any module loads — which modules are active,
 // the running version (and whether a newer build is waiting), and the user's preferences.
+import { randomUUID } from "node:crypto";
 import { readFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import express from "express";
@@ -17,6 +18,8 @@ export interface HostInfo {
   /** From library/profile.json: the language agents answer in, the UI's default language. */
   language: string | null;
   user: string | null;
+  /** Changes on every start: the page compares it to know a restart has come back. */
+  boot: string;
 }
 
 export interface ModuleRow {
@@ -39,8 +42,14 @@ export interface ModuleRow {
 /** Free-form UI preferences (theme, language…), shared by every build. */
 export type Prefs = Record<string, unknown>;
 
-export function hostRoutes(opts: { env: Env; appDir: string; version: string; dev: boolean; discovery: Discovery; active: string[]; modulesFile: string; failed: ReadonlyMap<string, string> }) {
-  const { env, version, dev, discovery, active, modulesFile, failed } = opts;
+export function hostRoutes(opts: {
+  env: Env; appDir: string; version: string; dev: boolean; discovery: Discovery; active: string[]; modulesFile: string; failed: ReadonlyMap<string, string>;
+  /** Restarts the server (restart.ts); called once the response has been sent. */
+  restart: () => void;
+}) {
+  const { env, version, dev, discovery, active, modulesFile, failed, restart } = opts;
+  const boot = randomUUID();
+  let restarting = false;
   const prefsFile = join(env.data, "prefs.json");
   const r = express.Router();
 
@@ -54,7 +63,16 @@ export function hostRoutes(opts: { env: Env; appDir: string; version: string; de
       // The language chosen in Settings first: info is what an access-less page can read to explain itself.
       language: readJson<{ language?: string }>(prefsFile, {}).language ?? profile.language ?? null,
       user: profile.identity?.name ?? null,
+      boot,
     };
+  }));
+
+  // The user's "Restart now" (new build ready, modules changed). Behind this run's token like every /api route.
+  r.post("/os/restart", h((_req, res) => {
+    if (restarting) throw httpError(409, "agent-os-nexo is already restarting");
+    restarting = true;
+    res.on("finish", () => setTimeout(restart, 100));
+    return { ok: true, boot };
   }));
 
   r.get("/os/modules", h((): ModuleRow[] => {

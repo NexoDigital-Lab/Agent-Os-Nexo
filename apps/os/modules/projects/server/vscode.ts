@@ -1,10 +1,12 @@
 // VS Code's CLI: list/install extensions and open a project or file in it.
 import { spawn } from "node:child_process";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { join, win32 } from "node:path";
 import { findBin, httpError, run } from "../../../host/server/http.ts";
 import { safePath } from "./repo.ts";
+import { CMD_META, cmdShimTargets } from "./winshell.ts";
 
-/** VS Code's CLI per platform: Windows ships `code.cmd`, which only runs through cmd.exe. */
+/** VS Code's CLI per platform: Windows ships `code.cmd` (codeCliOf runs what it runs, without cmd.exe). */
 export function resolveCodeBin(platform = process.platform, find: typeof findBin = findBin): string {
   if (platform === "win32") {
     const dirs = [
@@ -23,11 +25,32 @@ const CODE_BIN = resolveCodeBin();
 /** The process launcher; tests swap `run` for a fake so no real code runs. */
 export const vscodeExec: { run: typeof run } = { run };
 
-/** Runs the VS Code CLI. A `.cmd`/`.bat` bin needs `cmd.exe /c` (execFile on one throws EINVAL on Node 22 Windows). */
-export function codeRun(bin: string, args: string[], opts: { timeout?: number } = {}): Promise<{ stdout: string }> {
-  return /\.(cmd|bat)$/i.test(bin)
-    ? vscodeExec.run(process.env.ComSpec ?? "cmd.exe", ["/c", bin, ...args], opts)
-    : vscodeExec.run(bin, args, opts);
+/**
+ * What `code.cmd` runs — `Code.exe …\resources\app\out\cli.js` with ELECTRON_RUN_AS_NODE=1 — read from the shim (else
+ * the standard layout next to it), so VS Code's CLI runs without cmd.exe. Null when those files are not there.
+ */
+export function codeCliOf(bin: string, read?: (f: string) => string, exists: (f: string) => boolean = existsSync): { file: string; pre: string[] } | null {
+  const targets = cmdShimTargets(bin, read);
+  const root = win32.dirname(win32.dirname(bin));
+  const exe = targets.find((t) => /\.exe$/i.test(t)) ?? win32.join(root, "Code.exe");
+  const cli = targets.find((t) => /\.js$/i.test(t)) ?? win32.join(root, "resources", "app", "out", "cli.js");
+  return exists(exe) && exists(cli) ? { file: exe, pre: [cli] } : null;
+}
+
+const asNode = () => ({ ...process.env, ELECTRON_RUN_AS_NODE: "1" });
+const unsafeForCmd = () =>
+  httpError(400, "This path or value has characters the Windows command line would run (& | < > ^ % ! \"), and VS Code's own CLI was not found to run it safely.");
+
+/**
+ * Runs the VS Code CLI. A `.cmd` bin runs the way the shim would, Code.exe + cli.js, with no shell; only when those
+ * files can't be found does it go through `cmd.exe /c`, and then never with an argument cmd.exe would interpret.
+ */
+export function codeRun(bin: string, args: string[], opts: { timeout?: number } = {}, cli = codeCliOf): Promise<{ stdout: string }> {
+  if (!/\.(cmd|bat)$/i.test(bin)) return vscodeExec.run(bin, args, opts);
+  const how = cli(bin);
+  if (how) return vscodeExec.run(how.file, [...how.pre, ...args], { ...opts, env: asNode() });
+  if (args.some((a) => CMD_META.test(a))) return Promise.reject(unsafeForCmd());
+  return vscodeExec.run(process.env.ComSpec ?? "cmd.exe", ["/c", bin, ...args], opts);
 }
 
 /** A Marketplace id: publisher.name. */
@@ -58,22 +81,33 @@ export async function installExtension(id: string, bin = CODE_BIN) {
   return { ok: true };
 }
 
-/** Opens the project (or one file at a line) in VS Code, falling back to the desktop default. */
-export function openInEditor(root: string, rel?: string, line?: number, launch: typeof spawn = spawn, bin = CODE_BIN) {
+/**
+ * Opens the project (or one file at a line) in VS Code. If VS Code can't start, the desktop shows the file — never
+ * runs it: xdg-open, or on Windows Explorer with it selected (`start <file>` would execute a .bat or an .exe).
+ */
+export function openInEditor(
+  root: string, rel?: string, line?: number, launch: typeof spawn = spawn, bin = CODE_BIN, platform = process.platform, cli = codeCliOf,
+) {
   const target = rel ? `${safePath(root, rel)}${line ? `:${line}` : ""}` : root;
   const args = rel ? ["-g", target] : [root];
+  const reveal = () => {
+    const path = rel ? safePath(root, rel) : root;
+    const [cmd, cmdArgs] = platform === "win32" ? ["explorer.exe", rel ? [`/select,${path}`] : [path]] : ["xdg-open", [path]];
+    launch(cmd, cmdArgs, { detached: true, stdio: "ignore", windowsHide: true }).unref();
+  };
+  let child: ReturnType<typeof spawn>;
   if (/\.(cmd|bat)$/i.test(bin)) {
-    // cmd.exe /c start returns immediately and owns the window, so there is no error listener to attach.
-    launch(process.env.ComSpec ?? "cmd.exe", ["/c", "start", "", bin, ...args], { detached: true, stdio: "ignore", windowsHide: true }).unref();
-    return;
+    const how = cli(bin);
+    if (!how) {
+      if (args.some((a) => CMD_META.test(a))) throw unsafeForCmd();
+      // cmd.exe /c start returns at once and owns the window: there is no error to listen for.
+      launch(process.env.ComSpec ?? "cmd.exe", ["/c", "start", "", bin, ...args], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+      return;
+    }
+    child = launch(how.file, [...how.pre, ...args], { detached: true, stdio: "ignore", windowsHide: true, env: asNode() });
+  } else {
+    child = launch(bin, args, { detached: true, stdio: "ignore" });
   }
-  const child = launch(bin, args, { detached: true, stdio: "ignore" });
-  child.on("error", () =>
-    launch(
-      process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "xdg-open",
-      process.platform === "win32" ? ["/c", "start", "", rel ? safePath(root, rel) : root] : [rel ? safePath(root, rel) : root],
-      { detached: true, stdio: "ignore", windowsHide: true },
-    ).unref(),
-  );
+  child.on("error", reveal);
   child.unref();
 }

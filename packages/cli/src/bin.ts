@@ -9,6 +9,9 @@ import { clone, create } from "./commands/project.ts";
 import { connect } from "./commands/connect.ts";
 import { os } from "./commands/os.ts";
 import { map } from "./commands/map.ts";
+import { dict } from "./commands/dict.ts";
+import { permissions } from "./commands/permissions.ts";
+import { importTool } from "./commands/import.ts";
 import { nexoVersion } from "./core/version.ts";
 
 const HELP = `nexo — install and maintain a Nexo agent environment
@@ -23,16 +26,29 @@ Usage: nexo <command> [options]
   doctor [--quick] [--json]         Check the environment; reports, never changes
   analyze                           Record OS and toolchains (summary in the config)
   index                             Rebuild library/index.json
+  permissions [show] [--project <id>]
+                                    What agents may do alone (global, or a project's effective rules)
+  permissions allow|ask|deny <files.read|files.edit|commands> <pattern> [--project <id>]
+  permissions remove <area> <pattern> | set <default|os.<action>|connections.<n>.<action>> <decision>
+                                    Change one rule, validated; refreshes every AI's files
+  dict [list|show <term>|rm <term>] Your dictionary of concepts (library/dictionary/)
+  dict add <term> --summary <s> [--alias a,b] [--body <text>] [--from <old name>]
+                                    Save a concept (updates it if the term or an alias exists;
+                                    --from renames)
   map [project] [--check]           Code map (symbols by file) in the project's context/map/
   clone <repo-url> [--ws <name>] [--name <part>]
                                     Clone into projects/ with context ready
   new <name> [--ws <name>]          Create an empty project
+  import <claude|codex|gemini|opencode> [--apply] [--from <home>]
+                                    Bring another AI's MCP servers and permissions into the library
+                                    (shows the plan; --apply writes it; never weakens a rule)
   connect [name] --command <cmd> [--args a,b] [--env K=V] [--remote]
               [--description <d>] [--tools claude,gemini]
                                     Add a connection; without a name, list them
   os [status|versions|next|use <x.y.z|latest>]
                                     agent-os-nexo builds
   os install [--from <dir>]         Copy agent-os-nexo into os/source, install its runtime, build 1.0.0
+  os desktop [<tag>]                Download the desktop app installer for this OS (checksum-verified)
   os build [--notes <text>]         Build os/source into the next version
   os start|preview [--port <n>]     Run the active build (4780) / the source with hot reload (4781)
   os stop [--preview|--all]         Stop the app (default), the preview, or both
@@ -74,6 +90,11 @@ async function main(argv: string[]): Promise<number> {
       env: { type: "string", multiple: true },
       remote: { type: "boolean" },
       description: { type: "string" },
+      summary: { type: "string" },
+      alias: { type: "string" },
+      body: { type: "string" },
+      project: { type: "string" },
+      apply: { type: "boolean" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -106,6 +127,12 @@ async function main(argv: string[]): Promise<number> {
       return print(connect(rest[0], values));
     case "map":
       return print(map(rest[0], values));
+    case "dict":
+      return print(dict(rest[0], rest.slice(1), values));
+    case "import":
+      return print(importTool(rest[0], values));
+    case "permissions":
+      return print(permissions(rest[0], rest.slice(1), values));
     case "os":
       return print(await os(rest[0], rest[1], values));
     default:

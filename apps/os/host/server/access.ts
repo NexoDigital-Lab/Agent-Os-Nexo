@@ -4,7 +4,7 @@
 // Without this, any program on the machine could drive the API (see docs/en/security.md). /api/os/info stays open:
 // it is the health check of the CLI and the desktop app and holds nothing sensitive.
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import type { IncomingMessage } from "node:http";
 import { join } from "node:path";
 
@@ -14,9 +14,28 @@ const tokens = new Map<number, string>();
 export const cookieName = (port: number) => `nexo_os_${port}`;
 export const accessFile = (stateDir: string, port: number) => join(stateDir, `token-${port}`);
 
-/** A fresh token for this run of the server on `port`, written where `nexo os` and the desktop app read it. */
-export function issueAccess(stateDir: string, port: number): string {
-  const token = randomBytes(24).toString("hex");
+const TOKEN = /^[0-9a-f]{48}$/;
+
+/**
+ * The token a restart hands over (restart.ts), so the open page keeps its access. It arrives on stdin, never in the
+ * environment: /proc/<pid>/environ keeps a process's start-up environment readable, and agents run as the same user.
+ * The flag is removed at once so nothing this server spawns tries to read it again.
+ */
+export function takeInheritedToken(env: NodeJS.ProcessEnv = process.env, read: () => string = () => readFileSync(0, "utf8")): string | undefined {
+  if (env.NEXO_ACCESS_TOKEN_STDIN !== "1") return undefined;
+  delete env.NEXO_ACCESS_TOKEN_STDIN;
+  let token = "";
+  try {
+    token = read().trim();
+  } catch {
+    return undefined;
+  }
+  return TOKEN.test(token) ? token : undefined;
+}
+
+/** The token for this run of the server on `port` (fresh, or the one a restart handed over), written where `nexo os` and the desktop app read it. */
+export function issueAccess(stateDir: string, port: number, reuse?: string): string {
+  const token = reuse && TOKEN.test(reuse) ? reuse : randomBytes(24).toString("hex");
   mkdirSync(stateDir, { recursive: true });
   const file = accessFile(stateDir, port);
   const tmp = `${file}.${process.pid}.tmp`;

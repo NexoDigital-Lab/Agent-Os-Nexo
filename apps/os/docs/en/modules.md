@@ -24,18 +24,18 @@ The app frame: the rail, the active view, Settings, notices and banners.
 ## themes — core
 Eight palettes (Nexo by default; Night, Amber, Aurora, Ocean, Synthwave, Nexo Light, High contrast) and
 bundled fonts, applied as CSS tokens on `:root`; derives the Monaco, xterm and git-graph themes.
-- **Depends on:** shell. **Contributes:** `settings.sections` (palette picker).
+- **Depends on:** shell. **Contributes:** a view in the rail (Modules) (palette picker).
 - **Stores:** the choice in `os/data/prefs.json` (`theme`) through the host, plus a browser cache for
   the first paint.
 
 ## modules — core
 Turn modules on and off with dependency checks (takes effect on the next start); shows why a module
 did not load.
-- **Depends on:** shell. **Contributes:** `settings.sections`. **Uses:** `GET/PUT /api/os/modules`.
+- **Depends on:** shell. **Contributes:** a view in the rail (Modules). **Uses:** `GET/PUT /api/os/modules`.
 
 ## versions — core
 Personal builds: lists them, pins the one to load, and announces a newer one.
-- **Depends on:** shell. **Contributes:** `settings.sections`, `shell.banners` ("New version detected").
+- **Depends on:** shell. **Contributes:** a view in the rail (Modules), `shell.banners` ("New version detected").
 - **Routes:** `GET /versions`, `PUT /versions/pin` (writes `os/current`).
 
 ## projects — core
@@ -122,6 +122,32 @@ Free notes per project that an agent turns into features; a board of the feature
 - **Depends on:** shell, projects, sessions. **View:** Notes.
 - **Routes:** `GET/POST /notes`, `PUT/DELETE /notes/:id`, `POST /notes/analyze|accept`,
   `GET /notes/drafts`, `DELETE /notes/drafts/:id`, `POST /notes/drafts/promote`. **Stores:** data (notes, drafts).
+
+## dictionary
+Your concepts (clients, products, jargon), one file per term in `library/dictionary/`, so no agent asks twice
+what a word means. Agents see every term with its summary in `library/index.json` and save new ones with
+`nexo dict add` (factory skill `nexo-dictionary`). Reads and writes go through `nexo dict`, so the format and the
+index are the same from here, an agent or a terminal.
+- **Depends on:** shell, projects. **View:** Dictionary.
+- **Routes:** `GET/POST /dictionary`, `GET/PUT/DELETE /dictionary/:term` (PUT may rename). **Stores:** library (dictionary/).
+
+## permissions
+What agents may do alone, in Settings → Agent permissions: the global rules (`library/permissions.json`) or a
+project's own on top of them (`context/permissions.json`), as allow / ask / deny columns per area plus the single
+decisions (default, building, restarting, the SSH vault). Every change goes through `nexo permissions` — validated,
+written atomically — and every AI's files are regenerated, so it applies to the next action.
+- **Depends on:** shell, projects. **Contributes:** `settings.sections`.
+- **Routes:** `GET /permissions?project=`, `POST /permissions/rule`, `POST /permissions/setting`. **Stores:** library, project context.
+
+## context
+A project's context in its tab (Context view): AGENTS.md and every text document under `context/` — features,
+specs, decisions, proposals, the code map — in a tree, with an editor, a Markdown preview, Ctrl+S, and one click to
+open a document or the whole folder in VS Code. Only those two places (never `secrets/` or `code/`, no symlinks),
+saves are atomic and refused when the file changed on disk meanwhile, and `context/permissions.json` is read-only
+(Settings → Agent permissions edits it). The tab's agents get a one-line note pointing at the context.
+- **Depends on:** projects, sessions. **Contributes:** `tab.views` (Context), a session prompt note.
+- **Routes:** `GET /projects/:id/context`, `GET/PUT /projects/:id/context/file`, `POST /projects/:id/context/open`.
+  **Stores:** the project's context/.
 
 ## docker
 The engine's containers, images, logs and shells; and a mirror dev container per project whose tools

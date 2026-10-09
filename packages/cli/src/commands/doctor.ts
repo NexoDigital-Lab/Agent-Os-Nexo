@@ -11,6 +11,7 @@ import { frameworkContributions } from "../core/adapters.ts";
 import { defaultFramework, loadFrameworks, NEXO_METHOD } from "../core/frameworks.ts";
 import { buildTarget, currentTarget } from "../core/osruntime.ts";
 import { activeVersion } from "../core/osversions.ts";
+import { binaryPath, engramPaths, MEMORY_CONNECTION, readPin } from "../core/engram.ts";
 
 export type Level = "ok" | "warn" | "error";
 export interface Finding {
@@ -48,6 +49,19 @@ export function staleAnalysis(config: EnvironmentConfig, now = new Date()): stri
   if (!last) return "the OS has never been analyzed — run `nexo analyze`";
   const days = (now.getTime() - new Date(last).getTime()) / 86_400_000;
   return days > STALE_DAYS ? `the OS analysis is ${Math.floor(days)} days old — run \`nexo analyze\`` : null;
+}
+
+/** Agent memory: Engram is third party; its pinned binary and Nexo's connection must both be there. */
+function checkMemory(findings: Finding[], root: string, config: EnvironmentConfig): void {
+  if (config.memory !== "engram") return;
+  const pin = readPin();
+  const paths = engramPaths(root, config);
+  const area = "memory";
+  findings.push({ level: "ok", area, message: `Engram ${pin.version} (third party, MIT), reached only through \`nexo memory mcp\`` });
+  if (!existsSync(binaryPath(paths, pin.version))) findings.push({ level: "warn", area, message: `Engram ${pin.version} is not installed — run \`nexo memory update\`` });
+  if (!existsSync(join(folder(root, config, "library"), "connections", `${MEMORY_CONNECTION}.json`))) {
+    findings.push({ level: "warn", area, message: "the memory connection is missing — run `nexo memory install`" });
+  }
 }
 
 /** Third-party frameworks: listed as such, with their name clashes and hooks still waiting for approval. */
@@ -104,6 +118,7 @@ export function diagnose(root: string, quick = false): Finding[] {
     if (gaps.length) findings.push({ level: "warn", area: tool, message: `not enforced by ${tool}: ${gaps.join("; ")}` });
   }
   checkFrameworks(findings, root, config);
+  checkMemory(findings, root, config);
   const stale = staleAnalysis(config);
   if (stale) findings.push({ level: "warn", area: "analysis", message: stale });
   if (quick) return findings;

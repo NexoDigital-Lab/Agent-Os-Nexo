@@ -91,4 +91,10 @@ export function listProjectDirs(root: string, config: EnvironmentConfig): string
   return out;
 }
 
+/** Regenerates every AI's files, at the root and in every project, so a library change applies at once. */
+export function refreshAll(root: string, config: EnvironmentConfig): void {
+  generateAdapters(root, config, root, loadPermissions(join(folder(root, config, "library"), "permissions.json")));
+  for (const dir of listProjectDirs(root, config)) refreshAdapters(root, config, dir);
+}
+
 export { refreshAdapters };

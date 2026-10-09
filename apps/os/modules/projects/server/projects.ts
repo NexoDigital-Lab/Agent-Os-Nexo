@@ -96,11 +96,11 @@ export interface Worktree {
 }
 
 export interface Project {
-  /** Path under projects/: "gestor-gastos" or "empty-box-ws/api". */
+  /** Path under projects/: "shop" or "acme-ws/api". */
   id: string;
   /** Last segment of the id. */
   name: string;
-  /** "empty-box" for a part of empty-box-ws, null for a standalone project. */
+  /** "acme" for a part of acme-ws, null for a standalone project. */
   workspace: string | null;
   /** The project folder. */
   dir: string;

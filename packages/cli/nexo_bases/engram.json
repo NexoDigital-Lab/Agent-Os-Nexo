@@ -1,0 +1,15 @@
+{
+  "$comment": "Engram (third party, MIT, github.com/Gentleman-Programming/engram): Nexo's agent memory. A version is pinned here with the SHA-256 of each release asset, checked against the release's checksums.txt when the pin was raised; `nexo memory install|update` refuses any other bytes.",
+  "name": "engram",
+  "version": "3.2.1",
+  "repo": "Gentleman-Programming/engram",
+  "license": "MIT",
+  "assets": {
+    "linux-x64": { "file": "engram_3.2.1_linux_amd64.tar.gz", "sha256": "c5e0bbf77b3c4b196713d64d68593966d30a94582fad8dafe8e458a182c155a8" },
+    "linux-arm64": { "file": "engram_3.2.1_linux_arm64.tar.gz", "sha256": "e1ed861f8e745bd93e679a91e283ae6668e64ad0afcdd552f61625d0e45480dd" },
+    "darwin-x64": { "file": "engram_3.2.1_darwin_amd64.tar.gz", "sha256": "bc529ce47844a59c8091ca444e5f3f1ba126caf8df5b4dff01312df345c5c3f9" },
+    "darwin-arm64": { "file": "engram_3.2.1_darwin_arm64.tar.gz", "sha256": "32901d25a1a311565c382111f138fc7788e80685e575e9ec11e7c2ae5fbc5128" },
+    "win32-x64": { "file": "engram_3.2.1_windows_amd64.zip", "sha256": "d1951fec7810e5ff2213a24865c3ee63b7ecfd10a4b8631494faf02d1c2eae65" },
+    "win32-arm64": { "file": "engram_3.2.1_windows_arm64.zip", "sha256": "8d09fe37b22c02ac3717751a083b20af99e60f43d919e9e6bcde50e2827cabec" }
+  }
+}

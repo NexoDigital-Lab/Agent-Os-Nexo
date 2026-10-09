@@ -42,7 +42,8 @@
       "git diff*",
       "git log*",
       "nexo doctor*",
-      "nexo os versions*"
+      "nexo os versions*",
+      "nexo permissions show*"
     ],
     "ask": [
       "git add*",
@@ -59,13 +60,19 @@
       "nexo update*",
       "nexo clone*",
       "nexo new*",
-      "nexo connect*"
+      "nexo connect*",
+      "nexo permissions*",
+      "nexo framework*"
     ],
     "deny": [
       "git push --force*",
       "git push -f*",
       "rm -rf *",
-      "sudo *"
+      "sudo *",
+      "nexo permissions allow*",
+      "nexo permissions set*",
+      "nexo permissions remove*",
+      "nexo framework enable*"
     ]
   },
   "connections": {

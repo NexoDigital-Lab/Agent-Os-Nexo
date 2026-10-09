@@ -47,6 +47,7 @@
       "git commit*",
       "nexo doctor*",
       "nexo os versions*",
+      "nexo permissions show*",
       "npm test*",
       "npm run test*",
       "npm run build*",
@@ -63,13 +64,19 @@
       "git rebase*",
       "nexo analyze*",
       "nexo update*",
-      "nexo connect*"
+      "nexo connect*",
+      "nexo permissions*",
+      "nexo framework*"
     ],
     "deny": [
       "git push --force*",
       "git push -f*",
       "rm -rf *",
-      "sudo *"
+      "sudo *",
+      "nexo permissions allow*",
+      "nexo permissions set*",
+      "nexo permissions remove*",
+      "nexo framework enable*"
     ]
   },
   "connections": {

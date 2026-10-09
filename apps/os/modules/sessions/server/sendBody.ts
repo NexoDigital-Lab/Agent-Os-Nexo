@@ -3,6 +3,7 @@
 import { httpError } from "../../../host/server/http.ts";
 import { CHOICE_RE, providerById, type ProviderId } from "../../../host/server/providers.ts";
 import type { PermissionMode } from "@anthropic-ai/claude-agent-sdk";
+import { FRAMEWORK_NAME, NEXO_METHOD } from "../../../host/server/frameworks.ts";
 import type { WorkMode } from "./agent.ts";
 
 export interface SendBody {
@@ -15,6 +16,8 @@ export interface SendBody {
   workMode?: WorkMode;
   /** Registry provider id; missing/unknown falls back to the session's current provider (or the active default). */
   provider?: ProviderId;
+  /** "nexo" (no framework) or an enabled method; missing keeps the tab's framework (or the environment's default). */
+  framework?: string;
 }
 
 const MODES: readonly PermissionMode[] = ["default", "acceptEdits", "plan", "bypassPermissions"];
@@ -33,7 +36,8 @@ const list = (v: unknown, field: string, re: RegExp, max: number): string[] => {
   return v as string[];
 };
 
-export function parseSendBody(b: unknown): SendBody {
+/** `methods`: the names of the enabled methods a tab may pick; when given, `framework` must be "nexo" or one of them. */
+export function parseSendBody(b: unknown, methods?: readonly string[]): SendBody {
   const body = (b ?? {}) as Record<string, unknown>;
   if (typeof body.prompt !== "string" || !body.prompt.trim()) throw httpError(400, "prompt must be non-empty text");
   if (body.prompt.length > MAX_PROMPT) throw httpError(413, `prompt is longer than ${MAX_PROMPT} characters`);
@@ -53,6 +57,12 @@ export function parseSendBody(b: unknown): SendBody {
     if (typeof body.provider !== "string" || !providerById(body.provider)) throw httpError(400, `Unknown provider: ${String(body.provider)}`);
     provider = body.provider as ProviderId;
   }
+  let framework: string | undefined;
+  if (body.framework !== undefined && body.framework !== null && body.framework !== "") {
+    if (typeof body.framework !== "string" || (body.framework !== NEXO_METHOD && !FRAMEWORK_NAME.test(body.framework))) throw httpError(400, "Invalid framework");
+    if (methods && body.framework !== NEXO_METHOD && !methods.includes(body.framework)) throw httpError(400, `The framework "${body.framework}" is not an enabled method: enable it in Frameworks`);
+    framework = body.framework;
+  }
   return {
     prompt: body.prompt,
     skills: list(body.skills, "skills", SKILL, 20),
@@ -62,5 +72,6 @@ export function parseSendBody(b: unknown): SendBody {
     agent: (body.agent as string | undefined) || undefined,
     workMode: (body.workMode as WorkMode | undefined) ?? undefined,
     provider,
+    framework,
   };
 }

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { readStr, writeStr } from "@os/lib/storage";
 import { toggled } from "@os/lib/ui";
 import { slot } from "@os/registry";
-import { prepareImage, sessionsApi as api, type Mode, type ProviderChoices, type ProviderId, type Recommendation, type Skill, type Tab, type WorkMode } from "../api";
+import { prepareImage, sessionsApi as api, type Mode, type FrameworkChoices, type ProviderChoices, type ProviderId, type Recommendation, type Skill, type Tab, type WorkMode } from "../api";
 import type { ComposerAction, TabViewProps } from "../slots";
 import { t } from "@os/i18n";
 
@@ -61,6 +61,10 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
   const [enabledProviders, setEnabledProviders] = useState<ProviderEntry[]>([]);
   // What the next send will use: the session's provider unless the user picks another one here.
   const [providerPick, setProviderPick] = useState<string>("");
+  // Frameworks (ways of working from outside) a tab can pick; "nexo" means none. Like the provider, the pick is sent
+  // only when the user makes one: it then sticks to the tab; otherwise the tab keeps its own or the environment's default.
+  const [frameworks, setFrameworks] = useState<FrameworkChoices>({ default: "nexo", methods: [] });
+  const [frameworkPick, setFrameworkPick] = useState("");
   const [recs, setRecs] = useState<Recommendation[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [recLoading, setRecLoading] = useState(false);
@@ -81,6 +85,11 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
     }, () => {});
   }, [tab.id]);
 
+  useEffect(() => {
+    void api.frameworks().then(setFrameworks, () => {});
+  }, [tab.id]);
+
+  const effectiveFramework = frameworkPick || tab.framework || frameworks.default;
   const effectiveProvider = (providerPick || tab.provider || "claude") as string;
   const providerEntry = enabledProviders.find((p) => p.id === effectiveProvider);
   const isClaude = effectiveProvider === "claude";
@@ -160,6 +169,7 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
         workMode,
         // Always send the effective provider so the server knows the kind for model validation.
         provider: effectiveProvider as ProviderId,
+        framework: frameworkPick || undefined,
       });
       setPrompt("");
       setImages([]);
@@ -313,6 +323,21 @@ export function Composer({ tab, skills, running, prompt, setPrompt, view }: {
             }}
           >
             {enabledProviders.map((p) => <option key={p.id} value={p.id}>{t(p.label)}</option>)}
+          </select>
+        )}
+        {frameworks.methods.length > 0 && (
+          <select
+            className="field"
+            value={effectiveFramework}
+            aria-label={t("Framework")}
+            title={t("The way of working for this tab: Nexo's own, or a framework you enabled in Frameworks")}
+            onChange={(e) => setFrameworkPick(e.target.value)}
+          >
+            <option value="nexo">{t("Nexo")}</option>
+            {frameworks.methods.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+            {effectiveFramework !== "nexo" && !frameworks.methods.some((f) => f.name === effectiveFramework) && (
+              <option value={effectiveFramework}>{effectiveFramework} ({t("off")})</option>
+            )}
           </select>
         )}
         {supportsAgent && (

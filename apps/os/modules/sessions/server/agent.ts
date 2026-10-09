@@ -15,6 +15,7 @@ import { httpError, readJson, writeJson } from "../../../host/server/http.ts";
 import { askWithProvider, MAX_PROMPT_ARG, providerById, type ProviderId } from "../../../host/server/providers.ts";
 import { contributions, mergedHooks, safely, type TabContext, type TurnInfo } from "./contributions.ts";
 import { getActiveProviderId, isProviderEnabled } from "./claude.ts";
+import { defaultFramework, turnFramework } from "./frameworks.ts";
 import { lastTask, translate, type Ev } from "./sdkEvents.ts";
 import { createWorkServer, deriveStatus, trackWaiting, WORK_NOTE, WORK_TOOL_PREFIX, type AgentStatus, type TurnEnd, type WorkStatus } from "./status.ts";
 import { dropUploads, pruneUploads, uploadPath, userMessage } from "./uploads.ts";
@@ -36,6 +37,8 @@ type Session = TabContext & {
   provider?: ProviderId;
   /** CLI agent name (--agent) for this tab; sticks per session like provider. null/absent = provider default. */
   providerAgent?: string | null;
+  /** The framework this tab works with ("nexo" = none); sticks per session like provider. Absent = the environment's default, read live. */
+  framework?: string;
   events: Ev[];
   clients: Set<Response>;
   running: boolean;
@@ -91,12 +94,12 @@ class Inbox implements AsyncIterable<SDKUserMessage> {
 
 const sessions = new Map<string, Session>();
 
-type SavedTab = TabContext & { sdkSessionId?: string; provider?: ProviderId; providerAgent?: string | null; cost: number; forkNext?: boolean; work?: WorkStatus | null };
+type SavedTab = TabContext & { sdkSessionId?: string; provider?: ProviderId; providerAgent?: string | null; framework?: string; cost: number; forkNext?: boolean; work?: WorkStatus | null };
 
 const ctxOf = (s: Session): TabContext => ({ id: s.id, title: s.title, project: s.project, dir: s.dir, cwd: s.cwd, worktree: s.worktree, meta: s.meta });
 
 function persist() {
-  const tabs: SavedTab[] = [...sessions.values()].map((s) => ({ ...ctxOf(s), sdkSessionId: s.sdkSessionId, provider: s.provider, providerAgent: s.providerAgent ?? null, cost: s.cost, forkNext: s.forkNext, work: s.work }));
+  const tabs: SavedTab[] = [...sessions.values()].map((s) => ({ ...ctxOf(s), sdkSessionId: s.sdkSessionId, provider: s.provider, providerAgent: s.providerAgent ?? null, framework: s.framework, cost: s.cost, forkNext: s.forkNext, work: s.work }));
   writeJson(TABS_FILE, tabs);
 }
 
@@ -180,7 +183,7 @@ export function setTabMeta(id: string, key: string, value: unknown): void {
 export function listTabs() {
   return [...sessions.values()].map((s) => {
     const status = refresh(s);
-    return { ...ctxOf(s), running: s.running, cost: s.cost, sdkSessionId: s.sdkSessionId ?? null, provider: s.provider ?? null, providerAgent: s.providerAgent ?? null, status, statusSince: s.st.since, workStatus: s.work ?? null };
+    return { ...ctxOf(s), running: s.running, cost: s.cost, sdkSessionId: s.sdkSessionId ?? null, provider: s.provider ?? null, providerAgent: s.providerAgent ?? null, framework: s.framework ?? null, status, statusSince: s.st.since, workStatus: s.work ?? null };
   });
 }
 
@@ -225,7 +228,7 @@ export function emitTo(id: string, ev: Ev): void {
 }
 
 export type WorkMode = "relax" | "focus" | "practice";
-type SendOpts = { prompt: string; skills: string[]; images: string[]; mode: PermissionMode; model?: string; agent?: string; workMode?: WorkMode; provider?: ProviderId };
+type SendOpts = { prompt: string; skills: string[]; images: string[]; mode: PermissionMode; model?: string; agent?: string; workMode?: WorkMode; provider?: ProviderId; framework?: string };
 
 // The work-mode dial, per message (see the nexo-dev skill).
 const WORK_MODE: Record<WorkMode, string> = {
@@ -260,6 +263,14 @@ function transcriptPrefix(s: Session, budget = MAX_PROMPT_ARG): string {
   return prior.length ? `${prior.join("\n")}\n\n` : "";
 }
 
+/** The prior-turns transcript, its oldest lines dropped until it fits `budget` characters. */
+function fitHistory(history: string, budget: number): string {
+  const lines = history.split("\n");
+  while (lines.length > 1 && lines.join("\n").length > budget) lines.shift();
+  const text = lines.join("\n");
+  return text.length > budget ? "" : text;
+}
+
 /** A CLI turn is real work (edits, commands): give it the time a coding task takes, not a one-shot's 2 minutes. */
 const CLI_TURN_TIMEOUT = 30 * 60_000;
 
@@ -268,12 +279,16 @@ const CLI_TURN_TIMEOUT = 30 * 60_000;
  *  are never recorded there (nothing to corrupt). Mid-turn quick prompts queue via afterRun; Stop aborts the
  *  signal, which kills the CLI (it must not keep editing after Stop), and the turn ends quietly like the claude path.
  *  `opts.model`/`opts.agent` carry the CLI selection flags (provider/model id, agent name). */
-async function runCliTurn(s: Session, provider: ProviderId, opts: SendOpts, transcript: string, ctx: TabContext, signal: AbortSignal): Promise<void> {
+async function runCliTurn(s: Session, provider: ProviderId, opts: SendOpts, transcript: string, framework: string, ctx: TabContext, signal: AbortSignal): Promise<void> {
   const started = Date.now();
   let ok = false;
   try {
     const agentName = opts.agent ?? s.providerAgent ?? undefined;
-    const { text } = await askWithProvider(provider, transcript + opts.prompt, {
+    // The framework's instructions go first, marked as third-party (its skills and MCP servers are not available to CLI providers in v1).
+    const fw = await turnFramework(framework, false);
+    const head = fw?.instructions ? `${fw.instructions}\n\n---\n\n` : "";
+    if (head.length + opts.prompt.length > MAX_PROMPT_ARG) throw httpError(413, `The ${framework} framework's instructions are too long to send to ${providerById(provider)?.label ?? provider}`);
+    const { text } = await askWithProvider(provider, head + fitHistory(transcript, MAX_PROMPT_ARG - head.length - opts.prompt.length) + opts.prompt, {
       cwd: s.dir, model: opts.model, agent: agentName, mode: opts.mode, signal, timeoutMs: CLI_TURN_TIMEOUT,
     });
     if (signal.aborted) return;
@@ -336,12 +351,18 @@ export function send(id: string, opts: SendOpts): void {
   const images = opts.images.filter((n) => uploadPath(id, n));
   emit(s, { kind: "user", text: opts.prompt, skills: opts.skills, images: images.map((n) => `/api/tabs/${id}/uploads/${n}`) });
 
-  s.last = { skills: opts.skills, mode: opts.mode, model: opts.model, agent: opts.agent, workMode: opts.workMode, provider };
+  // The framework sticks to the tab the same way: the body's choice wins, else the session's, else the environment's default (read now).
+  if (opts.framework) {
+    s.framework = opts.framework;
+    persist();
+  }
+  const framework = opts.framework ?? s.framework ?? defaultFramework();
+  s.last = { skills: opts.skills, mode: opts.mode, model: opts.model, agent: opts.agent, workMode: opts.workMode, provider, framework };
   const ctx = ctxOf(s);
   const signal = s.abort.signal;
 
   if (provider !== "claude") {
-    void runCliTurn(s, provider, opts, cliTranscript, ctx, signal);
+    void runCliTurn(s, provider, opts, cliTranscript, framework, ctx, signal);
     return;
   }
 
@@ -359,6 +380,8 @@ export function send(id: string, opts: SendOpts): void {
       ...contributions().map((c) => safely(() => c.mcpServers?.(ctx, { emit: (ev) => emit(s, ev), signal }), null) ?? {}),
     );
     try {
+      // A framework other than nexo rides along as a Claude Code plugin plus its instructions after the environment's own note.
+      const fw = await turnFramework(framework, true);
       const q = runQuery({
         prompt: input,
         options: {
@@ -368,7 +391,8 @@ export function send(id: string, opts: SendOpts): void {
           forkSession: s.forkNext || undefined,
           model: opts.model || undefined,
           settingSources: ["user", "project", "local"],
-          systemPrompt: { type: "preset", preset: "claude_code", append: systemNote(s, opts) },
+          systemPrompt: { type: "preset", preset: "claude_code", append: [systemNote(s, opts), fw?.instructions].filter(Boolean).join("\n\n") },
+          plugins: fw?.plugin ? [{ type: "local", path: fw.plugin }] : undefined,
           mcpServers: mcp,
           hooks: mergedHooks(),
           skills: opts.skills,

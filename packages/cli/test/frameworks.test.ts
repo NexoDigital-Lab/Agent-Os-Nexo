@@ -241,13 +241,13 @@ test("list --json describes frameworks for agent-os; plugin materializes a Claud
   assert.ok(!existsSync(join(dir, "hooks")), "hooks only once approved");
   const mcp = json(join(dir, ".mcp.json")).mcpServers;
   assert.deepEqual(Object.keys(mcp), ["corpdb"], "only local servers");
-  assert.deepEqual(mcp.corpdb.args, [`${content}/mcp.js`]);
+  assert.deepEqual(mcp.corpdb.args, [`${content.replace(/\\/g, "/")}/mcp.js`]);
   // approving the hooks adds them, resolved; running again is idempotent and drops stale files
   framework("enable", ["corp-agents"], { root, hooks: true });
   writeText(join(dir, "stale.txt"), "x");
   assert.equal(framework("plugin", ["corp-agents"], { root }), dir);
   assert.ok(!existsSync(join(dir, "stale.txt")));
-  assert.equal(json(join(dir, "hooks", "hooks.json")).hooks.PreToolUse[0].hooks[0].command, `node ${content}/guard.js`);
+  assert.equal(json(join(dir, "hooks", "hooks.json")).hooks.PreToolUse[0].hooks[0].command, `node ${content.replace(/\\/g, "/")}/guard.js`);
   framework("disable", ["corp-agents"], { root, hooks: true });
   framework("plugin", ["corp-agents"], { root });
   assert.ok(!existsSync(join(dir, "hooks")));

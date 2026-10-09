@@ -252,11 +252,12 @@ test("long history is trimmed from its oldest lines to leave room for the instru
   const realFind = providers.providerExec.find;
   const asked: string[][] = [];
   providers.providerExec.find = (n: string) => (n === "opencode" ? "/fake/opencode" : null);
-  providers.providerExec.run = ((_cmd: string, args: string[]) => (asked.push(args), Promise.resolve({ stdout: "a".repeat(40_000), stderr: "" }))) as unknown as typeof providers.providerExec.run;
+  providers.providerExec.run = ((_cmd: string, args: string[]) => (asked.push(args), Promise.resolve({ stdout: "a".repeat(Math.floor(providers.MAX_PROMPT_ARG / 3)), stderr: "" }))) as unknown as typeof providers.providerExec.run;
   try {
     bumpFrameworks();
     fw.useFrameworks(env);
-    instructions = "y".repeat(60_000);
+    // Sized from the platform limit (30k on Windows, 120k elsewhere): instructions fit, history must be trimmed.
+    instructions = "y".repeat(Math.floor(providers.MAX_PROMPT_ARG / 2));
     const id = await open();
     await send(id, { provider: "opencode", framework: "corp", prompt: "first" });
     await idle(id);

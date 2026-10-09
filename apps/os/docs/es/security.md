@@ -59,6 +59,17 @@ R9 en [module-rules.md](module-rules.md).
   (notas, extensiones) usan siempre el SDK incluido, de solo lectura. La recomendación de skills puede pasar por el
   CLI de la pestaña solo si tiene un modo de solo lectura documentado (Codex, Gemini) y solo en la carpeta del
   proyecto; si no, también usa el SDK.
+- **Frameworks (métodos de terceros).** Un framework lo instala el CLI `nexo framework` con el mismo cuidado que
+  cualquier cosa de afuera: las fuentes npm son versiones exactas con `--ignore-scripts`, una carpeta `path:` nunca
+  se modifica, y los archivos que un framework lista deben quedar dentro de su propia carpeta. Se agrega apagado
+  y nunca toca `permissions.json`; las reglas del entorno van siempre primero. Sus **hooks** ejecutan comandos en
+  cada llamada a una herramienta, así que quedan apagados hasta que el usuario vio los comandos exactos y aprobó dos
+  veces en Ajustes → Frameworks (la app rechaza una aprobación cuyos comandos ya no coinciden con lo mostrado). En
+  una pestaña que usa un framework, un turno de Claude lo carga como plugin de Claude Code (`nexo framework plugin`,
+  construido bajo `.state/nexo/plugins/`, con hooks solo si están aprobados) y agrega sus instrucciones después de
+  la nota del entorno, marcadas "Instructions of the <name> framework (third party)"; el turno de un proveedor CLI
+  recibe el mismo texto delante del prompt, sin sus skills ni servidores MCP. Los pedidos de permiso y `confineHook`
+  se aplican a sus llamadas a herramientas como a cualquier otra.
 - **Lanzadores en Windows.** Un shim `.cmd` de npm corre su script con node, nunca por `cmd.exe`, que ejecutaría
   `& | < > ^ % ! "` dentro de un prompt; a un lanzador que no es de npm se le rechaza cualquier argumento con esos
   caracteres.

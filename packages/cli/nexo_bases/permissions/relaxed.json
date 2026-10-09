@@ -10,6 +10,7 @@
         "library/connections/**/*.secret*",
         "projects/**/secrets/**",
         "os/data/vault/**",
+        "os/data/engram/**",
         ".state/**"
       ]
     },
@@ -66,7 +67,8 @@
       "nexo update*",
       "nexo connect*",
       "nexo permissions*",
-      "nexo framework*"
+      "nexo framework*",
+      "nexo memory*"
     ],
     "deny": [
       "git push --force*",

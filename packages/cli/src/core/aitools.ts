@@ -6,7 +6,7 @@
 //   Gemini    https://geminicli.com/docs/reference/configuration · /docs/reference/policy-engine/
 // What a tool cannot express is listed by `unenforced` (shown by `nexo doctor`), never silently dropped.
 import { join } from "node:path";
-import type { Connection } from "./connections.ts";
+import { argsFor, type Connection } from "./connections.ts";
 import { DECISIONS, type Decision, type Permissions } from "./permissions.ts";
 
 const slash = (p: string) => p.replace(/\\/g, "/");
@@ -38,7 +38,7 @@ export function opencodeMcp(connections: Connection[]): Record<string, unknown> 
   const out: Record<string, unknown> = {};
   for (const c of connections) {
     if (c.type !== "mcp" || !c.command || !c.tools.includes("opencode")) continue;
-    out[c.name] = { type: "local", command: [c.command, ...(c.args ?? [])], environment: c.env ?? {}, enabled: true };
+    out[c.name] = { type: "local", command: [c.command, ...argsFor(c, "opencode")], environment: c.env ?? {}, enabled: true };
   }
   return out;
 }
@@ -105,7 +105,7 @@ export function codexConfig(perms: Permissions, connections: Connection[]): stri
   const lines = [CODEX_HEADER, `approval_policy = ${tomlValue(approval)}`, `sandbox_mode = "workspace-write"`];
   for (const c of connections) {
     if (c.type !== "mcp" || !c.command || !c.tools.includes("codex")) continue;
-    lines.push("", `[mcp_servers.${tomlKey(c.name)}]`, `command = ${tomlValue(c.command)}`, `args = ${tomlValue(c.args ?? [])}`);
+    lines.push("", `[mcp_servers.${tomlKey(c.name)}]`, `command = ${tomlValue(c.command)}`, `args = ${tomlValue(argsFor(c, "codex"))}`);
     if (c.env && Object.keys(c.env).length) lines.push(`env = ${tomlValue(c.env)}`);
   }
   return `${lines.join("\n")}\n`;

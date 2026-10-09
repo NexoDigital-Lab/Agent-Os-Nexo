@@ -222,7 +222,7 @@ test("bin: help, version, errors and every command reach their handlers", async 
 
   const dir = tempDir();
   const root = join(dir, "env");
-  const init = nexo(["init", root, "--yes", "--tools", "claude", "--name", "T", "--email", "t@example.com", "--language", "en", "--os", "no"]);
+  const init = nexo(["init", root, "--yes", "--tools", "claude", "--name", "T", "--email", "t@example.com", "--language", "en", "--os", "no", "--memory", "none"]);
   assert.equal(init.status, 0, init.stderr);
   const env = { NEXO_ROOT: root };
   assert.equal(nexo(["update"], env).status, 0);

@@ -58,8 +58,11 @@ jobs:
         shell: bash
         run: |
           ENV="${RUNNER_TEMP}/env"
-          node packages/cli/src/bin.ts init "$ENV" --yes --tools claude --name CI --email ci@example.com --language en --os yes --from apps/os
+          node packages/cli/src/bin.ts init "$ENV" --yes --tools claude --name CI --email ci@example.com --language en --os yes --from apps/os --memory engram
           node packages/cli/src/bin.ts doctor --root "$ENV"
+          node packages/cli/src/bin.ts memory status --root "$ENV"
+          node packages/cli/src/bin.ts new smoke --root "$ENV"
+          node .github/scripts/memory-smoke.mjs "$PWD/packages/cli/src/bin.ts" "$ENV" "$ENV/projects/smoke"
           node packages/cli/src/bin.ts os start --root "$ENV" --port 4799
           node packages/cli/src/bin.ts os status --root "$ENV"
           node packages/cli/src/bin.ts os stop --root "$ENV"

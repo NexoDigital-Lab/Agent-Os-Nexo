@@ -14,6 +14,8 @@ import { gitConfig } from "../core/exec.ts";
 import { nexoVersion } from "../core/version.ts";
 import { os, type OsOptions } from "./os.ts";
 import type { Runner } from "../core/osruntime.ts";
+import type { Fetcher } from "../core/engram.ts";
+import { memory } from "./memory.ts";
 
 export interface InitOptions {
   root?: string;
@@ -28,11 +30,13 @@ export interface InitOptions {
   os?: string;
   /** Where to copy agent-os-nexo from instead of npm (a local checkout). */
   from?: string;
+  /** "engram" installs agent memory (Engram, third party) right away; "none" leaves it for `nexo memory install`. */
+  memory?: string;
 }
 
 const LIBRARY_DIRS = ["conventions", "dictionary", "commands", "memory", "skills", "agents", "hooks", "connections"];
 
-export async function init(opts: InitOptions, run?: Runner): Promise<string> {
+export async function init(opts: InitOptions, run?: Runner, fetcher?: Fetcher): Promise<string> {
   const asker = createAsker(Boolean(opts.yes));
   try {
     const root = resolve(expandHome(opts.root ?? (await asker.ask("Where should the environment live?", defaultRoot()))));
@@ -57,6 +61,8 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
     if (!isFactorySet(factorySet)) throw new Error(`Unknown factory set "${factorySet}". Choose from: ${FACTORY_SETS.join(", ")}.`);
     const withOs = (opts.os ?? (await asker.ask("Install agent-os-nexo, the local app (yes, no)", "no"))).toLowerCase();
     if (withOs !== "yes" && withOs !== "no") throw new Error(`Answer yes or no for agent-os-nexo, not "${withOs}".`);
+    const withMemory = (opts.memory ?? (await asker.ask("Agent memory with Engram, a third-party project (MIT) Nexo installs pinned (engram, none)", "engram"))).toLowerCase();
+    if (withMemory !== "engram" && withMemory !== "none") throw new Error(`Answer engram or none for agent memory, not "${withMemory}".`);
 
     const config: EnvironmentConfig = {
       nexo: { version: nexoVersion(), updatePolicy: "owner" },
@@ -96,11 +102,21 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
         ? (await os("install", undefined, { root, from: opts.from } satisfies OsOptions, run)).split("\n")[0]
         : "agent-os-nexo not installed (add it any time with `nexo os install`).";
 
+    let memoryLine = "agent memory off (add it any time with `nexo memory install`).";
+    if (withMemory === "engram") {
+      try {
+        memoryLine = String(await memory("install", { root }, { fetcher })).split("\n")[0]!;
+      } catch (e) {
+        memoryLine = `agent memory not installed: ${e instanceof Error ? e.message : String(e)} — retry with \`nexo memory install\`.`;
+      }
+    }
+
     return [
       `Nexo environment created at ${root}`,
       `  AIs: ${toolList.join(", ") || "none"} · permissions: ${preset} · factory: ${factorySet} (${factory.installed.length} items)`,
       `  Generated: ${adapters.join(", ") || "nothing (no AI needs extra files)"}`,
       `  ${osLine}`,
+      `  ${memoryLine}`,
       "",
       "Next:",
       `  cd ${root}`,

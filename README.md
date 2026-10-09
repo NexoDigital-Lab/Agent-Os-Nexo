@@ -19,8 +19,12 @@ git clone https://github.com/NexoDigital-Lab/Agent-Os-Nexo.git && cd Agent-Os-Ne
 npm ci
 node packages/cli/src/bin.ts init ~/environments --os yes --from apps/os   # asks a few questions
 cd ~/environments
-node <checkout>/packages/cli/src/bin.ts os start                           # agent-os-nexo on 127.0.0.1:4780
+node <checkout>/packages/cli/src/bin.ts self-update --from <checkout>    # `nexo` on PATH = a copy of main, not the checkout
+nexo os start                                                            # agent-os-nexo on 127.0.0.1:4780
 ```
+
+After merging to `main`, `nexo self-update` installs the new commit (`--ref <tag>` for a release); see
+`docs/release.md`.
 
 `init` asks where the environment lives, which AIs to enable, the permission preset (strict, normal, relaxed), your
 name and email for commits, the language agents answer in, which factory items to install and whether to install
@@ -57,6 +61,7 @@ replaces items marked `owner: nexo`; anything you mark `owner: user` is yours.
 | `nexo index` | Rebuild `library/index.json` |
 | `nexo permissions [show]` · `allow\|ask\|deny\|remove\|set …` | Read or change one permission rule, validated; every AI's files follow |
 | `nexo dict [list\|show\|add\|rm]` | Your dictionary of concepts in `library/dictionary/`, listed in the index for agents |
+| `nexo self-update [--from <checkout>] [--ref main\|<tag>]` | Install the CLI from one commit of a checkout into `os/runtime/cli/` and point `~/.local/bin/nexo` at it |
 | `nexo framework add\|list\|remove\|enable\|disable\|default\|plugin` | Third-party agent frameworks in `frameworks/` (pinned npm or a `path:`), chosen per tab like an AI or set as the environment default; off until enabled, hooks off until approved |
 | `nexo import <claude\|codex\|gemini\|opencode> [--apply]` | Bring another AI's MCP servers and permissions into the library; never weakens a rule |
 | `nexo connect <name> --command <cmd>` | Add a connection (MCP) and regenerate each AI's config |

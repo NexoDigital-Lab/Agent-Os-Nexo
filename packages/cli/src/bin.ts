@@ -13,6 +13,7 @@ import { dict } from "./commands/dict.ts";
 import { permissions } from "./commands/permissions.ts";
 import { framework } from "./commands/framework.ts";
 import { importTool } from "./commands/import.ts";
+import { selfUpdateCommand } from "./commands/selfupdate.ts";
 import { nexoVersion } from "./core/version.ts";
 
 const HELP = `nexo — install and maintain a Nexo agent environment
@@ -55,6 +56,9 @@ Usage: nexo <command> [options]
                                     Approve / withdraw its hooks (off until you approve them)
   framework default <name|nexo>     The environment's default method (nexo = Nexo's own, no framework)
   framework plugin <name>           Build its Claude Code plugin folder and print the path (used by agent-os)
+  self-update [--from <checkout>] [--ref main|<tag>] [--bin <launcher>]
+                                    Install the CLI from one commit of a Nexo checkout into
+                                    os/runtime/cli/ and point the launcher (~/.local/bin/nexo) at it
   os [status|versions|next|use <x.y.z|latest>]
                                     agent-os-nexo builds
   os install [--from <dir>]         Copy agent-os-nexo into os/source, install its runtime, build 1.0.0
@@ -106,6 +110,8 @@ async function main(argv: string[]): Promise<number> {
       project: { type: "string" },
       apply: { type: "boolean" },
       hooks: { type: "boolean" },
+      ref: { type: "string" },
+      bin: { type: "string" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -146,6 +152,8 @@ async function main(argv: string[]): Promise<number> {
       return print(permissions(rest[0], rest.slice(1), values));
     case "framework":
       return print(framework(rest[0], rest.slice(1), values));
+    case "self-update":
+      return print(selfUpdateCommand(values));
     case "os":
       return print(await os(rest[0], rest[1], values));
     default:

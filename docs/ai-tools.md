@@ -23,6 +23,40 @@ Notes:
 - A `.codex/config.toml` that nexo did not write is never overwritten; keys you add to `.gemini/settings.json` stay.
 - `nexo init` offers the AIs it finds on your PATH (Claude when none is found).
 
+## Living next to other frameworks
+
+Other agent frameworks (a company's, a community's) write into the same files Nexo generates. Nexo records what it
+wrote in `.state/nexo/generated.json` and replaces only that: your own and other frameworks' lines in
+`.claude/CLAUDE.md`, MCP servers in `.mcp.json`, `opencode.json` and `.gemini/settings.json`, and hooks in
+`.claude/settings.json` stay. Permissions are the exception: they always come from `permissions.json` alone, so no
+framework can widen them.
+
+`nexo framework` installs and manages them in `frameworks/<name>/framework.json`:
+
+- Sources: `npm:<pkg>@<exact version>` (installed with `--ignore-scripts`; ranges and `latest` are refused) and
+  `path:<dir>` (managed by someone else: only referenced, never copied, modified or updated; `remove` forgets it).
+- Like the AI providers, a framework is configured once for the environment, never per project. It has a `kind`:
+  a **method** (instructions, agents, commands or skills: a way of working) or a **tool** (only MCP servers/hooks).
+  A `framework.json` at its root may set `kind` itself; otherwise it is detected.
+- `add` only installs and records: nothing is active. `nexo framework enable <name>` makes it available (a method is
+  then offered in agent-os-nexo's chat composer, chosen per tab; a tool is simply on). `nexo framework default
+  <name|nexo>` sets the environment's default method (`framework` in `environment.config.json`; missing = `nexo`,
+  Nexo's own method with no framework).
+- The files for AIs used in a terminal wire the default method (if it is not `nexo`) plus every enabled tool; other
+  methods are not wired there. `nexo framework list --json` is the machine-readable list (for agent-os-nexo), and
+  `nexo framework plugin <name>` builds a Claude Code plugin folder for it in `.state/nexo/plugins/<name>/` (hooks
+  included only once approved) and prints the path, which agent-os-nexo passes to the Agent SDK for tabs that use it.
+- Contributions come from the framework's own `framework.json` (`contributes`) or are detected from the Claude Code
+  plugin layout: `skills/*/SKILL.md`, `agents/*.md`, `commands/*.md`, `hooks/hooks.json`, `.mcp.json`, `CLAUDE.md`.
+- They land next to Nexo's: local MCP servers in every AI's config, agents and commands in `.claude/agents/` and
+  `.claude/commands/` (marked as generated, removed when disabled), instructions as an extra `@` line after
+  `@../AGENTS.md`, skills through a generated folder of links (`.state/nexo/skills/`) that `.claude/skills` points at
+  while a framework contributes skills (nothing is written into `library/skills`; a real `skills/` folder you made
+  is left alone). A name that is already taken gets the framework's name as prefix.
+- Hooks run a command on every tool call, so they stay off until you review them and run
+  `nexo framework enable <name> --hooks`. `nexo doctor` lists frameworks as third-party and reports name clashes and
+  hooks waiting for approval.
+
 ## In agent-os-nexo's chat tabs
 
 A tab talks to Claude through the bundled Agent SDK, or to OpenCode, Codex or Gemini by running their CLI headless

@@ -54,7 +54,14 @@ AI session tabs: chat with the agent, its sub-agents, review of its changes, per
 recent sessions and resume, full-text search over past sessions, skills and their recommendation.
 Sessions run through the AI provider chosen in Providers; Claude keeps the full SDK behavior (resume,
 hooks, permissions), while the other providers run headless CLI turns in the project folder, without
-resume or permission prompts.
+resume or permission prompts. A tab also works with a framework (see frameworks): Nexo's own method, or an
+enabled third-party method chosen in the composer. The choice sticks to the tab like the provider; a tab that
+never chose follows the environment's default (`framework` in `environment.config.json`), read on every turn.
+On a Claude turn the framework's plugin is loaded into the SDK (`plugins`: its skills, agents, commands, MCP
+servers, and its hooks only once approved) and its instruction files are appended to the system prompt after
+the environment's own note, marked as third-party. A CLI provider (OpenCode, Codex, Gemini) gets the same
+instructions in front of the prompt; its skills, agents and MCP servers are not available there in this
+version. The environment's rules and permissions always win.
 - **Depends on:** shell, projects. **View:** Tabs, Skills.
 - **Owns slots:** `tab.views`, `tab.side`, `tab.sideReplace`, `tab.overlay`, `chat.events`,
   `composer.actions`, `tab.badges` (`web/slots.ts`); owns `contributeToSessions`
@@ -65,9 +72,10 @@ resume or permission prompts.
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
   `GET /tabs/:id/diff`, `POST /tabs/:id/uploads`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
+  `GET /sessions/frameworks` ("nexo" is always pickable, plus the enabled methods, and the environment's default),
   `PUT /sessions/skills/prefs` (in `library/profile.json`), `POST /sessions/skills/recommend` (through the
   tab's CLI when it is enabled and read-only capable — Codex, Gemini — in the project folder; otherwise the SDK).
-- **Stores:** data `tabs.json`; state `uploads/`, `search.db`.
+- **Stores:** data `tabs.json` (with each tab's provider and framework); state `uploads/`, `search.db`.
 
 ## providers
 Detects the AI CLIs installed on the machine (Claude, OpenCode, Codex, Gemini CLI) and lets
@@ -87,6 +95,23 @@ looks like a log line, a sentence or a table degrades to an empty list instead o
 - **Routes:** `GET /providers` (with `governed`: the providers this environment may run), `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices` (400 for a CLI the environment does not enable: it is never spawned).
 - **Stores:** `library/providers.json` (enabled providers + default; seeded from the environment's `tools`
   when the file is missing).
+
+## frameworks
+Third-party agent frameworks (a company's npm package, a community orchestrator): set up once for the whole
+environment, like the AI providers, then chosen per chat tab or made the default. A framework is a **method**
+(instructions, agents, commands or skills: a way of working, picked in the composer) or a **tool** (only MCP
+servers or hooks: simply on while enabled). Everything goes through the `nexo framework` CLI, so its rules hold
+here too: npm sources are exact versions installed without install scripts, a `path:` folder is only referenced,
+a framework is added off, and none of them can change the permissions. Hooks run commands on every tool call, so
+they stay off until the user reads the exact commands and approves twice (a click, then a confirmation dialog);
+the approval is refused if the commands changed since they were shown.
+- **Depends on:** projects (it runs the nexo CLI through it). **View:** Frameworks (settings).
+- **Routes:** `GET /frameworks` (from `nexo framework list --json`), `POST /frameworks` (`npm:<pkg>@<exact version>`
+  or `path:<absolute folder>`), `POST /frameworks/default`, `POST /frameworks/:name/enabled`,
+  `POST /frameworks/:name/hooks` (approve needs the commands seen), `DELETE /frameworks/:name`. Every input is
+  validated before the CLI runs; values reach it after `--`.
+- **Stores:** nothing of its own: `frameworks/<name>/framework.json` and `environment.config.json` → `framework`
+  (the CLI's files). Shared code: `host/server/frameworks.ts`.
 
 ## home
 Start page: projects, recent sessions, goals, an inbox and today's log.

@@ -5,8 +5,10 @@ import { enabledTools, folder, readConfig, type EnvironmentConfig } from "../cor
 import { parseFrontmatter } from "../core/frontmatter.ts";
 import { isDir, listDir, readJson, readText } from "../core/fsx.ts";
 import { loadPermissions, validatePermissions } from "../core/permissions.ts";
-import { unenforced } from "../core/aitools.ts";
 import { listProjectDirs } from "../core/projects.ts";
+import { unenforced } from "../core/aitools.ts";
+import { frameworkContributions } from "../core/adapters.ts";
+import { defaultFramework, loadFrameworks, NEXO_METHOD } from "../core/frameworks.ts";
 import { buildTarget, currentTarget } from "../core/osruntime.ts";
 import { activeVersion } from "../core/osversions.ts";
 
@@ -48,6 +50,25 @@ export function staleAnalysis(config: EnvironmentConfig, now = new Date()): stri
   return days > STALE_DAYS ? `the OS analysis is ${Math.floor(days)} days old — run \`nexo analyze\`` : null;
 }
 
+/** Third-party frameworks: listed as such, with their name clashes and hooks still waiting for approval. */
+function checkFrameworks(findings: Finding[], root: string, config: EnvironmentConfig): void {
+  const { frameworks, broken } = loadFrameworks(root, config);
+  for (const b of broken) findings.push({ level: "warn", area: `framework ${b}`, message: "unreadable framework.json" });
+  for (const fw of frameworks) {
+    const where = !fw.enabled ? "disabled" : fw.kind === "tool" ? "an enabled tool" : defaultFramework(config) === fw.name ? "the default method" : "an available method";
+    findings.push({ level: "ok", area: `framework ${fw.name}`, message: `third-party (${fw.source}, ${fw.managed === "external" ? "managed elsewhere" : "installed by nexo"}), ${where}` });
+    if (!isDir(fw.contentRoot)) findings.push({ level: "warn", area: `framework ${fw.name}`, message: `its files are missing at ${fw.contentRoot}` });
+  }
+  if (!frameworks.length) return;
+  const wired = frameworkContributions(root, config);
+  const def = defaultFramework(config);
+  if (def !== NEXO_METHOD && !frameworks.some((f) => f.name === def && f.enabled && f.kind === "method")) {
+    findings.push({ level: "warn", area: "frameworks", message: `the default method "${def}" is missing or not enabled — \`nexo framework default nexo\`` });
+  }
+  for (const c of wired.clashes) findings.push({ level: "warn", area: "frameworks", message: `name clash: ${c}` });
+  for (const name of Object.keys(wired.pendingHooks)) findings.push({ level: "warn", area: `framework ${name}`, message: `has hooks that are not approved and stay off — review them, then \`nexo framework enable ${name} --hooks\`` });
+}
+
 export function diagnose(root: string, quick = false): Finding[] {
   const findings: Finding[] = [];
   let config: EnvironmentConfig;
@@ -82,6 +103,7 @@ export function diagnose(root: string, quick = false): Finding[] {
     const gaps = unenforced(tool, loadPermissions(join(folder(root, config, "library"), "permissions.json")));
     if (gaps.length) findings.push({ level: "warn", area: tool, message: `not enforced by ${tool}: ${gaps.join("; ")}` });
   }
+  checkFrameworks(findings, root, config);
   const stale = staleAnalysis(config);
   if (stale) findings.push({ level: "warn", area: "analysis", message: stale });
   if (quick) return findings;

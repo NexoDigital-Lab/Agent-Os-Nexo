@@ -88,6 +88,7 @@ export async function init(opts: InitOptions, run?: Runner): Promise<string> {
     for (const sub of ["source", "versions", "data"]) ensureDir(join(root, config.folders.os, sub));
     ensureDir(join(root, config.folders.projects));
     ensureDir(join(root, config.folders.state));
+    ensureDir(join(root, config.folders.frameworks));
 
     const adapters = generateAdapters(root, config, root, loadPermissions(join(library, "permissions.json")));
     const osLine =

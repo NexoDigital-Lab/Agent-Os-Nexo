@@ -1,0 +1,9 @@
+{
+  "name": "frameworks",
+  "version": "1.0.0",
+  "description": "Third-party agent frameworks: make them available to pick in a chat tab, set the default, approve their hooks",
+  "owner": "nexo",
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
+  "nav": { "label": "Frameworks", "icon": "layers", "order": 63 },
+  "dependsOn": ["projects"]
+}

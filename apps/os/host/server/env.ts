@@ -66,6 +66,19 @@ export function envTools(root: string): Record<string, boolean> {
 }
 
 /**
+ * environment.config.json `framework`: the default method for new work (a framework name; missing or empty means
+ * "nexo", the environment's own). Read on each call, like envTools, so `nexo framework default` applies at once.
+ */
+export function envFramework(root: string): string {
+  try {
+    const name = (JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8")) as { framework?: unknown }).framework;
+    return typeof name === "string" && name ? name : "nexo";
+  } catch {
+    return "nexo";
+  }
+}
+
+/**
  * The environment to serve: NEXO_ROOT when set, otherwise the one this copy of agent-os-nexo lives in
  * (a build sits at <root>/os/versions/<x.y.z>, the editable copy at <root>/os/source).
  */

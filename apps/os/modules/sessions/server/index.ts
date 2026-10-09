@@ -11,6 +11,7 @@ import { addProjectHooks } from "../../projects/server/hooks.ts";
 import { projectDiff, projectDir, projectOfPath, projectPath, worktreePath } from "../../projects/server/projects.ts";
 import * as agent from "./agent.ts";
 import { isProviderEnabled, useProvidersFile } from "./claude.ts";
+import { defaultFramework, enabledMethods, useFrameworks } from "./frameworks.ts";
 import { parseSendBody } from "./sendBody.ts";
 import { contributeToSessions } from "./contributions.ts";
 import { osGuard } from "./guard.ts";
@@ -45,6 +46,7 @@ const register: ModuleServer = (ctx) => {
   // New tabs follow the default provider in library/providers.json (seeded from the CLI's tools map when the
   // file is missing), read when a tab opens; a CLI the environment does not enable in tools is never run. One-shot helpers always use the bundled SDK (claude.ts).
   useProvidersFile(join(ctx.env.library, "providers.json"), (file) => readProvidersFile(file, envTools(ctx.env.root)));
+  useFrameworks(ctx.env); // the framework each tab works with: the environment's default unless the tab chose (frameworks.ts)
   agent.restoreTabs(agent.tabsFileName(ctx.dataDir));
   // Every agent session: no reaching agent-os-nexo's own API or private data (guard.ts).
   contributeToSessions({
@@ -81,8 +83,16 @@ const register: ModuleServer = (ctx) => {
   api.get("/tabs/:id/diff", h((req) => projectDiff(tabOf(req).cwd)));
   api.post("/tabs/:id/seen", h((req) => (agent.markSeen(String(req.params.id)), ok)));
   api.get("/tabs/:id/stream", h((req, res) => agent.subscribe(String(req.params.id), res)));
-  api.post("/tabs/:id/send", h((req) => {
-    agent.send(String(req.params.id), parseSendBody(req.body));
+  // The frameworks a tab can pick: "nexo" (none) plus every enabled method; `default` is the environment's, read now.
+  api.get("/sessions/frameworks", h(async () => ({
+    default: defaultFramework(),
+    methods: (await enabledMethods()).map((f) => ({ name: f.name, version: f.version })),
+  })));
+  api.post("/tabs/:id/send", h(async (req) => {
+    const body = req.body as { framework?: unknown } | undefined;
+    // The list is only needed (a CLI call, cached) when the body names a framework.
+    const methods = body?.framework ? (await enabledMethods()).map((f) => f.name) : undefined;
+    agent.send(String(req.params.id), parseSendBody(req.body, methods));
     return ok;
   }));
   api.post("/tabs/:id/permission", h((req) => ({ ok: agent.answerPermission(String(req.params.id), String(req.body.permId), !!req.body.allow, !!req.body.always) })));

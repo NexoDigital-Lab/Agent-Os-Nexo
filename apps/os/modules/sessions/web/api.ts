@@ -35,12 +35,18 @@ export interface ProviderChoices {
   models: string[];
 }
 
+/** GET /api/sessions/frameworks: what a tab can pick ("nexo" is always there) and the environment's default. */
+export interface FrameworkChoices {
+  default: string;
+  methods: { name: string; version: string }[];
+}
+
 export const sessionsApi = {
   tabs: () => call<Tab[]>("GET", "/api/tabs"),
   openTab: (project: string, title: string, worktree?: string) => call<{ id: string }>("POST", "/api/tabs", { project, title, worktree }),
   renameTab: (id: string, title: string) => call("PATCH", `/api/tabs/${id}`, { title }),
   closeTab: (id: string) => call("DELETE", `/api/tabs/${id}`),
-  send: (id: string, body: { prompt: string; skills: string[]; images: string[]; mode: Mode; model?: string; agent?: string; workMode?: WorkMode; provider?: ProviderId }) =>
+  send: (id: string, body: { prompt: string; skills: string[]; images: string[]; mode: Mode; model?: string; agent?: string; workMode?: WorkMode; provider?: ProviderId; framework?: string }) =>
     call("POST", `/api/tabs/${id}/send`, body),
   permission: (id: string, permId: string, allow: boolean, always = false) => call("POST", `/api/tabs/${id}/permission`, { permId, allow, always }),
   upload: async (id: string, blob: Blob) => {
@@ -60,6 +66,7 @@ export const sessionsApi = {
   savePrefs: (disabled: string[], pinned: string[]) => call("PUT", "/api/sessions/skills/prefs", { disabled, pinned }),
   recommend: (task: string, project: string, provider?: string, model?: string) =>
     call<{ skills: Recommendation[]; cost: number }>("POST", "/api/sessions/skills/recommend", { task, project, provider, model }),
+  frameworks: () => call<FrameworkChoices>("GET", "/api/sessions/frameworks"),
   providers: () => call<ProvidersState>("GET", "/api/providers"),
   choices: (id: string, project: string) =>
     call<ProviderChoices>("GET", `/api/providers/choices?id=${encodeURIComponent(id)}&project=${encodeURIComponent(project)}`),

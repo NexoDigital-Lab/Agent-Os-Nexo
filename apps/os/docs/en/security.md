@@ -56,6 +56,16 @@ in [module-rules.md](module-rules.md).
   `tools` run at all, and one-shot helpers (notes, extensions) always use the bundled SDK, read-only. The skill
   recommendation may run through the tab's CLI only when it has a documented read-only mode (Codex, Gemini) and
   only in the project's folder; otherwise it uses the SDK too.
+- **Frameworks (third-party methods).** A framework is installed by the `nexo framework` CLI with the same care as
+  anything else from outside: npm sources are exact versions with `--ignore-scripts`, a `path:` folder is never
+  modified, and the files a framework lists must stay inside its own folder. It is added off and never touches
+  `permissions.json`; the environment's rules always come first. Its **hooks** run commands on every tool call, so
+  they stay off until the user has seen the exact commands and approved twice in Settings → Frameworks (the app
+  refuses an approval whose commands no longer match what was shown). In a tab that uses a framework, a Claude
+  turn loads it as a Claude Code plugin (`nexo framework plugin`, built under `.state/nexo/plugins/`, hooks only
+  when approved) and appends its instructions after the environment's note, marked "Instructions of the <name>
+  framework (third party)"; a CLI provider's turn gets the same text in front of the prompt, without its skills or
+  MCP servers. Tools such as the permission prompts and `confineHook` apply to its tool calls as to any other.
 - **Windows launchers.** An npm `.cmd` shim runs its script with node, never through `cmd.exe`, which would run
   `& | < > ^ % ! "` inside a prompt; a launcher that is not npm's is refused any argument with those characters.
 

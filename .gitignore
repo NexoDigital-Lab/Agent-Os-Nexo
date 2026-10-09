@@ -10,3 +10,16 @@ coverage/
 .env.*
 !.env.example
 .npmrc
+
+# What a Nexo environment generates next to a project (per AI) or keeps for one user — this repository is developed
+# inside one, so these must never be committed. The repo's own .claude/CLAUDE.md is the only exception.
+.claude/*
+!.claude/CLAUDE.md
+.mcp.json
+opencode.json
+.opencode/
+.codex/
+.gemini/
+.engram/
+.state/
+environment.config.json

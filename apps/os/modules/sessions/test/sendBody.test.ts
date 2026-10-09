@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { parseSendBody } from "../server/sendBody.ts";
 
 test("a valid send body passes, with defaults", () => {
-  assert.deepEqual(parseSendBody({ prompt: "hi" }), { prompt: "hi", skills: [], images: [], mode: "default", model: undefined, agent: undefined, workMode: undefined, provider: undefined });
+  assert.deepEqual(parseSendBody({ prompt: "hi" }), { prompt: "hi", skills: [], images: [], mode: "default", model: undefined, agent: undefined, workMode: undefined, provider: undefined, framework: undefined });
   const full = parseSendBody({ prompt: "x", skills: ["nexo-dev"], images: ["a1.png"], mode: "plan", model: "sonnet", agent: "build", workMode: "focus", provider: "opencode" });
   assert.equal(full.mode, "plan");
   assert.equal(full.workMode, "focus");
@@ -52,4 +52,14 @@ test("model passes through for CLI providers with provider/model ids; claude kee
   const none = parseSendBody({ prompt: "x", model: "sonnet" });
   assert.equal(none.model, "sonnet");
   assert.throws(() => parseSendBody({ prompt: "x", model: "opencode/mimo" }), (e: any) => e.status === 400 && /Invalid model/.test(e.message));
+});
+
+test("framework: nexo or a well-formed name; with the enabled list, only those", () => {
+  assert.equal(parseSendBody({ prompt: "x" }).framework, undefined);
+  assert.equal(parseSendBody({ prompt: "x", framework: "" }).framework, undefined);
+  assert.equal(parseSendBody({ prompt: "x", framework: "corp-agents" }).framework, "corp-agents");
+  assert.equal(parseSendBody({ prompt: "x", framework: "nexo" }, []).framework, "nexo");
+  assert.equal(parseSendBody({ prompt: "x", framework: "corp" }, ["corp"]).framework, "corp");
+  for (const bad of ["Corp", "a b", "../x", "x".repeat(65), 5, {}]) assert.throws(() => parseSendBody({ prompt: "x", framework: bad }), /Invalid framework/);
+  assert.throws(() => parseSendBody({ prompt: "x", framework: "corp" }, ["other"]), /not an enabled method/);
 });

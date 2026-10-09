@@ -54,7 +54,15 @@ Pestañas de sesiones de IA: el chat con el agente, sus subagentes, la revisión
 imágenes, sesiones recientes y retomarlas, búsqueda de texto completo en sesiones pasadas, skills y su
 recomendación. Las sesiones corren por el proveedor de IA elegido en Providers; Claude conserva el
 comportamiento completo del SDK (retomar, hooks, permisos), mientras que los demás proveedores corren
-turnos CLI en modo headless en la carpeta del proyecto, sin retomar ni pedidos de permiso.
+turnos CLI en modo headless en la carpeta del proyecto, sin retomar ni pedidos de permiso. Una pestaña también
+trabaja con un framework (ver frameworks): el método propio de Nexo, o un método de terceros habilitado que se
+elige en el composer. La elección se queda en la pestaña como el proveedor; una pestaña que nunca eligió sigue
+el predeterminado del entorno (`framework` en `environment.config.json`), leído en cada turno. En un turno de
+Claude el plugin del framework se carga en el SDK (`plugins`: sus skills, agentes, comandos, servidores MCP, y
+sus hooks solo una vez aprobados) y sus archivos de instrucciones se agregan al system prompt después de la nota
+propia del entorno, marcados como de terceros. Un proveedor CLI (OpenCode, Codex, Gemini) recibe las mismas
+instrucciones delante del prompt; sus skills, agentes y servidores MCP no están disponibles ahí en esta versión.
+Las reglas y los permisos del entorno siempre ganan.
 - **Depende de:** shell, projects. **Vistas:** Pestañas, Skills.
 - **Dueño de los slots:** `tab.views`, `tab.side`, `tab.sideReplace`, `tab.overlay`, `chat.events`,
   `composer.actions`, `tab.badges` (`web/slots.ts`); dueño de `contributeToSessions`
@@ -65,9 +73,10 @@ turnos CLI en modo headless en la carpeta del proyecto, sin retomar ni pedidos d
   `POST /tabs/:id/send|interrupt|permission|quick|seen`, `POST /tabs/:id/tasks/:taskId/stop`,
   `GET /tabs/:id/diff`, `POST /tabs/:id/uploads`, `GET/DELETE /tabs/:id/uploads/:name`, `GET /sessions/history`,
   `POST /sessions/history/:id/resume`, `GET /sessions/search`, `GET /sessions/:id/around`, `GET /sessions/skills`,
+  `GET /sessions/frameworks` ("nexo" siempre se puede elegir, más los métodos habilitados, y el predeterminado del entorno),
   `PUT /sessions/skills/prefs` (en `library/profile.json`), `POST /sessions/skills/recommend` (por el CLI de la
   pestaña si está habilitado y tiene modo de solo lectura — Codex, Gemini — en la carpeta del proyecto; si no, el SDK).
-- **Guarda:** data `tabs.json`; state `uploads/`, `search.db`.
+- **Guarda:** data `tabs.json` (con el proveedor y el framework de cada pestaña); state `uploads/`, `search.db`.
 
 ## providers
 Detecta los CLIs de IA instalados en la máquina (Claude, OpenCode, Codex, Gemini CLI) y deja
@@ -88,6 +97,24 @@ salida que parece un registro, una frase o una tabla degrada a una lista vacía 
 - **Rutas:** `GET /providers` (con `governed`: los proveedores que este entorno puede correr), `POST /providers/enabled`, `POST /providers/test`, `GET /providers/choices` (400 para un CLI que el entorno no habilita: nunca se lanza).
 - **Guarda:** `library/providers.json` (proveedores habilitados + predeterminado; se siembra desde el
   `tools` del entorno cuando el archivo no existe).
+
+## frameworks
+Frameworks de agentes de terceros (un paquete npm de la empresa, un orquestador de la comunidad): se configuran una
+vez para todo el entorno, como los proveedores de IA, y después se eligen por pestaña de chat o se dejan como
+predeterminado. Un framework es un **método** (instrucciones, agentes, comandos o skills: una forma de trabajar, que
+se elige en el composer) o una **herramienta** (solo servidores MCP o hooks: simplemente encendida mientras esté
+habilitada). Todo pasa por el CLI `nexo framework`, así que sus reglas valen acá también: las fuentes npm son
+versiones exactas instaladas sin scripts de instalación, una carpeta `path:` solo se referencia, un framework se
+agrega apagado, y ninguno puede cambiar los permisos. Los hooks ejecutan comandos en cada llamada a una
+herramienta, así que quedan apagados hasta que el usuario lee los comandos exactos y aprueba dos veces (un clic y
+un diálogo de confirmación); la aprobación se rechaza si los comandos cambiaron desde que se mostraron.
+- **Depende de:** projects (corre el CLI nexo a través de él). **Vista:** Frameworks (ajustes).
+- **Rutas:** `GET /frameworks` (desde `nexo framework list --json`), `POST /frameworks` (`npm:<pkg>@<versión
+  exacta>` o `path:<carpeta absoluta>`), `POST /frameworks/default`, `POST /frameworks/:name/enabled`,
+  `POST /frameworks/:name/hooks` (aprobar exige los comandos vistos), `DELETE /frameworks/:name`. Cada entrada se
+  valida antes de correr el CLI; los valores le llegan después de `--`.
+- **Guarda:** nada propio: `frameworks/<name>/framework.json` y `environment.config.json` → `framework` (archivos
+  del CLI). Código compartido: `host/server/frameworks.ts`.
 
 ## home
 Página de inicio: proyectos, sesiones recientes, objetivos, una bandeja de entrada y el registro del día.

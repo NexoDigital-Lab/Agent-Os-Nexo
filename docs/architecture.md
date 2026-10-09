@@ -34,6 +34,7 @@ environments/
 │   ├── connections/          MCP and service connections, credentials included (never versioned)
 │   ├── profile.json          identity and preferences
 │   └── permissions.json      global allow / ask / deny
+├── frameworks/<name>/        third-party agent frameworks: framework.json (+ node_modules for npm ones); see docs/ai-tools.md
 ├── blueprints/<name>/        README.md, steps.md, files/, verify.md
 ├── os/                       agent-os-nexo (optional: `nexo init --os yes` or `nexo os install`)
 │   ├── source/               the user's editable copy of agent-os-nexo

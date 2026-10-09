@@ -71,15 +71,15 @@ test("approving hooks needs the commands the user saw; a mismatch is a 409 and n
 test("add validates the source before the CLI runs and passes it after --", async () => {
   const n = calls.length;
   for (const body of [{}, { source: 5 }, { source: "npm:corp" }, { source: "npm:corp@latest" }, { source: "npm:corp@^1.0.0" }, { source: "github:a/b" }, { source: "path:relative/dir" }, { source: "path:/a\nb" }, { source: "x".repeat(501) }, { source: "npm:corp@1.0.0", name: "Bad Name" }, { source: "npm:corp@1.0.0", name: 7 }]) {
-    assert.equal((await call("POST", "/frameworks/add", body)).status, 400, JSON.stringify(body));
+    assert.equal((await call("POST", "/frameworks", body)).status, 400, JSON.stringify(body));
   }
   assert.equal(calls.length, n);
-  await call("POST", "/frameworks/add", { source: " npm:@corp/agents@1.4.0 " });
+  await call("POST", "/frameworks", { source: " npm:@corp/agents@1.4.0 " });
   assert.deepEqual(last(), ["framework", "add", "--", "npm:@corp/agents@1.4.0"]);
-  await call("POST", "/frameworks/add", { source: "path:/opt/fw", name: "mine" });
+  await call("POST", "/frameworks", { source: "path:/opt/fw", name: "mine" });
   assert.deepEqual(last(), ["framework", "add", "--name", "mine", "--", "path:/opt/fw"]);
-  await call("POST", "/frameworks/add", { source: "path:C:\\fw" });
-  await call("POST", "/frameworks/add", { source: "path:~/fw", name: "" });
+  await call("POST", "/frameworks", { source: "path:C:\\fw" });
+  await call("POST", "/frameworks", { source: "path:~/fw", name: "" });
   assert.deepEqual(last(), ["framework", "add", "--", "path:~/fw"]);
 });
 
@@ -104,7 +104,7 @@ test("the CLI's errors keep their message with the right status", async () => {
   boom('Enable "corp" first: `nexo framework enable corp`.');
   assert.equal((await call("POST", "/frameworks/default", { name: "corp" })).status, 400);
   boom('Framework "corp" already exists. Remove it first, or pass --name.');
-  assert.equal((await call("POST", "/frameworks/add", { source: "npm:corp@1.0.0" })).status, 409);
+  assert.equal((await call("POST", "/frameworks", { source: "npm:corp@1.0.0" })).status, 409);
   boom('Unknown command "framework". Run `nexo --help`.');
   assert.equal((await call("POST", "/frameworks/corp/enabled", { enabled: true })).status, 501);
   boom("disk on fire");
@@ -137,7 +137,7 @@ test("a real round trip through the nexo CLI: add (off) → enable → default, 
     writeFileSync(join(ext, "CLAUDE.md"), "Be careful.");
     mkdirSync(join(ext, "skills", "a"), { recursive: true });
     writeFileSync(join(ext, "skills", "a", "SKILL.md"), "---\nname: a\ndescription: d\n---\n");
-    const added = await call("POST", "/frameworks/add", { source: `path:${ext}`, name: "mine" });
+    const added = await call("POST", "/frameworks", { source: `path:${ext}`, name: "mine" });
     assert.equal(added.status, 200, JSON.stringify(added.body));
     assert.deepEqual([added.body.frameworks[0].name, added.body.frameworks[0].kind, added.body.frameworks[0].enabled], ["mine", "method", false]);
     assert.equal((await call("POST", "/frameworks/default", { name: "mine" })).status, 400, "not enabled yet");

@@ -106,7 +106,7 @@ a framework is added off, and none of them can change the permissions. Hooks run
 they stay off until the user reads the exact commands and approves twice (a click, then a confirmation dialog);
 the approval is refused if the commands changed since they were shown.
 - **Depends on:** projects (it runs the nexo CLI through it). **View:** Frameworks (settings).
-- **Routes:** `GET /frameworks` (from `nexo framework list --json`), `POST /frameworks/add` (`npm:<pkg>@<exact version>`
+- **Routes:** `GET /frameworks` (from `nexo framework list --json`), `POST /frameworks` (`npm:<pkg>@<exact version>`
   or `path:<absolute folder>`), `POST /frameworks/default`, `POST /frameworks/:name/enabled`,
   `POST /frameworks/:name/hooks` (approve needs the commands seen), `DELETE /frameworks/:name`. Every input is
   validated before the CLI runs; values reach it after `--`.

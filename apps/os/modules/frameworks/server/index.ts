@@ -7,7 +7,7 @@ import * as frameworks from "./frameworks.ts";
 const register: ModuleServer = (ctx) => {
   const api = ctx.api;
   api.get("/frameworks", h(() => frameworks.list(ctx.env)));
-  api.post("/frameworks/add", h((req) => frameworks.add(ctx.env, req.body)));
+  api.post("/frameworks", h((req) => frameworks.add(ctx.env, req.body)));
   api.post("/frameworks/default", h((req) => frameworks.setDefault(ctx.env, req.body)));
   api.post("/frameworks/:name/enabled", h((req) => frameworks.setEnabled(ctx.env, frameworks.nameOf(req.params.name), req.body)));
   api.post("/frameworks/:name/hooks", h((req) => frameworks.setHooks(ctx.env, frameworks.nameOf(req.params.name), req.body)));

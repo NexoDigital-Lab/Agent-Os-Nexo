@@ -109,7 +109,7 @@ agrega apagado, y ninguno puede cambiar los permisos. Los hooks ejecutan comando
 herramienta, así que quedan apagados hasta que el usuario lee los comandos exactos y aprueba dos veces (un clic y
 un diálogo de confirmación); la aprobación se rechaza si los comandos cambiaron desde que se mostraron.
 - **Depende de:** projects (corre el CLI nexo a través de él). **Vista:** Frameworks (ajustes).
-- **Rutas:** `GET /frameworks` (desde `nexo framework list --json`), `POST /frameworks/add` (`npm:<pkg>@<versión
+- **Rutas:** `GET /frameworks` (desde `nexo framework list --json`), `POST /frameworks` (`npm:<pkg>@<versión
   exacta>` o `path:<carpeta absoluta>`), `POST /frameworks/default`, `POST /frameworks/:name/enabled`,
   `POST /frameworks/:name/hooks` (aprobar exige los comandos vistos), `DELETE /frameworks/:name`. Cada entrada se
   valida antes de correr el CLI; los valores le llegan después de `--`.

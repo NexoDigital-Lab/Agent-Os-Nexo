@@ -44,6 +44,19 @@ Asked interactively, or given as flags (`--yes` takes every default):
 Everything can change later: `nexo permissions …`, `nexo update --factory all`, `nexo os install`, and the AIs in
 `environment.config.json` → `tools` followed by `nexo update`.
 
+## Running the CLI from a checkout (developers)
+
+Developing Nexo inside a Nexo environment means the environment's own `nexo` must not be the checkout you are
+editing. `nexo self-update --from <checkout> [--ref main|<tag>] [--bin <launcher>]` installs one commit instead:
+
+- it reads `packages/cli` at that commit straight from git, so uncommitted changes and other branches never travel;
+- the copy goes to `os/runtime/cli/<version>-<commit>/`, is started once (`--version`) before it is used, and the
+  last two older copies are kept for a manual rollback;
+- the launcher (default `~/.local/bin/nexo`, `nexo.cmd` on Windows) runs that copy with the `node` on `PATH`; a
+  launcher Nexo did not write (an npm global install, for instance) is never overwritten;
+- the checkout, ref and launcher are remembered in `.state/nexo/cli.json`, so the next update is just
+  `nexo self-update` after merging to `main`.
+
 ## The desktop app
 
 Not on npm. `.github/workflows/release-desktop.yml` builds the installers (deb, rpm, AppImage, dmg, NSIS) for each

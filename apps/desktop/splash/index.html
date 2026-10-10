@@ -6,24 +6,256 @@
   <style>
     /* The Nexo palette (modules/themes): the window shows this until agent-os-nexo answers. */
     :root { color-scheme: dark; }
-    body { margin: 0; height: 100vh; display: grid; place-items: center; background: #0a0a0f; color: #babac2;
-           font: 14px system-ui, sans-serif; }
-    .box { text-align: center; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0a0a0f; color: #babac2;
+           font: 14px/1.5 system-ui, sans-serif; }
+    .box { text-align: center; padding: 24px; }
     .brand { font: 600 22px system-ui, sans-serif; letter-spacing: .02em; background: linear-gradient(135deg, #00f5ff, #a855f7, #ff2d78);
              -webkit-background-clip: text; background-clip: text; color: transparent; }
     .dot { display: inline-block; width: 8px; height: 8px; margin: 0 3px; border-radius: 50%; background: #a855f7;
            animation: pulse 1.2s infinite ease-in-out; }
     .dot:nth-child(2) { animation-delay: .2s; } .dot:nth-child(3) { animation-delay: .4s; }
     @keyframes pulse { 0%, 80%, 100% { opacity: .2; } 40% { opacity: 1; } }
-    #err { color: #ff2d78; white-space: pre-wrap; max-width: 560px; }
+
+    /* Startup problems: what happened, how to fix it, then the technical detail for whoever needs it. */
+    .card { display: none; text-align: left; max-width: 560px; margin: 8px auto 0; padding: 20px 24px; border-radius: 12px;
+            background: #13131c; border: 1px solid #262633; border-left: 3px solid #a855f7; }
+    .card.warn { border-left-color: #f5b400; }
+    .card h2 { margin: 0 0 6px; font-size: 16px; font-weight: 600; color: #ececf1; }
+    .card p { margin: 0 0 12px; }
+    .card ol { margin: 0 0 14px; padding-left: 20px; }
+    .card li { margin: 4px 0; }
+    code { font: 12.5px ui-monospace, Consolas, monospace; background: #1d1d29; padding: 1px 5px; border-radius: 4px;
+           color: #d8d8e0; word-break: break-all; }
+    details { margin: 0 0 14px; }
+    summary { cursor: pointer; color: #8a8a96; font-size: 13px; }
+    pre { margin: 8px 0 0; padding: 10px 12px; max-height: 180px; overflow: auto; background: #0d0d14; border-radius: 6px;
+          font: 12px/1.45 ui-monospace, Consolas, monospace; color: #a8a8b4; white-space: pre-wrap; word-break: break-word; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 8px; border: 1px solid #2e2e3d; cursor: pointer;
+             background: #1b1b26; color: #d8d8e0; }
+    button:hover { background: #242433; }
+    button.primary { background: #a855f7; border-color: #a855f7; color: #fff; }
+    button.primary:hover { background: #9b45ec; }
+    button:disabled { opacity: .6; cursor: default; }
+    .note { margin-top: 10px; font-size: 12.5px; color: #8a8a96; min-height: 1em; }
   </style>
 </head>
 <body>
   <div class="box">
     <p class="brand">agent-os-nexo</p>
-    <p id="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></p>
-    <p>Starting agent-os-nexo…</p>
-    <p id="err"></p>
+    <div id="starting">
+      <p id="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></p>
+      <p id="starting-text">Starting agent-os-nexo…</p>
+    </div>
+    <div class="card" id="card" role="alert">
+      <h2 id="title"></h2>
+      <p id="body"></p>
+      <ol id="steps"></ol>
+      <details id="details"><summary id="details-label"></summary><pre id="detail"></pre></details>
+      <div class="actions">
+        <button class="primary" id="retry"></button>
+        <button id="open-log"></button>
+        <button id="copy"></button>
+      </div>
+      <p class="note" id="note"></p>
+    </div>
   </div>
+  <script>
+    // Rust (src-tauri/src/main.rs, StartError) sends { code, params, detail?, hasLog?, waiting? }; the wording,
+    // in the system language, lives here. `{name}` in a message is params.name, shown as code.
+    const MESSAGES = {
+      en: {
+        ui: { starting: "Starting agent-os-nexo…", retry: "Try again", retrying: "Restarting…", openLog: "Open log",
+              copy: "Copy details", copied: "Copied to the clipboard.", details: "Technical details",
+              unknown: "Something went wrong while starting agent-os-nexo.", failed: "Could not do that: " },
+        "node-missing": { title: "Node.js was not found",
+          body: "agent-os-nexo runs on Node.js {min} or newer, and it is not installed or not where the app looked.",
+          steps: ["Install Node.js LTS from nodejs.org (or: winget install OpenJS.NodeJS.LTS).",
+                  "If it is installed in an unusual place, set the NEXO_NODE environment variable to the full path of node.",
+                  "Click “Try again”."] },
+        "node-invalid": { title: "NEXO_NODE points to nothing",
+          body: "The NEXO_NODE environment variable says Node.js is at {path}, but there is no program there.",
+          steps: ["Fix NEXO_NODE so it holds the full path to node (for example C:\\Program Files\\nodejs\\node.exe), or remove it to let the app find Node.js on its own.",
+                  "Click “Try again”."] },
+        "node-too-old": { title: "Node.js is too old",
+          body: "Found Node.js {version} at {path}; agent-os-nexo needs {min} or newer ({min23} or newer on the 23 line).",
+          steps: ["Update Node.js to the current LTS (nodejs.org, or: winget upgrade OpenJS.NodeJS.LTS).",
+                  "Click “Try again”."] },
+        "node-unresponsive": { title: "Node.js is not responding",
+          body: "The program at {path} did not answer when asked for its version. It may not be Node.js, or something is blocking it.",
+          steps: ["Check that the path is Node.js: open a terminal and run it with --version.",
+                  "If NEXO_NODE is set, point it at node, or remove it so the app finds Node.js on its own.",
+                  "Click “Try again”."] },
+        "no-environment": { title: "No Nexo environment yet",
+          body: "The app looked for a Nexo environment at {root} and found none.",
+          steps: ["Create one with nexo init (see the README), or set NEXO_ROOT to the folder of an existing environment.",
+                  "Click “Try again”."] },
+        "bad-config": { title: "The environment's configuration can't be read",
+          body: "{file} is not valid JSON.",
+          steps: ["Undo the last manual edit to that file, or run nexo doctor in the environment to see what is wrong.",
+                  "Click “Try again”."] },
+        "no-builds": { title: "agent-os-nexo is not installed in this environment",
+          body: "The environment has no agent-os-nexo build to run.",
+          steps: ["In the environment, run nexo os install.", "Click “Try again”."] },
+        "broken-build": { title: "The active build is incomplete",
+          body: "The build {version} is missing files.",
+          steps: ["In the environment, run nexo os use latest, or nexo os build to make a new one.", "Click “Try again”."] },
+        "port-taken": { title: "Port {port} is busy",
+          body: "Another program is using port {port}, which the app needs.",
+          steps: ["Close that program (Task Manager, or: netstat -ano | findstr :{port} shows its process id).",
+                  "Click “Try again”."] },
+        "log-unwritable": { title: "The app can't write its log",
+          body: "Creating {path} failed. The disk may be full, or the folder read-only or locked by another program.",
+          steps: ["Free some disk space, or check the folder's permissions.", "Click “Try again”."] },
+        "spawn-failed": { title: "agent-os-nexo could not be started",
+          body: "The system refused to start the server.",
+          steps: ["Check that an antivirus or app-control policy is not blocking Node.js.", "Click “Try again”."] },
+        "server-exited": { title: "agent-os-nexo stopped while starting",
+          body: "The server closed before it was ready. Its last lines are in the technical details; the full log is at {log}.",
+          steps: ["Read the log for the cause (often a missing dependency or a broken build).",
+                  "In the environment, nexo doctor checks the installation.", "Click “Try again”."] },
+        "slow-start": { title: "This is taking longer than usual",
+          body: "agent-os-nexo has not answered yet. The first start can be slow; the window keeps waiting and opens it as soon as it is ready.",
+          steps: ["If it never opens, check the log at {log}."] },
+      },
+      es: {
+        ui: { starting: "Iniciando agent-os-nexo…", retry: "Reintentar", retrying: "Reiniciando…", openLog: "Abrir log",
+              copy: "Copiar detalles", copied: "Copiado al portapapeles.", details: "Detalles técnicos",
+              unknown: "Algo salió mal al iniciar agent-os-nexo.", failed: "No se pudo: " },
+        "node-missing": { title: "No se encontró Node.js",
+          body: "agent-os-nexo necesita Node.js {min} o más nuevo, y no está instalado o no está donde la app lo buscó.",
+          steps: ["Instalá Node.js LTS desde nodejs.org (o: winget install OpenJS.NodeJS.LTS).",
+                  "Si está instalado en un lugar poco común, definí la variable de entorno NEXO_NODE con la ruta completa de node.",
+                  "Hacé clic en “Reintentar”."] },
+        "node-invalid": { title: "NEXO_NODE apunta a algo que no existe",
+          body: "La variable de entorno NEXO_NODE dice que Node.js está en {path}, pero ahí no hay ningún programa.",
+          steps: ["Corregí NEXO_NODE con la ruta completa de node (por ejemplo C:\\Program Files\\nodejs\\node.exe), o borrala para que la app encuentre Node.js sola.",
+                  "Hacé clic en “Reintentar”."] },
+        "node-too-old": { title: "Node.js es demasiado viejo",
+          body: "Se encontró Node.js {version} en {path}; agent-os-nexo necesita {min} o más nuevo ({min23} o más nuevo en la línea 23).",
+          steps: ["Actualizá Node.js a la LTS actual (nodejs.org, o: winget upgrade OpenJS.NodeJS.LTS).",
+                  "Hacé clic en “Reintentar”."] },
+        "node-unresponsive": { title: "Node.js no responde",
+          body: "El programa en {path} no contestó cuando se le pidió la versión. Puede que no sea Node.js, o que algo lo esté bloqueando.",
+          steps: ["Revisá que esa ruta sea Node.js: abrí una terminal y ejecutalo con --version.",
+                  "Si NEXO_NODE está definida, hacé que apunte a node, o borrala para que la app encuentre Node.js sola.",
+                  "Hacé clic en “Reintentar”."] },
+        "no-environment": { title: "Todavía no hay un entorno Nexo",
+          body: "La app buscó un entorno Nexo en {root} y no encontró ninguno.",
+          steps: ["Creá uno con nexo init (ver el README), o definí NEXO_ROOT con la carpeta de un entorno existente.",
+                  "Hacé clic en “Reintentar”."] },
+        "bad-config": { title: "No se puede leer la configuración del entorno",
+          body: "{file} no es un JSON válido.",
+          steps: ["Deshacé la última edición manual de ese archivo, o corré nexo doctor en el entorno para ver qué está mal.",
+                  "Hacé clic en “Reintentar”."] },
+        "no-builds": { title: "agent-os-nexo no está instalado en este entorno",
+          body: "El entorno no tiene ningún build de agent-os-nexo para ejecutar.",
+          steps: ["En el entorno, corré nexo os install.", "Hacé clic en “Reintentar”."] },
+        "broken-build": { title: "El build activo está incompleto",
+          body: "Al build {version} le faltan archivos.",
+          steps: ["En el entorno, corré nexo os use latest, o nexo os build para generar uno nuevo.", "Hacé clic en “Reintentar”."] },
+        "port-taken": { title: "El puerto {port} está ocupado",
+          body: "Otro programa está usando el puerto {port}, que la app necesita.",
+          steps: ["Cerrá ese programa (Administrador de tareas, o: netstat -ano | findstr :{port} muestra el id de su proceso).",
+                  "Hacé clic en “Reintentar”."] },
+        "log-unwritable": { title: "La app no puede escribir su log",
+          body: "No se pudo crear {path}. Puede que el disco esté lleno, o que la carpeta sea de solo lectura o esté bloqueada por otro programa.",
+          steps: ["Liberá espacio en disco, o revisá los permisos de la carpeta.", "Hacé clic en “Reintentar”."] },
+        "spawn-failed": { title: "No se pudo iniciar agent-os-nexo",
+          body: "El sistema no dejó arrancar el servidor.",
+          steps: ["Revisá que un antivirus o una política de control de aplicaciones no esté bloqueando Node.js.",
+                  "Hacé clic en “Reintentar”."] },
+        "server-exited": { title: "agent-os-nexo se cerró mientras arrancaba",
+          body: "El servidor se cerró antes de estar listo. Sus últimas líneas están en los detalles técnicos; el log completo está en {log}.",
+          steps: ["Mirá el log para ver la causa (suele ser una dependencia faltante o un build roto).",
+                  "En el entorno, nexo doctor revisa la instalación.", "Hacé clic en “Reintentar”."] },
+        "slow-start": { title: "Está tardando más de lo normal",
+          body: "agent-os-nexo todavía no respondió. El primer arranque puede ser lento; la ventana sigue esperando y lo abre apenas esté listo.",
+          steps: ["Si nunca abre, revisá el log en {log}."] },
+      },
+    };
+    const lang = (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en";
+    const T = MESSAGES[lang];
+    const $ = (id) => document.getElementById(id);
+    const invoke = (cmd) => window.__TAURI__.core.invoke(cmd);
+
+    // Fills `el` with `template`, each {name} replaced by params[name] as a <code> chip (text only, never HTML).
+    function fill(el, template, params) {
+      el.textContent = "";
+      template.split(/(\{\w+\})/).forEach((part) => {
+        const m = part.match(/^\{(\w+)\}$/);
+        if (m && params[m[1]] !== undefined) {
+          const c = document.createElement("code");
+          c.textContent = String(params[m[1]]);
+          el.appendChild(c);
+        } else {
+          el.appendChild(document.createTextNode(part));
+        }
+      });
+    }
+
+    let current = null;
+    window.nexoError = function (err) {
+      if (current && current.code === err.code) return; // Rust repeats the call until the page is ready
+      current = err;
+      const msg = T[err.code] || MESSAGES.en[err.code] || { title: T.ui.unknown, body: "", steps: [] };
+      const params = err.params || {};
+      $("starting").style.display = err.waiting ? "" : "none";
+      $("card").className = "card" + (err.waiting ? " warn" : "");
+      $("card").style.display = "block";
+      fill($("title"), msg.title, params);
+      fill($("body"), msg.body, params);
+      $("steps").textContent = "";
+      msg.steps.forEach((s) => { const li = document.createElement("li"); fill(li, s, params); $("steps").appendChild(li); });
+      $("steps").style.display = msg.steps.length ? "" : "none";
+      $("details").style.display = err.detail ? "" : "none";
+      $("detail").textContent = err.detail || "";
+      $("open-log").style.display = err.hasLog ? "" : "none";
+      $("note").textContent = "";
+    };
+
+    $("starting-text").textContent = T.ui.starting;
+    $("retry").textContent = T.ui.retry;
+    $("open-log").textContent = T.ui.openLog;
+    $("copy").textContent = T.ui.copy;
+    $("details-label").textContent = T.ui.details;
+
+    $("retry").onclick = () => {
+      $("retry").disabled = true;
+      $("retry").textContent = T.ui.retrying;
+      invoke("retry_start").catch((e) => {
+        $("retry").disabled = false;
+        $("retry").textContent = T.ui.retry;
+        $("note").textContent = T.ui.failed + e;
+      });
+    };
+    $("open-log").onclick = () => invoke("open_log").catch((e) => { $("note").textContent = T.ui.failed + e; });
+    // The Clipboard API needs a secure context, which a custom scheme may not be (WebKitGTK): fall back to a
+    // selected textarea and execCommand.
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+      return new Promise((resolve, reject) => {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand("copy");
+        area.remove();
+        ok ? resolve() : reject(new Error("copy"));
+      });
+    }
+    $("copy").onclick = () => {
+      if (!current) return;
+      const steps = Array.from($("steps").children).map((li, i) => `${i + 1}. ${li.textContent}`);
+      const text = [$("title").textContent, $("body").textContent, ...steps,
+                    current.detail ? "\n" + current.detail : "",
+                    "\n" + JSON.stringify({ code: current.code, params: current.params })].filter(Boolean).join("\n");
+      copyText(text).then(
+        () => { $("note").textContent = T.ui.copied; },
+        (e) => { $("note").textContent = T.ui.failed + e; });
+    };
+  </script>
 </body>
 </html>

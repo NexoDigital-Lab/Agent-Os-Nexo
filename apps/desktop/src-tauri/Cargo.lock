@@ -20,6 +20,8 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-notification",
  "webkit2gtk",
+ "windows-sys 0.59.0",
+ "winreg",
 ]
 
 [[package]]

@@ -18,6 +18,6 @@ export function tempDir(): string {
 /** A fresh environment created non-interactively. */
 export async function freshEnv(tools = "claude,gemini"): Promise<string> {
   const root = join(tempDir(), "env");
-  await init({ root, yes: true, tools, preset: "normal", name: "Tester", email: "tester@example.com", language: "en" });
+  await init({ root, yes: true, tools, preset: "normal", name: "Tester", email: "tester@example.com", language: "en", memory: "none" });
   return root;
 }

@@ -74,7 +74,7 @@ test("init builds the agreed layout", async () => {
 
 test("init --factory core installs only the core workflow; update --factory all adds the rest", async () => {
   const root = join(tempDir(), "env");
-  await init({ root, yes: true, tools: "claude", factory: "core", name: "T", email: "t@example.com", language: "en" });
+  await init({ root, yes: true, tools: "claude", factory: "core", name: "T", email: "t@example.com", language: "en", memory: "none" });
   for (const rel of ["skills/nexo-dev", "skills/nexo-features", "skills/nexo-idea", "skills/nexo-onboard", "conventions/git", "hooks/block-force-push.json", "hooks/scripts/block-force-push.mjs"]) {
     assert.ok(existsSync(join(root, "library", rel)), `missing ${rel}`);
   }
@@ -90,7 +90,7 @@ test("init --factory core installs only the core workflow; update --factory all 
 
 test("init --factory none installs no factory items", async () => {
   const root = join(tempDir(), "env");
-  await init({ root, yes: true, tools: "claude", factory: "none", name: "T", email: "t@example.com", language: "en" });
+  await init({ root, yes: true, tools: "claude", factory: "none", name: "T", email: "t@example.com", language: "en", memory: "none" });
   assert.deepEqual(readdirSync(join(root, "library/skills")), []);
   assert.ok(!existsSync(join(root, "library/hooks/scripts")));
   assert.throws(() => update({ root, factory: "some" }), /Unknown factory set/);
@@ -125,9 +125,9 @@ test("Claude sees the library: .claude/skills links to it and agents get Claude'
 
 test("init refuses an existing environment and unknown options", async () => {
   const root = await freshEnv();
-  await assert.rejects(init({ root, yes: true }), /already holds/);
-  await assert.rejects(init({ root: join(tempDir(), "x"), yes: true, tools: "copilot" }), /Unknown AI/);
-  await assert.rejects(init({ root: join(tempDir(), "y"), yes: true, preset: "yolo" }), /Unknown preset/);
+  await assert.rejects(init({ root, yes: true, memory: "none" }), /already holds/);
+  await assert.rejects(init({ root: join(tempDir(), "x"), yes: true, memory: "none", tools: "copilot" }), /Unknown AI/);
+  await assert.rejects(init({ root: join(tempDir(), "y"), yes: true, memory: "none", preset: "yolo" }), /Unknown preset/);
 });
 
 test("doctor: a fresh environment only asks for an OS analysis, and says what Gemini cannot enforce", async () => {
@@ -389,9 +389,9 @@ test("init --os yes installs agent-os-nexo; the default leaves it for later", as
   const later = await freshEnv("claude");
   assert.ok(!existsSync(join(later, "os", "runtime")));
   const root = join(tempDir(), "env");
-  const out = await init({ root, yes: true, tools: "claude", name: "T", email: "t@example.com", language: "en", os: "yes", from: fakeOsSource() }, fakeRunner([]));
+  const out = await init({ root, yes: true, tools: "claude", name: "T", email: "t@example.com", language: "en", os: "yes", from: fakeOsSource(), memory: "none" }, fakeRunner([]));
   assert.match(out, /agent-os-nexo installed .* built as 1\.0\.0/);
-  await assert.rejects(init({ root: join(tempDir(), "env"), yes: true, os: "maybe" }), /yes or no/);
+  await assert.rejects(init({ root: join(tempDir(), "env"), yes: true, os: "maybe", memory: "none" }), /yes or no/);
 });
 
 function isAlive(pid: number): boolean {

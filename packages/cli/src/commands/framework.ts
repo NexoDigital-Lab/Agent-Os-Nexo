@@ -2,7 +2,6 @@
 // Every process call (npm) goes through the injectable Runner, so tests never run a real npm.
 import { existsSync, rmSync } from "node:fs";
 import { join, relative } from "node:path";
-import { generateAdapters } from "../core/adapters.ts";
 import { folder, readConfig, writeConfig, type EnvironmentConfig } from "../core/config.ts";
 import { ensureDir, isDir } from "../core/fsx.ts";
 import {
@@ -13,8 +12,7 @@ import { describeJson, instructionsText, materializePlugin } from "../core/frame
 import { defaultRunner } from "../core/osruntime.ts";
 import { pluginDir } from "../core/frameworkplugin.ts";
 import { findRoot } from "../core/paths.ts";
-import { loadPermissions } from "../core/permissions.ts";
-import { listProjectDirs, refreshAdapters } from "../core/projects.ts";
+import { refreshAll } from "../core/projects.ts";
 
 export interface FrameworkOptions {
   root?: string;
@@ -32,11 +30,6 @@ const USAGE = `Usage: nexo framework add <npm:<pkg>@<exact version>|path:<dir>> 
        nexo framework plugin <name>
        nexo framework instructions <name>`;
 
-/** Regenerates every AI's files, so a change to a framework applies at once. */
-function refresh(root: string, config: EnvironmentConfig): void {
-  generateAdapters(root, config, root, loadPermissions(join(folder(root, config, "library"), "permissions.json")));
-  for (const dir of listProjectDirs(root, config)) refreshAdapters(root, config, dir);
-}
 
 function describe(fw: Framework, config: EnvironmentConfig): string {
   const where = !fw.enabled ? "off" : fw.kind === "tool" ? "on (tool)" : defaultFramework(config) === fw.name ? "available, the default method" : "available";
@@ -89,7 +82,7 @@ function install(root: string, config: EnvironmentConfig, source: string, opts: 
     };
     fw.kind = kindOf(contributes, declaredKind(contentRoot));
     saveManifest(fw);
-    refresh(root, config);
+    refreshAll(root, config);
     const hooks = Object.values(fw.contributes.hooks).reduce((n, l) => n + l.length, 0);
     return `Added framework ${describe(fw, config)}. It is off: \`nexo framework enable ${name}\` makes it available.${hooks ? `\nIts ${hooks} hooks run commands on every tool call and stay off: review them in ${join(dir, "framework.json")}, then \`nexo framework enable ${name} --hooks\`.` : ""}`;
   } catch (error) {
@@ -131,7 +124,7 @@ export function framework(sub: string | undefined, args: string[], opts: Framewo
       rmSync(fw.dir, { recursive: true, force: true });
       rmSync(pluginDir(root, config, fw.name), { recursive: true, force: true });
       if (defaultFramework(config) === fw.name) setDefault(root, config, NEXO_METHOD);
-      refresh(root, config);
+      refreshAll(root, config);
       return fw.managed === "external" ? `Forgot framework ${fw.name}; ${fw.contentRoot} was not touched.` : `Removed framework ${fw.name}.`;
     }
     case "enable":
@@ -145,7 +138,7 @@ export function framework(sub: string | undefined, args: string[], opts: Framewo
         if (!on && defaultFramework(config) === fw.name) setDefault(root, config, NEXO_METHOD); // a disabled method cannot stay the default
       }
       saveManifest(fw);
-      refresh(root, config);
+      refreshAll(root, config);
       return `${on ? "Enabled" : "Disabled"} ${opts.hooks ? "the hooks of " : ""}${fw.name}.`;
     }
     case "default": {
@@ -157,7 +150,7 @@ export function framework(sub: string | undefined, args: string[], opts: Framewo
         if (!fw.enabled) throw new Error(`Enable "${name}" first: \`nexo framework enable ${name}\`.`);
       }
       setDefault(root, config, name);
-      refresh(root, config);
+      refreshAll(root, config);
       return name === NEXO_METHOD ? "The default method is Nexo's own." : `The default method is ${name}.`;
     }
     case "plugin": {

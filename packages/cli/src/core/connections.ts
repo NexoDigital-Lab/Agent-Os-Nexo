@@ -22,12 +22,17 @@ export function listConnections(libraryDir: string): Connection[] {
     .map((f) => readJson<Connection>(join(dir, f)));
 }
 
+/** A connection's arguments for one AI: `{{ai}}` becomes the AI's id (the memory proxy needs to know who calls). */
+export function argsFor(c: Connection, tool: Tool): string[] {
+  return (c.args ?? []).map((a) => a.replaceAll("{{ai}}", tool));
+}
+
 /** MCP server entries for one tool, in the common `mcpServers` shape. */
 export function mcpServersFor(connections: Connection[], tool: Tool): Record<string, unknown> {
   const servers: Record<string, unknown> = {};
   for (const c of connections) {
     if (c.type !== "mcp" || !c.command || !c.tools.includes(tool)) continue;
-    servers[c.name] = { command: c.command, args: c.args ?? [], env: c.env ?? {} };
+    servers[c.name] = { command: c.command, args: argsFor(c, tool), env: c.env ?? {} };
   }
   return servers;
 }

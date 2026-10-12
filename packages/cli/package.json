@@ -10,7 +10,8 @@
   "files": [
     "dist",
     "nexo_bases",
-    "LICENSE"
+    "LICENSE",
+    "THIRD-PARTY.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

@@ -26,6 +26,8 @@ export interface EnvironmentConfig {
   factory?: FactorySet;
   /** The environment's default method (a framework name); missing means "nexo", Nexo's own method. */
   framework?: string;
+  /** Agent memory: "engram" (third party, installed by `nexo memory install`) or "none"; missing means none. */
+  memory?: "engram" | "none";
 }
 
 export const DEFAULT_FOLDERS: EnvironmentConfig["folders"] = {

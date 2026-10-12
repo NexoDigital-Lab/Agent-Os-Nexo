@@ -61,6 +61,7 @@ replaces items marked `owner: nexo`; anything you mark `owner: user` is yours.
 | `nexo index` | Rebuild `library/index.json` |
 | `nexo permissions [show]` · `allow\|ask\|deny\|remove\|set …` | Read or change one permission rule, validated; every AI's files follow |
 | `nexo dict [list\|show\|add\|rm]` | Your dictionary of concepts in `library/dictionary/`, listed in the index for agents |
+| `nexo memory [status]` · `install\|update\|remove` | Agent memory shared by every AI: [Engram](https://github.com/Gentleman-Programming/engram) (third party, MIT), pinned and hash-checked, reached only through Nexo's filtering proxy (`nexo memory mcp`); see `packages/cli/THIRD-PARTY.md` |
 | `nexo self-update [--from <checkout>] [--ref main\|<tag>]` | Install the CLI from one commit of a checkout into `os/runtime/cli/` and point `~/.local/bin/nexo` at it |
 | `nexo framework add\|list\|remove\|enable\|disable\|default\|plugin` | Third-party agent frameworks in `frameworks/` (pinned npm or a `path:`), chosen per tab like an AI or set as the environment default; off until enabled, hooks off until approved |
 | `nexo import <claude\|codex\|gemini\|opencode> [--apply]` | Bring another AI's MCP servers and permissions into the library; never weakens a rule |

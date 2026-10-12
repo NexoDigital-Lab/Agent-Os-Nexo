@@ -13,6 +13,7 @@ import { dict } from "./commands/dict.ts";
 import { permissions } from "./commands/permissions.ts";
 import { framework } from "./commands/framework.ts";
 import { importTool } from "./commands/import.ts";
+import { memory } from "./commands/memory.ts";
 import { selfUpdateCommand } from "./commands/selfupdate.ts";
 import { nexoVersion } from "./core/version.ts";
 
@@ -24,6 +25,7 @@ Usage: nexo <command> [options]
         --yes  --tools claude,gemini  --preset strict|normal|relaxed
         --name <n>  --email <e>  --language <code>  --factory all|core|none
         --os yes|no                 install agent-os-nexo now (later: nexo os install)
+        --memory engram|none        agent memory with Engram, third party (later: nexo memory install)
   update [--factory all|core|none]  Refresh factory items (owner: nexo) and AI files
   doctor [--quick] [--json]         Check the environment; reports, never changes
   analyze                           Record OS and toolchains (summary in the config)
@@ -56,6 +58,10 @@ Usage: nexo <command> [options]
                                     Approve / withdraw its hooks (off until you approve them)
   framework default <name|nexo>     The environment's default method (nexo = Nexo's own, no framework)
   framework plugin <name>           Build its Claude Code plugin folder and print the path (used by agent-os)
+  memory [status] [--json]          Agent memory: Engram (third party, MIT), pinned and hash-checked
+  memory install|update|remove      Install the pinned Engram and wire the "memory" connection into every AI;
+                                    remove keeps the memories (os/data/engram)
+  memory mcp --ai <name>            The proxy each AI's memory connection runs (project-pinned, filtered)
   self-update [--from <checkout>] [--ref main|<tag>] [--bin <launcher>]
                                     Install the CLI from one commit of a Nexo checkout into
                                     os/runtime/cli/ and point the launcher (~/.local/bin/nexo) at it
@@ -110,6 +116,8 @@ async function main(argv: string[]): Promise<number> {
       project: { type: "string" },
       apply: { type: "boolean" },
       hooks: { type: "boolean" },
+      ai: { type: "string" },
+      memory: { type: "string" },
       ref: { type: "string" },
       bin: { type: "string" },
       help: { type: "boolean", short: "h" },
@@ -152,6 +160,10 @@ async function main(argv: string[]): Promise<number> {
       return print(permissions(rest[0], rest.slice(1), values));
     case "framework":
       return print(framework(rest[0], rest.slice(1), values));
+    case "memory": {
+      const out = await memory(rest[0], values);
+      return typeof out === "number" ? out : print(out);
+    }
     case "self-update":
       return print(selfUpdateCommand(values));
     case "os":

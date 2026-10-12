@@ -28,7 +28,14 @@ npm run dev            # debug build, runs it
 |---|---|---|
 | `NEXO_ROOT` | `~/environments` | The environment whose `os/versions/` is run |
 | `NEXO_APP_PORT` | `47470` | The port; the capabilities in `src-tauri/capabilities/` are scoped to 47470, so change both |
-| `NEXO_NODE` | `node` on `PATH` | The Node.js binary (desktop launchers don't load the shell profile; `~/.local/bin`, `~/.npm-global/bin`, `~/.volta/bin` and Homebrew are added) |
+| `NEXO_NODE` | `node` on `PATH` | The Node.js binary, 22.18+ (23.6+ on the 23 line). Desktop launchers don't load the shell profile, so `~/.local/bin`, `~/.npm-global/bin`, `~/.volta/bin` and Homebrew are added; on Windows also the PATH as the registry holds it now (a Node.js installed after the launcher started is found) and the usual install folders |
+
+When startup fails, the splash says what happened and how to fix it (in English or Spanish, after the system
+language), with the technical detail, **Try again**, **Open log** and **Copy details**. The messages live in
+`splash/index.html`, keyed by the codes of `StartError` in `src-tauri/src/main.rs`; `cargo test` checks that every
+code has a message in each language. On Windows, **Try again** re-reads `NEXO_NODE`, `NEXO_ROOT` and
+`NEXO_APP_PORT` from the registry, so a variable set after the app started counts. Also on Windows, the server runs
+in a job object: if the app crashes or is ended from Task Manager, the server and what it started end with it.
 
 The server log goes to `.state/os/desktop.log` in the environment (the previous run's is kept as
 `desktop.log.1`). The window only loads the port if it answers `GET /api/os/info` with

@@ -14,6 +14,7 @@ import { permissions } from "./commands/permissions.ts";
 import { framework } from "./commands/framework.ts";
 import { importTool } from "./commands/import.ts";
 import { memory } from "./commands/memory.ts";
+import { selfUpdateCommand } from "./commands/selfupdate.ts";
 import { nexoVersion } from "./core/version.ts";
 
 const HELP = `nexo — install and maintain a Nexo agent environment
@@ -61,6 +62,9 @@ Usage: nexo <command> [options]
   memory install|update|remove      Install the pinned Engram and wire the "memory" connection into every AI;
                                     remove keeps the memories (os/data/engram)
   memory mcp --ai <name>            The proxy each AI's memory connection runs (project-pinned, filtered)
+  self-update [--from <checkout>] [--ref main|<tag>] [--bin <launcher>]
+                                    Install the CLI from one commit of a Nexo checkout into
+                                    os/runtime/cli/ and point the launcher (~/.local/bin/nexo) at it
   os [status|versions|next|use <x.y.z|latest>]
                                     agent-os-nexo builds
   os install [--from <dir>]         Copy agent-os-nexo into os/source, install its runtime, build 1.0.0
@@ -114,6 +118,8 @@ async function main(argv: string[]): Promise<number> {
       hooks: { type: "boolean" },
       ai: { type: "string" },
       memory: { type: "string" },
+      ref: { type: "string" },
+      bin: { type: "string" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -158,6 +164,8 @@ async function main(argv: string[]): Promise<number> {
       const out = await memory(rest[0], values);
       return typeof out === "number" ? out : print(out);
     }
+    case "self-update":
+      return print(selfUpdateCommand(values));
     case "os":
       return print(await os(rest[0], rest[1], values));
     default:

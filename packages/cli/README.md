@@ -19,8 +19,9 @@ nexo import opencode --apply            # bring another AI's MCP servers and per
 ```
 
 Commands: `init`, `update`, `doctor`, `analyze`, `index`, `permissions`, `dict`, `import`, `connect`, `clone`,
-`new`, `map`, `framework`, `os`. Run `nexo --help` for options. Not on npm yet: until it is, run it from a checkout with
-`node packages/cli/src/bin.ts` (see the repository README and `docs/release.md`).
+`new`, `map`, `framework`, `self-update`, `os`. Run `nexo --help` for options. Not on npm yet: until it is, run it from a checkout with
+`node packages/cli/src/bin.ts`, or install one commit of it with `nexo self-update` (see the repository README
+and `docs/release.md`).
 
 What it writes for each enabled AI (next to every `AGENTS.md`), from `library/`:
 

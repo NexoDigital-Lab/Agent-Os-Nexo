@@ -156,6 +156,7 @@ test("project and write policy: pinned to the Nexo project; OpenCode reads only 
   symlinkSync(root, linked, process.platform === "win32" ? "junction" : "dir");
   try {
     assert.equal(memoryProject(root, config, join(linked, "projects", "shop")), "shop", "a symlinked path to the same folder is the same project");
+    assert.equal(memoryProject(root, config, join(linked, "projects", "shop", "not", "there")), "shop", "a missing folder resolves through its parents");
   } finally {
     rmSync(linked, { force: true });
   }

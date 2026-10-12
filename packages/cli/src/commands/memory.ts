@@ -1,7 +1,7 @@
 // nexo memory: agent memory with Engram (third party, MIT), installed pinned and reached only through Nexo's proxy.
 // core/engram.ts installs it; core/memoryproxy.ts is the proxy the AIs' `memory` connection runs.
 import { existsSync, realpathSync } from "node:fs";
-import { join, relative, isAbsolute } from "node:path";
+import { basename, dirname, join, relative, isAbsolute } from "node:path";
 import { folder, readConfig, writeConfig, type EnvironmentConfig } from "../core/config.ts";
 import {
   binaryPath, defaultFetcher, engramPaths, folderBytes, installedVersions, installEngram, MEMORY_CONNECTION, pruneVersions, readPin,
@@ -30,12 +30,13 @@ export function memoryProject(root: string, config: EnvironmentConfig, cwd: stri
   return parts ? parts.join("-").toLowerCase() : "environment";
 }
 
-/** A path with its symlinks resolved (macOS /var → /private/var); the path itself when it does not exist. */
+/** A path with its symlinks resolved (macOS /var → /private/var); a missing tail is kept after its deepest existing folder. */
 function real(path: string): string {
   try {
     return realpathSync(path);
   } catch {
-    return path;
+    const parent = dirname(path);
+    return parent === path ? path : join(real(parent), basename(path));
   }
 }
 

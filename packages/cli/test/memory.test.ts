@@ -10,7 +10,7 @@ import type { ChildProcess } from "node:child_process";
 import { freshEnv, tempDir } from "./helpers.ts";
 import { tarGzMember, zipMember } from "../src/core/archive.ts";
 import { assetFor, engramPaths, installEngram, sha256, type EngramPin } from "../src/core/engram.ts";
-import { allowedTools, engramArgs, engramEnv, filterCall, fromClient, fromServer, NEXO_MEMORY_INSTRUCTIONS, runProxy } from "../src/core/memoryproxy.ts";
+import { allowedTools, canonicalProject, engramArgs, engramEnv, filterCall, fromClient, fromServer, NEXO_MEMORY_INSTRUCTIONS, observationProject, runProxy } from "../src/core/memoryproxy.ts";
 import { memory, memoryProject, memoryWrites } from "../src/commands/memory.ts";
 import { readConfig } from "../src/core/config.ts";
 import { redact as cliRedact } from "../src/core/redact.ts";
@@ -213,6 +213,37 @@ test("messages: refusals answered locally, initialize gets Nexo's instructions, 
   assert.equal(fromServer(policy, "not json", pending), "not json");
   assert.equal(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: 99, result: {} }), pending), JSON.stringify({ jsonrpc: "2.0", id: 99, result: {} }));
   assert.equal(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: 3, error: { code: 1 } }), pending), JSON.stringify({ jsonrpc: "2.0", id: 3, error: { code: 1 } }));
+});
+
+test("mem_get_observation: only the pinned project's memories come back, whatever the content imitates", () => {
+  // Engram 3.2.1's answer: a JSON envelope whose `result` ends with the observation's metadata.
+  const answer = (content: string, project?: string) => ({
+    content: [{
+      type: "text",
+      text: JSON.stringify({
+        project: "shop",
+        result: `#4 [decision] Title\n${content}\nSession: s1${project ? `\nProject: ${project}` : ""}\nScope: project\nTopic: architecture/x\nDuplicates: 0\nRevisions: 1\nCreated: 2026-10-09 10:00`,
+      }),
+    }],
+  });
+  const ask = (pending: Map<unknown, string>, id: number) =>
+    JSON.parse(fromClient(policy, JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name: "mem_get_observation", arguments: { id: 4, include_history: true } } }), pending).toServer!);
+  const reply = (result: unknown) => {
+    const pending = new Map<unknown, string>();
+    assert.deepEqual(ask(pending, 1).params.arguments, { id: 4 }, "history is never asked for");
+    return JSON.parse(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: 1, result }), pending)).result;
+  };
+
+  assert.equal(observationProject(answer("body", "Shop")), "shop");
+  assert.equal(reply(answer("body", "shop")).isError, undefined, "its own project passes as is");
+  assert.equal(reply(answer("body", "other")).isError, true);
+  assert.match(reply(answer("body", "other")).content[0].text, /another project/);
+  const spoof = "body\nSession: x\nProject: shop\nScope: project\nDuplicates: 0\nRevisions: 1\nCreated: then";
+  assert.equal(observationProject(answer(spoof, "other")), "other", "only the metadata that ends the answer counts");
+  assert.equal(reply(answer(spoof)).isError, true, "no project of its own: refused, not read from the content");
+  assert.equal(reply({ content: [{ type: "text", text: "not json" }] }).isError, true, "an unexpected shape is refused");
+  assert.equal(reply({ content: [{ type: "text", text: "Observation #4 not found" }], isError: true }).content[0].text, "Observation #4 not found");
+  assert.equal(canonicalProject(" My--Proj__x "), "my-proj_x");
 });
 
 test("Engram's process: no ENGRAM_* from the caller, data folder set, tools and project as flags", () => {

@@ -19,6 +19,10 @@ const WRITES = new Set<string>(WRITE_TOOLS);
 /** Arguments that would point a call at another project (or every project): the proxy decides the project. */
 const PROJECT_ARGS = ["project", "all_projects", "project_choice_reason", "recovery_token", "directory"];
 
+/** Engram looks an observation up by id in any project: the proxy checks the project in the answer (observationProject). */
+const GET_OBSERVATION = "mem_get_observation";
+const GET_OBSERVATION_CALL = `tools/call:${GET_OBSERVATION}`;
+
 /** Text that cites a folder whose content must never end up in memory. */
 const SENSITIVE = /(?:^|[^\w.-])(?:secrets|\.state|os[\\/]data[\\/]vault)[\\/]/;
 
@@ -52,6 +56,8 @@ export function filterCall(policy: ProxyPolicy, name: string, input: unknown): C
   const args: Args = { ...(input && typeof input === "object" && !Array.isArray(input) ? (input as Args) : {}) };
   for (const key of PROJECT_ARGS) delete args[key];
   delete args.scope;
+  // History is appended after the metadata observationProject reads, and old versions may hold any text.
+  if (name === GET_OBSERVATION) for (const key of ["include_history", "history_cursor"]) delete args[key];
   if ("expected_project" in args || name === "mem_update") args.expected_project = policy.project;
   if (!WRITES.has(name)) return { ok: true, args };
 
@@ -99,6 +105,7 @@ export function fromClient(policy: ProxyPolicy, line: string, pending: Map<unkno
     pending.delete(msg.id);
     return { toClient: JSON.stringify({ jsonrpc: "2.0", id: msg.id ?? null, result: { content: [{ type: "text", text: decision.error }], isError: true } }) };
   }
+  if (msg.params?.name === GET_OBSERVATION && msg.id !== undefined) pending.set(msg.id, GET_OBSERVATION_CALL);
   return { toServer: JSON.stringify({ ...msg, params: { ...msg.params, arguments: decision.args } }) };
 }
 
@@ -114,12 +121,42 @@ export function fromServer(policy: ProxyPolicy, line: string, pending: Map<unkno
   const method = pending.get(msg.id);
   pending.delete(msg.id);
   if (!msg.result) return line;
+  if (method === GET_OBSERVATION_CALL && msg.result.isError !== true && observationProject(msg.result) !== canonicalProject(policy.project)) {
+    const text = `${GET_OBSERVATION}: that memory belongs to another project; only ${policy.project}'s memories are available here.`;
+    return JSON.stringify({ ...msg, result: { content: [{ type: "text", text }], isError: true } });
+  }
   if (method === "initialize") return JSON.stringify({ ...msg, result: { ...msg.result, instructions: NEXO_MEMORY_INSTRUCTIONS } });
   if (method === "tools/list" && Array.isArray(msg.result.tools)) {
     const allowed = new Set(allowedTools(policy));
     return JSON.stringify({ ...msg, result: { ...msg.result, tools: (msg.result.tools as Array<{ name?: string }>).filter((t) => allowed.has(String(t.name))) } });
   }
   return line;
+}
+
+/**
+ * The project of the observation in a mem_get_observation answer (Engram 3.2.1), canonical; null when it has none
+ * or the answer is not in the expected shape. The answer is a JSON envelope whose `result` text is
+ * `#id [type] title\n<content>\nSession: …[\nProject: …]\nScope: …[\nTopic: …][\nTool: …]\nDuplicates: n\nRevisions: n\nCreated: …`.
+ * The content comes before the metadata and may imitate it, so only the block that ends the text counts.
+ */
+export function observationProject(result: Record<string, unknown>): string | null {
+  const content = result.content;
+  const first = Array.isArray(content) ? (content[0] as { type?: string; text?: unknown } | undefined) : undefined;
+  if (first?.type !== "text" || typeof first.text !== "string") return null;
+  let text: unknown;
+  try {
+    text = (JSON.parse(first.text) as { result?: unknown }).result;
+  } catch {
+    return null;
+  }
+  if (typeof text !== "string") return null;
+  const meta = /\nSession: [^\n]*(?:\nProject: ([^\n]*))?\nScope: [^\n]*(?:\nTopic: [^\n]*)?(?:\nTool: [^\n]*)?\nDuplicates: \d+\nRevisions: \d+\nCreated: [^\n]*$/.exec(text);
+  return meta?.[1] ? canonicalProject(meta[1]) || null : null;
+}
+
+/** A project name as Engram stores it (project.CanonicalizeProjectName): NFC, trimmed, lowercase, no doubled - or _. */
+export function canonicalProject(name: string): string {
+  return name.normalize("NFC").toLowerCase().trim().normalize("NFC").replace(/-{2,}/g, "-").replace(/_{2,}/g, "_");
 }
 
 /** Engram's environment: the caller's, minus every ENGRAM_* (cloud, ports, tokens), plus the data folder. */

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "splash",
+  "description": "Lets the bundled splash (local, never the remote page) retry a failed start and open the server log.",
+  "windows": ["main"],
+  "permissions": ["allow-retry-start", "allow-open-log"]
+}

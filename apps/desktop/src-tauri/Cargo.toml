@@ -18,6 +18,12 @@ tauri-plugin-notification = "2"
 libc = "0.2"
 signal-hook = "0.3"
 
+# The registry (the environment as it is now, not as the launcher saw it) and a job object that ends the server
+# with the app however the app ends. Both already come with Tauri on Windows.
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
+
 # The GTK webview behind Tauri, to re-size it after a zoom change (see set_page_zoom in main.rs).
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0.2"

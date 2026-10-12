@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { deflateRawSync, gzipSync } from "node:zlib";
@@ -152,6 +152,13 @@ test("project and write policy: pinned to the Nexo project; OpenCode reads only 
   assert.equal(memoryProject(root, config, join(projects, "shop", "code", "src")), "shop");
   assert.equal(memoryProject(root, config, join(projects, "acme-ws", "api", "code")), "acme-ws-api");
   assert.equal(memoryProject(root, config, root), "environment");
+  const linked = `${root}-link`;
+  symlinkSync(root, linked, process.platform === "win32" ? "junction" : "dir");
+  try {
+    assert.equal(memoryProject(root, config, join(linked, "projects", "shop")), "shop", "a symlinked path to the same folder is the same project");
+  } finally {
+    rmSync(linked, { force: true });
+  }
   assert.equal(memoryWrites(root, config, join(projects, "shop"), "claude"), true, "normal preset: connections * write ask");
   assert.equal(memoryWrites(root, config, join(projects, "shop"), "opencode"), false);
   writeJson(join(projects, "shop", "context", "permissions.json"), { connections: { memory: { write: "allow" } } });
@@ -185,6 +192,10 @@ test("filter: allowlist, read-only, pinned project, no prompts, secrets masked o
 test("messages: refusals answered locally, initialize gets Nexo's instructions, tools/list filtered", () => {
   const pending = new Map<unknown, string>();
   assert.match(fromClient(policy, "{bad", pending).toClient!, /Parse error/);
+  const batch = fromClient(policy, JSON.stringify([{ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "mem_save", arguments: { project: "other", content: "password=x" } } }]), pending);
+  assert.equal(batch.toServer, undefined, "a batch never reaches Engram unfiltered");
+  assert.match(batch.toClient!, /-32600/);
+  assert.equal(fromClient(policy, "null", pending).toServer, undefined);
   const refused = fromClient(policy, JSON.stringify({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "mem_delete", arguments: { id: 1 } } }), pending);
   assert.equal(refused.toServer, undefined);
   assert.equal(JSON.parse(refused.toClient!).result.isError, true);

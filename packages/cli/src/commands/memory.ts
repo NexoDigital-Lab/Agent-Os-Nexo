@@ -1,6 +1,6 @@
 // nexo memory: agent memory with Engram (third party, MIT), installed pinned and reached only through Nexo's proxy.
 // core/engram.ts installs it; core/memoryproxy.ts is the proxy the AIs' `memory` connection runs.
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { join, relative, isAbsolute } from "node:path";
 import { folder, readConfig, writeConfig, type EnvironmentConfig } from "../core/config.ts";
 import {
@@ -26,10 +26,25 @@ const THIRD_PARTY = "Engram (third party, MIT, github.com/Gentleman-Programming/
 
 /** The Engram project for a working folder: the Nexo project it is in (`shop`, `acme-ws-api`), else `environment`. */
 export function memoryProject(root: string, config: EnvironmentConfig, cwd: string): string {
-  const rel = relative(folder(root, config, "projects"), cwd).replace(/\\/g, "/");
-  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return "environment";
+  const parts = projectParts(root, config, cwd);
+  return parts ? parts.join("-").toLowerCase() : "environment";
+}
+
+/** A path with its symlinks resolved (macOS /var → /private/var); the path itself when it does not exist. */
+function real(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+/** The project folder `cwd` is in, relative to projects/ (`["shop"]`, `["acme-ws", "api"]`); null outside every project. */
+function projectParts(root: string, config: EnvironmentConfig, cwd: string): string[] | null {
+  const rel = relative(real(folder(root, config, "projects")), real(cwd)).replace(/\\/g, "/");
+  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return null;
   const parts = rel.split("/").filter(Boolean);
-  return (parts[0]!.endsWith("-ws") && parts[1] ? parts.slice(0, 2) : parts.slice(0, 1)).join("-").toLowerCase();
+  return parts[0]!.endsWith("-ws") && parts[1] ? parts.slice(0, 2) : parts.slice(0, 1);
 }
 
 /** Whether `ai` may write memories: connections.memory.write (else "*"); OpenCode cannot ask, so "ask" reads only. */
@@ -43,10 +58,9 @@ export function memoryWrites(root: string, config: EnvironmentConfig, cwd: strin
 }
 
 function memoryProjectDir(root: string, config: EnvironmentConfig, cwd: string): string | null {
-  const name = memoryProject(root, config, cwd);
-  if (name === "environment") return null;
-  const parts = relative(folder(root, config, "projects"), cwd).replace(/\\/g, "/").split("/").filter(Boolean);
-  const dir = join(folder(root, config, "projects"), ...(parts[0]!.endsWith("-ws") && parts[1] ? parts.slice(0, 2) : parts.slice(0, 1)));
+  const parts = projectParts(root, config, cwd);
+  if (!parts) return null;
+  const dir = join(folder(root, config, "projects"), ...parts);
   return existsSync(join(dir, "AGENTS.md")) ? dir : null;
 }
 

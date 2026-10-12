@@ -88,6 +88,10 @@ export function fromClient(policy: ProxyPolicy, line: string, pending: Map<unkno
   } catch {
     return { toClient: JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }) };
   }
+  // A batch would carry its tools/call past filterCall: every message must come on its own line.
+  if (!msg || typeof msg !== "object" || Array.isArray(msg)) {
+    return { toClient: JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid Request: batches are not accepted" } }) };
+  }
   if (msg.method && msg.id !== undefined) pending.set(msg.id, msg.method);
   if (msg.method !== "tools/call") return { toServer: line };
   const decision = filterCall(policy, String(msg.params?.name ?? ""), msg.params?.arguments);

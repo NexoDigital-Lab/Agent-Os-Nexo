@@ -9,6 +9,7 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -199,12 +200,22 @@ mod registry {
     }
 }
 
+/// A variable as it is now: on Windows the registry's value (with its `%VARS%` expanded from this process), else this
+/// process's. Variables set after the app started (`NVM_HOME`, `NVM_SYMLINK` by nvm-windows) only exist in the registry.
+fn current_var(name: &str) -> Option<String> {
+    #[cfg(windows)]
+    if let Some(value) = registry::var(name) {
+        return Some(expand_percent_vars(&value, |inner| env::var(inner).ok()));
+    }
+    env::var(name).ok().filter(|v| !v.is_empty())
+}
+
 #[cfg(windows)]
 fn registry_path_dirs() -> Vec<String> {
     registry::path_values()
         .iter()
         .flat_map(|value| {
-            expand_percent_vars(value, |name| env::var(name).ok())
+            expand_percent_vars(value, current_var)
                 .split(PATH_SEP)
                 .map(String::from)
                 .collect::<Vec<_>>()
@@ -218,20 +229,20 @@ fn registry_path_dirs() -> Vec<String> {
 }
 
 /// Before "Try again" relaunches the app (which inherits this process's environment), take the settings the
-/// splash asked the user to change from the registry: set, changed or removed since the app started.
+/// splash asked the user to change from the registry when they are set there. A variable missing from the registry
+/// is left as it is: it may come from whatever started the app (a shell, a shortcut), which the registry never sees.
 fn refresh_setting_vars() {
     #[cfg(windows)]
     for name in SETTING_VARS {
-        match registry::var(name) {
-            Some(value) => env::set_var(name, value),
-            None => env::remove_var(name),
+        if let Some(value) = registry::var(name) {
+            env::set_var(name, expand_percent_vars(&value, |inner| env::var(inner).ok()));
         }
     }
 }
 
 /// Where the usual Node.js installers put `node` when it is not on PATH (yet).
 fn node_install_dirs() -> Vec<String> {
-    let var = |name: &str| env::var(name).ok().filter(|v| !v.is_empty());
+    let var = current_var;
     let mut dirs = Vec::new();
     if cfg!(windows) {
         if let Some(p) = var("ProgramFiles") {
@@ -439,7 +450,7 @@ mod job {
     use std::sync::OnceLock;
     use windows_sys::Win32::System::JobObjects::{
         AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK,
     };
 
     /// The job's handle, opened once and never closed: the OS closes it when this process exits.
@@ -452,7 +463,9 @@ mod job {
                 return 0;
             }
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
-            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            // Only the server is tied to the app: what it starts (VS Code, Explorer, agents) breaks away silently, so
+            // closing the app never closes the user's editor. A crash still frees the port the server holds.
+            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
             let ok = SetInformationJobObject(
                 job,
                 JobObjectExtendedLimitInformation,
@@ -541,10 +554,16 @@ fn stop_restarted(original: Option<u32>) {
 /// yet (setup runs first, and a cold WebView2 can take seconds), so the idempotent, null-safe call is retried for
 /// ten seconds from a thread.
 fn show_error(app: &tauri::AppHandle, err: &StartError) {
+    // Each error retires the threads of the ones before it, so a later error is never overwritten by an earlier
+    // one still being retried (the slow-start warning followed by the server exiting).
+    let generation = ERROR_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     let js = format!("window.nexoError && window.nexoError({})", err.to_json());
     let app = app.clone();
     thread::spawn(move || {
         for _ in 0..40 {
+            if ERROR_GENERATION.load(Ordering::SeqCst) != generation {
+                return;
+            }
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.eval(&js);
             }
@@ -554,6 +573,9 @@ fn show_error(app: &tauri::AppHandle, err: &StartError) {
 }
 
 static LOG_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// The latest error handed to the splash (show_error).
+static ERROR_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 /// "Try again" on the splash: stop whatever this run started, then relaunch the app so startup runs from scratch
 /// (and picks up a Node.js installed, or an environment variable set, since). Async, so stopping the server (up to

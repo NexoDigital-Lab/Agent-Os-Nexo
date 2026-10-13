@@ -9,6 +9,8 @@ import { folder, TOOLS, type EnvironmentConfig } from "./config.ts";
 import type { Connection } from "./connections.ts";
 import { ensureDir, listDir, readJson, writeJson } from "./fsx.ts";
 import { basesDir } from "./paths.ts";
+import { findOnPath } from "./exec.ts";
+import { readCliState } from "./selfupdate.ts";
 
 export interface EngramAsset {
   file: string;
@@ -136,8 +138,8 @@ export function pruneVersions(paths: EngramPaths, keep: string | null): { gone: 
  * (npm shim or self-update launcher) that MCP clients can only start through `cmd /c`, and cmd would re-read a path
  * with `&` or `^` in it. The command line stays fixed words only.
  */
-export function memoryConnection(root: string, platform: string = process.platform): Connection {
-  const run = ["nexo", "memory", "mcp", "--ai", "{{ai}}"];
+export function memoryConnection(root: string, platform: string = process.platform, nexo: string = nexoCommand(root, platform)): Connection {
+  const run = [nexo, "memory", "mcp", "--ai", "{{ai}}"];
   return {
     name: MEMORY_CONNECTION,
     description: "Agent memory (Engram, third party, MIT) through Nexo's proxy: project-pinned, filtered, no prompts.",
@@ -148,6 +150,24 @@ export function memoryConnection(root: string, platform: string = process.platfo
     tools: [...TOOLS],
     owner: "nexo",
   };
+}
+
+/**
+ * How an AI starts `nexo`. Outside Windows, the launcher's absolute path when it is known (the one self-update wrote,
+ * else the first `nexo` on this PATH): an AI's PATH is often not the user's (desktop launchers skip the shell
+ * profile, and a `node` shim may drop ~/.local/bin), so a bare `nexo` would not be found. On Windows the bare name,
+ * since the path would go through cmd's command line.
+ */
+export function nexoCommand(root: string, platform: string = process.platform, env: NodeJS.ProcessEnv = process.env): string {
+  if (platform === "win32") return "nexo";
+  let launcher: string | undefined;
+  try {
+    launcher = readCliState(root)?.launcher;
+  } catch {
+    launcher = undefined; // not an environment with a config yet
+  }
+  if (launcher && existsSync(launcher)) return launcher;
+  return findOnPath("nexo", env, platform as NodeJS.Platform) ?? "nexo";
 }
 
 export const memoryConnectionFile = (libraryDir: string): string => join(libraryDir, "connections", `${MEMORY_CONNECTION}.json`);

@@ -563,7 +563,9 @@ test("sameFolder: symlinks resolved; letter case ignored only where disks ignore
   }
 });
 
-test("the memory connection names nexo by absolute path where an AI's PATH may lack it (not on Windows)", async () => {
+// Simulates other platforms' PATH (':'-separated, POSIX paths), which a Windows temp folder (C:\\…) cannot stand in for;
+// Windows' own connection (`cmd /d /c nexo`) is checked in the install test.
+test("the memory connection names nexo by absolute path where an AI's PATH may lack it (not on Windows)", { skip: process.platform === "win32" }, async () => {
   const root = await freshEnv();
   const bin = join(root, "some-bin");
   writeFileSync(join(ensureDirSync(bin), "nexo"), "");

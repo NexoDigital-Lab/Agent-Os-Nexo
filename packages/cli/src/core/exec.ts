@@ -62,10 +62,18 @@ export function gitConfig(key: string): string {
   return tryRun("git", ["config", "--get", key]) ?? "";
 }
 
-/** True when `bin` is an executable on PATH (with Windows' .cmd/.exe/.bat forms). */
-export function onPath(bin: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform, exists: (p: string) => boolean = existsSync): boolean {
+/** Where `bin` is on PATH (with Windows' .cmd/.exe/.bat forms), or null. */
+export function findOnPath(bin: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform, exists: (p: string) => boolean = existsSync): string | null {
   const sep = platform === "win32" ? ";" : ":";
   const join = platform === "win32" ? win32.join : (a: string, b: string) => `${a.replace(/\/+$/, "")}/${b}`;
   const names = platform === "win32" ? [`${bin}.cmd`, `${bin}.exe`, `${bin}.bat`, bin] : [bin];
-  return String(env.PATH ?? env.Path ?? "").split(sep).filter(Boolean).some((dir) => names.some((n) => exists(join(dir, n))));
+  for (const dir of String(env.PATH ?? env.Path ?? "").split(sep).filter(Boolean)) {
+    for (const n of names) if (exists(join(dir, n))) return join(dir, n);
+  }
+  return null;
+}
+
+/** True when `bin` is an executable on PATH (with Windows' .cmd/.exe/.bat forms). */
+export function onPath(bin: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform, exists: (p: string) => boolean = existsSync): boolean {
+  return findOnPath(bin, env, platform, exists) !== null;
 }

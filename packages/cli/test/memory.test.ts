@@ -9,7 +9,7 @@ import { deflateRawSync, gzipSync } from "node:zlib";
 import type { ChildProcess } from "node:child_process";
 import { freshEnv, tempDir } from "./helpers.ts";
 import { tarGzMember, zipMember } from "../src/core/archive.ts";
-import { assetFor, engramPaths, installEngram, memoryConnection, sha256, type EngramPin } from "../src/core/engram.ts";
+import { assetFor, engramPaths, installEngram, memoryConnection, nexoCommand, sha256, type EngramPin } from "../src/core/engram.ts";
 import { allowedTools, answerLocally, canonicalProject, engramArgs, engramEnv, filterCall, fromClient, fromServer, NEXO_MEMORY_INSTRUCTIONS, observationProject, ProxySession, runProxy } from "../src/core/memoryproxy.ts";
 import { memory, memoryProject, memoryReads, memoryWrites } from "../src/commands/memory.ts";
 import { loadPermissions } from "../src/core/permissions.ts";
@@ -257,8 +257,9 @@ test("messages: refusals answered locally, initialize gets Nexo's instructions, 
   assert.equal(initReply.result.instructions, NEXO_MEMORY_INSTRUCTIONS);
   assert.deepEqual(initReply.result.capabilities, { tools: {} });
   const list = send({ jsonrpc: "2.0", id: "b", method: "tools/list" });
-  const tools = JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(list), result: { tools: [{ name: "mem_search" }, { name: "mem_delete" }] } })!);
-  assert.deepEqual(tools, { jsonrpc: "2.0", id: "b", result: { tools: [{ name: "mem_search" }] } });
+  const search = { name: "mem_search", inputSchema: { type: "object", properties: { query: {}, project: {}, all_projects: {}, scope: {} }, required: ["query", "project"] } };
+  const tools = JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(list), result: { tools: [search, { name: "mem_delete" }] } })!);
+  assert.deepEqual(tools, { jsonrpc: "2.0", id: "b", result: { tools: [{ name: "mem_search", inputSchema: { type: "object", properties: { query: {} }, required: ["query"] } }] } }, "only the arguments that reach Engram are offered");
   const call = send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "mem_search", arguments: { query: "q", project: "x" } } });
   assert.deepEqual(sent(call).params.arguments, { query: "q" });
   assert.deepEqual(JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(call), error: { code: 1 } })!), { jsonrpc: "2.0", id: 3, error: { code: 1 } });
@@ -497,6 +498,7 @@ test("doctor lists Engram as third party and warns when its binary or connection
   const path = process.env.PATH;
   process.env.PATH = `${bin}${process.platform === "win32" ? ";" : ":"}${path}`;
   try {
+    refreshAll(root, readConfig(root)); // the connection now names that nexo
     assert.deepEqual(memoryFindings().map((f) => f.level), ["ok"]);
     assert.match(memoryFindings()[0]!.message, /third party, MIT/);
     const connection = join(root, "library", "connections", "memory.json");
@@ -514,7 +516,7 @@ test("doctor lists Engram as third party and warns when its binary or connection
   }
   process.env.PATH = "";
   try {
-    assert.match(memoryFindings().map((f) => f.message).join("\n"), /`nexo` is not on PATH/);
+    assert.match(memoryFindings().map((f) => f.message).join("\n"), /the AIs cannot find `nexo`/);
   } finally {
     process.env.PATH = path;
   }
@@ -560,4 +562,23 @@ test("sameFolder: symlinks resolved; letter case ignored only where disks ignore
   } finally {
     rmSync(link, { force: true });
   }
+});
+
+// Simulates other platforms' PATH (':'-separated, POSIX paths), which a Windows temp folder (C:\\…) cannot stand in for;
+// Windows' own connection (`cmd /d /c nexo`) is checked in the install test.
+test("the memory connection names nexo by absolute path where an AI's PATH may lack it (not on Windows)", { skip: process.platform === "win32" }, async () => {
+  const root = await freshEnv();
+  const bin = join(root, "some-bin");
+  writeFileSync(join(ensureDirSync(bin), "nexo"), "");
+  assert.equal(nexoCommand(root, "linux", { PATH: `/nowhere:${bin}` }), join(bin, "nexo"), "the nexo on PATH, by its path");
+  assert.equal(nexoCommand(root, "linux", { PATH: "/nowhere" }), "nexo", "none found: the bare name");
+  assert.equal(nexoCommand(root, "win32", { PATH: bin }), "nexo", "Windows: the bare name, through cmd /c");
+  // A self-update launcher wins over PATH: it is the one the user's nexo runs.
+  const launcher = join(root, "launcher-bin", "nexo");
+  writeFileSync(join(ensureDirSync(join(root, "launcher-bin")), "nexo"), "");
+  writeJson(join(root, ".state", "nexo", "cli.json"), { source: "/src", ref: "main", commit: "abc", version: "0.1.0", dir: "/d", launcher, installedAt: "now" });
+  assert.equal(nexoCommand(root, "linux", { PATH: bin }), launcher);
+  assert.equal(memoryConnection(root, "linux").command, launcher);
+  rmSync(launcher);
+  assert.equal(nexoCommand(root, "linux", { PATH: bin }), join(bin, "nexo"), "a launcher that is gone is skipped");
 });

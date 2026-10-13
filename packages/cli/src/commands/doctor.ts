@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { findRoot, sameFolder } from "../core/paths.ts";
 import { enabledTools, folder, readConfig, type EnvironmentConfig } from "../core/config.ts";
 import { parseFrontmatter } from "../core/frontmatter.ts";
@@ -11,7 +11,7 @@ import { frameworkContributions } from "../core/adapters.ts";
 import { defaultFramework, loadFrameworks, NEXO_METHOD } from "../core/frameworks.ts";
 import { buildTarget, currentTarget } from "../core/osruntime.ts";
 import { activeVersion } from "../core/osversions.ts";
-import { binaryPath, engramDenyRule, engramPaths, memoryConnection, memoryConnectionFile, readPin } from "../core/engram.ts";
+import { binaryPath, engramDenyRule, engramPaths, memoryConnection, memoryConnectionFile, nexoCommand, readPin } from "../core/engram.ts";
 import { onPath } from "../core/exec.ts";
 
 export type Level = "ok" | "warn" | "error";
@@ -76,7 +76,10 @@ function checkMemory(findings: Finding[], root: string, config: EnvironmentConfi
       findings.push({ level: "warn", area, message: "the memory connection is out of date (not pinned to this environment, or for another OS) — run `nexo memory update`" });
     }
   }
-  if (!onPath("nexo")) findings.push({ level: "warn", area, message: "`nexo` is not on PATH, so the AIs cannot start the memory connection — install the CLI (npm or `nexo self-update`) or add it to PATH" });
+  const command = nexoCommand(root);
+  if (isAbsolute(command) ? !existsSync(command) : !onPath(command)) {
+    findings.push({ level: "warn", area, message: "the AIs cannot find `nexo` to start the memory connection — install the CLI (npm or `nexo self-update`), then `nexo memory update`" });
+  }
   const rule = engramDenyRule(root, paths);
   if (!(loadPermissions(join(folder(root, config, "library"), "permissions.json")).files?.read?.deny ?? []).includes(rule)) {
     findings.push({ level: "warn", area, message: `agents may read Engram's database directly (${rule} is not denied) — run \`nexo memory update\`` });

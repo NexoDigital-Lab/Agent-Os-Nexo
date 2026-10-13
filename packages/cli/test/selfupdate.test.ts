@@ -103,3 +103,21 @@ test("the command takes --from/--ref/--bin, reports a new commit and refuses a f
   assert.equal(defaultLauncher("win32", "/h").endsWith("nexo.cmd"), true);
   assert.equal(defaultLauncher("linux", "/h"), join("/h", ".local", "bin", "nexo"));
 });
+
+test("renamed os/ and state folders are honored; a newer Engram pin is pointed out", async () => {
+  const root = await freshEnv();
+  const configFile = join(root, "environment.config.json");
+  const config = JSON.parse(readFileSync(configFile, "utf8"));
+  writeText(configFile, JSON.stringify({ ...config, memory: "engram", folders: { ...config.folders, os: "system", state: ".cache" } }));
+  const src = checkout("2.0.0");
+  writeText(join(src, "packages/cli/nexo_bases/engram.json"), JSON.stringify({ name: "engram", version: "9.0.0", repo: "x/y", license: "MIT", assets: {} }));
+  git(src, "add", "-A");
+  git(src, "commit", "-qm", "pin");
+  const bin = join(tempDir(), "nexo");
+  const out = selfUpdateCommand({ root, from: src, bin }, undefined, probeOk("2.0.0"));
+  assert.match(readCliState(root)!.dir, /system[\\/]runtime[\\/]cli[\\/]2\.0\.0-/);
+  assert.ok(existsSync(join(root, ".cache", "nexo", "cli.json")));
+  assert.equal(existsSync(join(root, "os", "runtime", "cli")), false, "no stray os/ next to the renamed one");
+  assert.equal(existsSync(join(root, ".state", "nexo", "cli.json")), false);
+  assert.match(out, /pins Engram 9\.0\.0: run `nexo memory update`/);
+});

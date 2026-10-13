@@ -9,6 +9,7 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -199,12 +200,22 @@ mod registry {
     }
 }
 
+/// A variable as it is now: on Windows the registry's value (with its `%VARS%` expanded from this process), else this
+/// process's. Variables set after the app started (`NVM_HOME`, `NVM_SYMLINK` by nvm-windows) only exist in the registry.
+fn current_var(name: &str) -> Option<String> {
+    #[cfg(windows)]
+    if let Some(value) = registry::var(name) {
+        return Some(expand_percent_vars(&value, |inner| env::var(inner).ok()));
+    }
+    env::var(name).ok().filter(|v| !v.is_empty())
+}
+
 #[cfg(windows)]
 fn registry_path_dirs() -> Vec<String> {
     registry::path_values()
         .iter()
         .flat_map(|value| {
-            expand_percent_vars(value, |name| env::var(name).ok())
+            expand_percent_vars(value, current_var)
                 .split(PATH_SEP)
                 .map(String::from)
                 .collect::<Vec<_>>()
@@ -217,21 +228,55 @@ fn registry_path_dirs() -> Vec<String> {
     Vec::new()
 }
 
-/// Before "Try again" relaunches the app (which inherits this process's environment), take the settings the
-/// splash asked the user to change from the registry: set, changed or removed since the app started.
+/// The settings that came from the registry when the app started (the others came from whatever launched it).
+#[cfg_attr(not(windows), allow(dead_code))]
+static FROM_REGISTRY: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+
+/// Remembers which settings came from the registry, so "Try again" can tell a removed setting from a shell's own.
+fn note_setting_sources() {
+    #[cfg(windows)]
+    {
+        let from: Vec<&'static str> = SETTING_VARS
+            .into_iter()
+            .filter(|name| {
+                let now = env::var(name).ok();
+                now.is_some() && registry::var(name).map(|v| expand_percent_vars(&v, |inner| env::var(inner).ok())) == now
+            })
+            .collect();
+        let _ = FROM_REGISTRY.set(from);
+    }
+}
+
+/// What "Try again" does with one setting: `Some(Some(v))` sets it, `Some(None)` removes it, `None` leaves it. A value
+/// in the registry wins; one the user removed from the registry goes; one the registry never had (set by the shell or
+/// shortcut that started the app) stays.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn setting_change(in_registry: Option<String>, came_from_registry: bool) -> Option<Option<String>> {
+    match in_registry {
+        Some(value) => Some(Some(value)),
+        None if came_from_registry => Some(None),
+        None => None,
+    }
+}
+
+/// Before "Try again" relaunches the app (which inherits this process's environment), apply the settings the splash
+/// asked the user to change (setting_change).
 fn refresh_setting_vars() {
     #[cfg(windows)]
     for name in SETTING_VARS {
-        match registry::var(name) {
-            Some(value) => env::set_var(name, value),
-            None => env::remove_var(name),
+        let came = FROM_REGISTRY.get().is_some_and(|names| names.contains(&name));
+        let now = registry::var(name).map(|v| expand_percent_vars(&v, |inner| env::var(inner).ok()));
+        match setting_change(now, came) {
+            Some(Some(value)) => env::set_var(name, value),
+            Some(None) => env::remove_var(name),
+            None => {}
         }
     }
 }
 
 /// Where the usual Node.js installers put `node` when it is not on PATH (yet).
 fn node_install_dirs() -> Vec<String> {
-    let var = |name: &str| env::var(name).ok().filter(|v| !v.is_empty());
+    let var = current_var;
     let mut dirs = Vec::new();
     if cfg!(windows) {
         if let Some(p) = var("ProgramFiles") {
@@ -425,13 +470,18 @@ fn spawn_server(root: &Path, build: &Path, log_path: &Path, port: u16) -> Result
     }
     let child = cmd.spawn().map_err(|e| StartError::SpawnFailed { detail: format!("{}: {e}", node.display()) })?;
     #[cfg(windows)]
-    job::adopt(&child);
+    {
+        job::adopt(&child);
+        job::watch_restarts(pid_file);
+    }
     Ok(child)
 }
 
 /// Windows has no process groups or parent-death signal: if this app crashes or is ended from Task Manager, the
-/// server and everything it started (agents, a restarted server) would keep running. A job object that kills its
-/// processes when its last handle closes (when this process ends, however it ends) ties them to the app.
+/// server would keep running and hold the port. A job object that kills its processes when its last handle closes
+/// (when this process ends, however it ends) ties the server to the app: the one it spawns, and a server restarted
+/// from its own page (adopted by pid). What the server starts breaks away (the user's editor, Explorer, agents), so
+/// closing the app never closes those.
 #[cfg(windows)]
 mod job {
     use std::os::windows::io::AsRawHandle;
@@ -439,7 +489,7 @@ mod job {
     use std::sync::OnceLock;
     use windows_sys::Win32::System::JobObjects::{
         AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK,
     };
 
     /// The job's handle, opened once and never closed: the OS closes it when this process exits.
@@ -452,7 +502,9 @@ mod job {
                 return 0;
             }
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
-            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            // Only the server is tied to the app: what it starts (VS Code, Explorer, agents) breaks away silently, so
+            // closing the app never closes the user's editor. A crash still frees the port the server holds.
+            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
             let ok = SetInformationJobObject(
                 job,
                 JobObjectExtendedLimitInformation,
@@ -472,6 +524,39 @@ mod job {
         if job != 0 {
             unsafe { AssignProcessToJobObject(job as _, child.as_raw_handle() as _) };
         }
+    }
+
+    /// Ties a process known by pid to the job: the server restarted from its own page ("Restart now") is started
+    /// detached by the old one, so it broke away like everything else the server starts.
+    pub fn adopt_pid(pid: u32) {
+        use windows_sys::Win32::Foundation::CloseHandle;
+        use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_SET_QUOTA, PROCESS_TERMINATE};
+        let job = *JOB.get_or_init(create);
+        if job == 0 {
+            return;
+        }
+        unsafe {
+            let process = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, 0, pid);
+            if !process.is_null() {
+                AssignProcessToJobObject(job as _, process);
+                CloseHandle(process);
+            }
+        }
+    }
+
+    /// Watches the restart pid file (next to the desktop log) and adopts each new restarted server.
+    pub fn watch_restarts(pid_file: std::path::PathBuf) {
+        std::thread::spawn(move || {
+            let mut adopted = None;
+            loop {
+                let pid = std::fs::read_to_string(&pid_file).ok().and_then(|t| t.trim().parse::<u32>().ok());
+                if let Some(pid) = pid.filter(|p| Some(*p) != adopted && *p > 1) {
+                    adopt_pid(pid);
+                    adopted = Some(pid);
+                }
+                std::thread::sleep(std::time::Duration::from_secs(2));
+            }
+        });
     }
 }
 
@@ -541,10 +626,16 @@ fn stop_restarted(original: Option<u32>) {
 /// yet (setup runs first, and a cold WebView2 can take seconds), so the idempotent, null-safe call is retried for
 /// ten seconds from a thread.
 fn show_error(app: &tauri::AppHandle, err: &StartError) {
+    // Each error retires the threads of the ones before it, so a later error is never overwritten by an earlier
+    // one still being retried (the slow-start warning followed by the server exiting).
+    let generation = begin_error();
     let js = format!("window.nexoError && window.nexoError({})", err.to_json());
     let app = app.clone();
     thread::spawn(move || {
         for _ in 0..40 {
+            if !is_latest_error(generation) {
+                return;
+            }
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.eval(&js);
             }
@@ -554,6 +645,18 @@ fn show_error(app: &tauri::AppHandle, err: &StartError) {
 }
 
 static LOG_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// The latest error handed to the splash (show_error).
+static ERROR_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// A new error for the splash: from now on it is the one shown.
+fn begin_error() -> u64 {
+    ERROR_GENERATION.fetch_add(1, Ordering::SeqCst) + 1
+}
+
+fn is_latest_error(generation: u64) -> bool {
+    ERROR_GENERATION.load(Ordering::SeqCst) == generation
+}
 
 /// "Try again" on the splash: stop whatever this run started, then relaunch the app so startup runs from scratch
 /// (and picks up a Node.js installed, or an environment variable set, since). Async, so stopping the server (up to
@@ -635,6 +738,7 @@ fn exit_on_signals(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Err
 }
 
 fn main() {
+    note_setting_sources(); // before anything changes the environment
     // WebKitGTK's DMA-BUF renderer leaves the window blank or invisible on many Linux setups (Wayland, some GPU
     // drivers). Off unless the user set the variable themselves; set before any thread starts.
     #[cfg(target_os = "linux")]
@@ -775,6 +879,33 @@ mod tests {
         assert!(registry::var("TEMP").is_some_and(|v| !v.is_empty()));
         assert!(registry::var("NEXO_SURELY_NOT_SET_9c1f").is_none());
         assert!(!registry::path_values().is_empty());
+    }
+
+    #[test]
+    fn try_again_sets_from_the_registry_removes_what_was_removed_keeps_the_shells_own() {
+        assert_eq!(setting_change(Some("C:\\node.exe".into()), false), Some(Some("C:\\node.exe".into())));
+        assert_eq!(setting_change(Some("new".into()), true), Some(Some("new".into())));
+        assert_eq!(setting_change(None, true), Some(None), "removed from the registry since the app started");
+        assert_eq!(setting_change(None, false), None, "set by the shell that started the app: kept");
+    }
+
+    #[test]
+    fn a_newer_error_retires_the_older_ones() {
+        let first = begin_error();
+        assert!(is_latest_error(first));
+        let second = begin_error();
+        assert!(!is_latest_error(first), "the earlier error's retries stop");
+        assert!(is_latest_error(second));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn current_var_reads_this_process_outside_windows() {
+        env::set_var("NEXO_TEST_CURRENT_VAR", "x");
+        assert_eq!(current_var("NEXO_TEST_CURRENT_VAR").as_deref(), Some("x"));
+        env::set_var("NEXO_TEST_CURRENT_VAR", "");
+        assert_eq!(current_var("NEXO_TEST_CURRENT_VAR"), None, "empty is unset");
+        env::remove_var("NEXO_TEST_CURRENT_VAR");
     }
 
     #[test]

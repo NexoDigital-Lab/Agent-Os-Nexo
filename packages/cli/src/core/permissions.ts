@@ -40,9 +40,16 @@ export function mergePermissions(global: Permissions, project: Permissions): Per
       edit: mergeRules(global.files?.edit, project.files?.edit),
     },
     commands: mergeRules(global.commands, project.commands),
-    connections: { ...global.connections, ...project.connections },
+    connections: mergeConnections(global.connections, project.connections),
     os: { ...global.os, ...project.os },
   };
+}
+
+/** Per connection and action: a project's `memory: { read }` adds to the environment's `memory: { write }`, never drops it. */
+function mergeConnections(global: Permissions["connections"] = {}, project: Permissions["connections"] = {}): NonNullable<Permissions["connections"]> {
+  const out: NonNullable<Permissions["connections"]> = { ...global };
+  for (const [name, actions] of Object.entries(project)) out[name] = { ...global[name], ...actions };
+  return out;
 }
 
 /** Returns problems with a permissions object (empty when valid). */

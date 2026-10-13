@@ -2,20 +2,27 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { deflateRawSync, gzipSync } from "node:zlib";
 import type { ChildProcess } from "node:child_process";
 import { freshEnv, tempDir } from "./helpers.ts";
 import { tarGzMember, zipMember } from "../src/core/archive.ts";
-import { assetFor, engramPaths, installEngram, sha256, type EngramPin } from "../src/core/engram.ts";
-import { allowedTools, canonicalProject, engramArgs, engramEnv, filterCall, fromClient, fromServer, NEXO_MEMORY_INSTRUCTIONS, observationProject, runProxy } from "../src/core/memoryproxy.ts";
-import { memory, memoryProject, memoryWrites } from "../src/commands/memory.ts";
+import { assetFor, engramPaths, installEngram, memoryConnection, sha256, type EngramPin } from "../src/core/engram.ts";
+import { allowedTools, answerLocally, canonicalProject, engramArgs, engramEnv, filterCall, fromClient, fromServer, NEXO_MEMORY_INSTRUCTIONS, observationProject, ProxySession, runProxy } from "../src/core/memoryproxy.ts";
+import { memory, memoryProject, memoryReads, memoryWrites } from "../src/commands/memory.ts";
+import { loadPermissions } from "../src/core/permissions.ts";
 import { readConfig } from "../src/core/config.ts";
 import { redact as cliRedact } from "../src/core/redact.ts";
 import { writeJson } from "../src/core/fsx.ts";
+
+const ensureDirSync = (dir: string) => (mkdirSync(dir, { recursive: true }), dir);
 import { create } from "../src/commands/project.ts";
+import { refreshAll } from "../src/core/projects.ts";
+import { sameFolder } from "../src/core/paths.ts";
+import { chmodSync } from "node:fs";
+import { pruneVersions } from "../src/core/engram.ts";
 
 /** A ustar archive with the given files (`L` long-name entries for names over 100 bytes). */
 function tarGz(files: Record<string, Buffer | string>): Buffer {
@@ -122,9 +129,29 @@ test("nexo memory: install wires the connection per AI, status, update, remove k
   assert.match(String(await memory("install", { root }, deps)), /Installed Engram .* 9\.9\.9/);
   assert.equal(readConfig(root).memory, "engram");
   const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
-  assert.deepEqual(mcp.mcpServers.memory, { command: "nexo", args: ["memory", "mcp", "--ai", "claude"], env: {} });
-  assert.deepEqual(JSON.parse(readFileSync(join(root, "opencode.json"), "utf8")).mcp.memory.command, ["nexo", "memory", "mcp", "--ai", "opencode"]);
-  assert.match(readFileSync(join(root, ".codex", "config.toml"), "utf8"), /args = \["memory","mcp","--ai","codex"\]|args = \["memory", "mcp", "--ai", "codex"\]/);
+  // Pinned to this environment through NEXO_ROOT (never on the command line, which cmd.exe would re-read); on Windows
+  // `nexo` is a .cmd, started through cmd /c.
+  const run = (ai: string) => ["nexo", "memory", "mcp", "--ai", ai];
+  const [command, args] = process.platform === "win32" ? ["cmd", (ai: string) => ["/d", "/c", ...run(ai)]] : ["nexo", (ai: string) => run(ai).slice(1)];
+  assert.deepEqual(mcp.mcpServers.memory, { command, args: args("claude"), env: { NEXO_ROOT: root } });
+  const opencode = JSON.parse(readFileSync(join(root, "opencode.json"), "utf8")).mcp.memory;
+  assert.deepEqual([opencode.command, opencode.environment], [[command, ...args("opencode")], { NEXO_ROOT: root }]);
+  const codex = readFileSync(join(root, ".codex", "config.toml"), "utf8");
+  assert.ok(codex.includes(`args = [${args("codex").map((a) => JSON.stringify(a)).join(", ")}]`) && codex.includes("NEXO_ROOT"));
+  const win = memoryConnection("C:\\Users\\Ana&Bob\\env", "win32");
+  assert.deepEqual([win.command, win.args, win.env], ["cmd", ["/d", "/c", "nexo", "memory", "mcp", "--ai", "{{ai}}"], { NEXO_ROOT: "C:\\Users\\Ana&Bob\\env" }], "a root with & never reaches cmd's command line");
+  // A connection from before (no NEXO_ROOT, or another OS) is rewritten by any refresh, not only by memory update.
+  const connectionFile = join(root, "library", "connections", "memory.json");
+  writeJson(connectionFile, { ...JSON.parse(readFileSync(connectionFile, "utf8")), args: ["memory", "mcp", "--ai", "{{ai}}", "--old"], env: {} });
+  refreshAll(root, readConfig(root));
+  assert.deepEqual(JSON.parse(readFileSync(connectionFile, "utf8")).env, { NEXO_ROOT: root });
+  // Agents may not read Engram's database, also in environments made before memory existed; the index lists the connection.
+  assert.ok(loadPermissions(join(root, "library", "permissions.json")).files?.read?.deny?.includes("os/data/engram/**"));
+  assert.match(readFileSync(join(root, "library", "index.json"), "utf8"), /memory/);
+  const permsFile = join(root, "library", "permissions.json");
+  const perms = loadPermissions(permsFile);
+  writeJson(permsFile, { ...perms, files: { ...perms.files, read: { ...perms.files?.read, deny: perms.files!.read!.deny!.filter((r) => !r.startsWith("os/data/engram")) } } });
+  assert.match(String(await memory("update", { root }, deps)), /added os\/data\/engram\/\*\* to the read deny rules/, "an older environment gets the rule");
   assert.match(String(await memory("status", { root }, deps)), /on · pinned 9\.9\.9 · installed 9\.9\.9/);
   assert.equal(JSON.parse(String(await memory("status", { root, json: true }, deps))).connection, true);
 
@@ -150,7 +177,8 @@ test("project and write policy: pinned to the Nexo project; OpenCode reads only 
   create("api", { root, ws: "acme" });
   const projects = join(root, "projects");
   assert.equal(memoryProject(root, config, join(projects, "shop", "code", "src")), "shop");
-  assert.equal(memoryProject(root, config, join(projects, "acme-ws", "api", "code")), "acme-ws-api");
+  assert.equal(memoryProject(root, config, join(projects, "acme-ws", "api", "code")), "acme-ws:api", "`:` is never in a Nexo name");
+  assert.equal(memoryProject(root, config, join(projects, "acme-ws", "context")), "acme-ws", "a workspace folder that is not a part");
   assert.equal(memoryProject(root, config, root), "environment");
   const linked = `${root}-link`;
   symlinkSync(root, linked, process.platform === "win32" ? "junction" : "dir");
@@ -166,16 +194,31 @@ test("project and write policy: pinned to the Nexo project; OpenCode reads only 
   assert.equal(memoryWrites(root, config, join(projects, "shop", "code"), "opencode"), true, "a project can allow it");
   writeJson(join(projects, "acme-ws", "api", "context", "permissions.json"), { connections: { memory: { write: "deny" } } });
   assert.equal(memoryWrites(root, config, join(projects, "acme-ws", "api"), "claude"), false);
+
+  // Codex cannot ask per MCP tool either: "ask" is no. Reads follow connections.memory.read.
+  assert.equal(memoryWrites(root, config, root, "codex"), false, "codex: write ask is no");
+  assert.equal(memoryWrites(root, config, root, "gemini"), true);
+  assert.equal(memoryReads(root, config, root, "opencode"), true, "normal preset: reads allowed");
+  writeJson(join(projects, "shop", "context", "permissions.json"), { connections: { memory: { read: "deny" } } });
+  assert.equal(memoryReads(root, config, join(projects, "shop"), "claude"), false, "read deny is honored");
+  // A project's entry for `memory` adds to the environment's instead of replacing it.
+  const globalFile = join(root, "library", "permissions.json");
+  writeJson(globalFile, { ...loadPermissions(globalFile), connections: { "*": { read: "allow", write: "ask" }, memory: { write: "deny" } } });
+  writeJson(join(projects, "shop", "context", "permissions.json"), { connections: { memory: { read: "allow" } } });
+  assert.equal(memoryWrites(root, config, join(projects, "shop"), "claude"), false, "the environment's write deny survives the project's read allow");
+  assert.equal(memoryReads(root, config, join(projects, "shop"), "claude"), true);
 });
 
-const policy = { ai: "claude", project: "shop", writes: true };
+const policy = { ai: "claude", project: "shop", reads: true, writes: true };
 
 test("filter: allowlist, read-only, pinned project, no prompts, secrets masked or refused, provenance", () => {
   assert.equal(allowedTools({ ...policy, writes: false }).includes("mem_save"), false);
   for (const banned of ["mem_save_prompt", "mem_delete", "mem_merge_projects", "mem_list_projects", "mem_capture_passive"]) {
     assert.equal(filterCall(policy, banned, {}).ok, false, banned);
   }
-  assert.match((filterCall({ ...policy, writes: false }, "mem_save", {}) as { error: string }).error, /only read/);
+  assert.match((filterCall({ ...policy, writes: false }, "mem_save", {}) as { error: string }).error, /may not write memory here \(connections\.memory\.write\)/);
+  assert.match((filterCall({ ...policy, reads: false }, "mem_search", {}) as { error: string }).error, /may not read memory here \(connections\.memory\.read\)/);
+  assert.deepEqual(allowedTools({ ...policy, reads: false, writes: false }), []);
 
   const search = filterCall(policy, "mem_search", { query: "q", project: "other", all_projects: true, scope: "global" });
   assert.deepEqual(search, { ok: true, args: { query: "q" } });
@@ -190,30 +233,104 @@ test("filter: allowlist, read-only, pinned project, no prompts, secrets masked o
   assert.deepEqual(filterCall(policy, "mem_context", null), { ok: true, args: {} });
 });
 
-test("messages: refusals answered locally, initialize gets Nexo's instructions, tools/list filtered", () => {
-  const pending = new Map<unknown, string>();
-  assert.match(fromClient(policy, "{bad", pending).toClient!, /Parse error/);
-  const batch = fromClient(policy, JSON.stringify([{ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "mem_save", arguments: { project: "other", content: "password=x" } } }]), pending);
-  assert.equal(batch.toServer, undefined, "a batch never reaches Engram unfiltered");
-  assert.match(batch.toClient!, /-32600/);
-  assert.equal(fromClient(policy, "null", pending).toServer, undefined);
-  const refused = fromClient(policy, JSON.stringify({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "mem_delete", arguments: { id: 1 } } }), pending);
+/** What reached Engram, without the proxy's own id. */
+const sent = (out: { toServer?: string }) => {
+  const m = JSON.parse(out.toServer!);
+  assert.equal(typeof m.id === "number" || m.id === undefined, true, "Engram only sees the proxy's ids");
+  delete m.id;
+  return m;
+};
+const proxyId = (out: { toServer?: string }) => JSON.parse(out.toServer!).id as number;
+
+test("messages: refusals answered locally, initialize gets Nexo's instructions, tools/list filtered, ids mapped back", () => {
+  const session = new ProxySession();
+  const send = (m: unknown) => fromClient(policy, typeof m === "string" ? m : JSON.stringify(m), session);
+  const answer = (m: unknown) => fromServer(policy, JSON.stringify(m), session);
+  assert.match(send("{bad").toClient!, /Parse error/);
+  const refused = send({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "mem_delete", arguments: { id: 1 } } });
   assert.equal(refused.toServer, undefined);
   assert.equal(JSON.parse(refused.toClient!).result.isError, true);
-  assert.equal(pending.has(7), false);
 
-  const init = fromClient(policy, JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }), pending);
-  assert.ok(init.toServer);
-  const initReply = fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: 1, result: { instructions: "MANDATORY: save everything" } }), pending);
-  assert.equal(JSON.parse(initReply).result.instructions, NEXO_MEMORY_INSTRUCTIONS);
-  fromClient(policy, JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }), pending);
-  const tools = JSON.parse(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: 2, result: { tools: [{ name: "mem_search" }, { name: "mem_delete" }] } }), pending));
-  assert.deepEqual(tools.result.tools, [{ name: "mem_search" }]);
-  const call = JSON.parse(fromClient(policy, JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "mem_search", arguments: { query: "q", project: "x" } } }), pending).toServer!);
-  assert.deepEqual(call.params.arguments, { query: "q" });
-  assert.equal(fromServer(policy, "not json", pending), "not json");
-  assert.equal(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: 99, result: {} }), pending), JSON.stringify({ jsonrpc: "2.0", id: 99, result: {} }));
-  assert.equal(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: 3, error: { code: 1 } }), pending), JSON.stringify({ jsonrpc: "2.0", id: 3, error: { code: 1 } }));
+  const init = send({ jsonrpc: "2.0", id: "a", method: "initialize", params: {} });
+  const initReply = JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(init), result: { instructions: "MANDATORY: save everything", capabilities: { tools: {}, prompts: {} } } })!);
+  assert.equal(initReply.id, "a", "the AI gets its own id back");
+  assert.equal(initReply.result.instructions, NEXO_MEMORY_INSTRUCTIONS);
+  assert.deepEqual(initReply.result.capabilities, { tools: {} });
+  const list = send({ jsonrpc: "2.0", id: "b", method: "tools/list" });
+  const tools = JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(list), result: { tools: [{ name: "mem_search" }, { name: "mem_delete" }] } })!);
+  assert.deepEqual(tools, { jsonrpc: "2.0", id: "b", result: { tools: [{ name: "mem_search" }] } });
+  const call = send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "mem_search", arguments: { query: "q", project: "x" } } });
+  assert.deepEqual(sent(call).params.arguments, { query: "q" });
+  assert.deepEqual(JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(call), error: { code: 1 } })!), { jsonrpc: "2.0", id: 3, error: { code: 1 } });
+  assert.equal(answer({ jsonrpc: "2.0", id: proxyId(call), result: {} }), null, "an answer is delivered once");
+  assert.equal(answer({ jsonrpc: "2.0", id: 99, result: {} }), null, "an answer the proxy did not ask for never reaches the AI");
+  assert.equal(fromServer(policy, "not json", session), null);
+  const note = JSON.stringify({ jsonrpc: "2.0", method: "notifications/tools/list_changed" });
+  assert.equal(fromServer(policy, note, session), note, "Engram's notifications pass");
+});
+
+test("messages: Engram only gets what the proxy rebuilt — no case variants, no other methods, only tools offered", () => {
+  const session = new ProxySession();
+  const send = (line: string | object) => fromClient(policy, typeof line === "string" ? line : JSON.stringify(line), session);
+  // The proxy reads `method`; Go may read `Method`. Engram must get one method only: the one the proxy filtered.
+  const variant = send('{"jsonrpc":"2.0","id":2,"method":"tools/list","Method":"tools/call","params":{"name":"mem_get_observation","arguments":{"id":2}},"Params":{"name":"x"}}');
+  assert.deepEqual(sent(variant), { jsonrpc: "2.0", method: "tools/list", params: { name: "mem_get_observation", arguments: { id: 2 } } });
+  // Only each tool's own arguments, by exact name: no case variants, no look-alike letters (Go folds ſ to s), nothing nested.
+  const call = send({ jsonrpc: "2.0", id: 3, method: "tools/call", Method: "x", params: { name: "mem_search", arguments: { query: "q", limit: 5, All_projects: true, "all_projectſ": true, "ſcope": "global", Project: "other", EXPECTED_PROJECT: "other", type: { nested: 1 } } } });
+  assert.deepEqual(sent(call), { jsonrpc: "2.0", method: "tools/call", params: { name: "mem_search", arguments: { query: "q", limit: 5 } } });
+  const save = send({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "mem_save", arguments: { title: "t", content: "a", Content: "forged", observation: "o" } } });
+  assert.deepEqual(sent(save).params.arguments, { title: "t", content: "a\n\n[via claude]", observation: "o", capture_prompt: false, scope: "project" }, "a second Content cannot replace the tagged one");
+  const get = send({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "mem_get_observation", arguments: { id: 1, include_history: true, project: "other" } } });
+  assert.deepEqual(sent(get).params.arguments, { id: 1 });
+  assert.deepEqual(sent(send({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "mem_current_project", arguments: { cwd: "/elsewhere" } } })).params.arguments, {});
+
+  for (const method of ["prompts/list", "prompts/get", "resources/list", "resources/read", "completion/complete", "sampling/createMessage"]) {
+    const out = send({ jsonrpc: "2.0", id: 9, method, params: {} });
+    assert.equal(out.toServer, undefined, method);
+    assert.equal(JSON.parse(out.toClient!).error.code, -32601, method);
+  }
+  assert.deepEqual(send({ jsonrpc: "2.0", method: "prompts/list" }), {}, "an unknown request without id is dropped");
+  assert.deepEqual(send({ jsonrpc: "2.0", method: "ping" }), {}, "a known request without id has no answer to wait for");
+  assert.deepEqual(sent(send('{"jsonrpc":"2.0","method":"notifications/initialized","Method":"tools/call"}')), { jsonrpc: "2.0", method: "notifications/initialized" });
+  assert.deepEqual(send({ jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 3 } }), {}, "it would name the AI's id, which Engram never saw");
+  assert.equal(JSON.parse(send('{"jsonrpc":"2.0","id":{"a":1},"method":"ping"}').toClient!).error.code, -32600);
+  assert.deepEqual(JSON.parse(send('{"jsonrpc":"2.0","id":7,"result":{"ok":1},"Method":"tools/call"}').toServer!), { jsonrpc: "2.0", id: 7, result: { ok: 1 } });
+  assert.deepEqual(send('{"jsonrpc":"2.0","result":{}}'), {}, "an answer without id goes nowhere");
+});
+
+test("messages: an AI cannot reuse a request id to get an unchecked answer", () => {
+  const session = new ProxySession();
+  const send = (m: object) => fromClient(policy, JSON.stringify(m), session);
+  const get = send({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "mem_get_observation", arguments: { id: 2 } } });
+  const again = send({ jsonrpc: "2.0", id: 5, method: "ping" });
+  assert.equal(again.toServer, undefined);
+  assert.match(again.toClient!, /already in use/);
+  const other = { content: [{ type: "text", text: JSON.stringify({ result: "#2 [x] t\nsecret\nSession: s\nProject: other\nScope: project\nDuplicates: 0\nRevisions: 1\nCreated: now" }) }] };
+  const out = JSON.parse(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: proxyId(get), result: other }), session)!);
+  assert.equal(out.id, 5);
+  assert.equal(out.result.isError, true, "still checked");
+  assert.equal(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: proxyId(get), result: other }), session), null, "a second answer for the same request is dropped");
+  assert.ok(send({ jsonrpc: "2.0", id: 5, method: "ping" }).toServer, "once answered, the id is free again");
+});
+
+test("no read and no write: Nexo answers alone and Engram never starts", async () => {
+  const none = { ...policy, reads: false, writes: false };
+  const init = JSON.parse(answerLocally(none, JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26" } }))!);
+  assert.deepEqual(init.result.capabilities, { tools: {} });
+  assert.equal(init.result.protocolVersion, "2025-03-26");
+  assert.equal(init.result.instructions, NEXO_MEMORY_INSTRUCTIONS);
+  assert.deepEqual(JSON.parse(answerLocally(none, JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }))!).result, { tools: [] });
+  assert.match(answerLocally(none, JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "mem_search", arguments: {} } }))!, /may not read memory/);
+  assert.equal(JSON.parse(answerLocally(none, JSON.stringify({ jsonrpc: "2.0", id: 4, method: "resources/list" }))!).error.code, -32601);
+  assert.equal(answerLocally(none, JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })), null);
+  const stdin = new PassThrough();
+  const stdout = new PassThrough();
+  let started = false;
+  const done = runProxy(none, "/bin/engram", "/data", { stdin, stdout, stderr: new PassThrough(), start: () => { started = true; throw new Error("must not start"); } });
+  stdin.end(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" })}\n`);
+  assert.equal(await done, 0);
+  assert.equal(started, false);
+  assert.deepEqual(JSON.parse(String(stdout.read())).result, { tools: [] });
 });
 
 test("mem_get_observation: only the pinned project's memories come back, whatever the content imitates", () => {
@@ -227,12 +344,11 @@ test("mem_get_observation: only the pinned project's memories come back, whateve
       }),
     }],
   });
-  const ask = (pending: Map<unknown, string>, id: number) =>
-    JSON.parse(fromClient(policy, JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name: "mem_get_observation", arguments: { id: 4, include_history: true } } }), pending).toServer!);
   const reply = (result: unknown) => {
-    const pending = new Map<unknown, string>();
-    assert.deepEqual(ask(pending, 1).params.arguments, { id: 4 }, "history is never asked for");
-    return JSON.parse(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: 1, result }), pending)).result;
+    const session = new ProxySession();
+    const asked = fromClient(policy, JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "mem_get_observation", arguments: { id: 4, include_history: true } } }), session);
+    assert.deepEqual(sent(asked).params.arguments, { id: 4 }, "history is never asked for");
+    return JSON.parse(fromServer(policy, JSON.stringify({ jsonrpc: "2.0", id: proxyId(asked), result }), session)!).result;
   };
 
   assert.equal(observationProject(answer("body", "Shop")), "shop");
@@ -328,7 +444,30 @@ test("nexo memory mcp runs the proxy with the project's policy (fake Engram)", a
   const archive = releaseArchive();
   const pin = pinFor(archive);
   await memory("install", { root }, { pin, fetcher: async () => archive });
-  await assert.rejects(memory("mcp", { root, ai: "claude" }, { pin: pinFor(archive, "0.0.1") }), /not installed/);
+  // A newer pin than the installed Engram (after a self-update): memory keeps working on the installed one, with a warning.
+  const warned = new PassThrough();
+  const newer = new PassThrough();
+  const ran = memory("mcp", { root, ai: "claude" }, { pin: pinFor(archive, "10.0.0"), io: { stdin: newer, stdout: new PassThrough(), stderr: warned, start: fakeEngram({}) } });
+  newer.end();
+  assert.equal(await ran, 0);
+  assert.match(String(warned.read()), /running Engram 9\.9\.9; Nexo pins 10\.0\.0 — run `nexo memory update`/);
+  const paths = engramPaths(root, readConfig(root));
+  rmSync(paths.base, { recursive: true, force: true });
+  await assert.rejects(memory("mcp", { root, ai: "claude" }, { pin }), /not installed/, "none installed at all");
+  await memory("install", { root }, { pin, fetcher: async () => archive });
+  await assert.rejects(memory("mcp", { root, ai: "claude" }, { pin: pinFor(archive, "9.0.0") }), /Engram 9\.0\.0 is not installed/, "never a newer Engram than the pin");
+  rmSync(paths.base, { recursive: true, force: true });
+  await memory("install", { root }, { pin, fetcher: async () => archive });
+  // Engram folds `--` into `-`: two Nexo projects that would share one memory are refused, not mixed.
+  create("a-b", { root });
+  create("a--b", { root });
+  const before = process.cwd();
+  process.chdir(join(root, "projects", "a-b"));
+  try {
+    await assert.rejects(memory("mcp", { root, ai: "claude" }, { pin }), /would share Engram's memory with .*a--b.*rename the project/);
+  } finally {
+    process.chdir(before);
+  }
   create("shop", { root });
   const prev = process.cwd();
   process.chdir(join(root, "projects", "shop"));
@@ -352,9 +491,73 @@ test("doctor lists Engram as third party and warns when its binary or connection
   const pin = pinFor(archive, (await import("../src/core/engram.ts")).readPin().version);
   await memory("install", { root }, { pin, fetcher: async () => archive });
   const memoryFindings = () => diagnose(root).filter((f) => f.area === "memory");
-  assert.deepEqual(memoryFindings().map((f) => f.level), ["ok"]);
-  assert.match(memoryFindings()[0]!.message, /third party, MIT/);
-  rmSync(join(root, "library", "connections", "memory.json"));
-  rmSync(engramPaths(root, readConfig(root)).base, { recursive: true });
-  assert.deepEqual(memoryFindings().map((f) => f.level), ["ok", "warn", "warn"]);
+  // The AIs start the connection as `nexo`: a fake one on PATH stands for an installed CLI.
+  const bin = join(root, "fake-bin");
+  writeFileSync(join(ensureDirSync(bin), process.platform === "win32" ? "nexo.cmd" : "nexo"), "");
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}${process.platform === "win32" ? ";" : ":"}${path}`;
+  try {
+    assert.deepEqual(memoryFindings().map((f) => f.level), ["ok"]);
+    assert.match(memoryFindings()[0]!.message, /third party, MIT/);
+    const connection = join(root, "library", "connections", "memory.json");
+    const good = readFileSync(connection, "utf8");
+    writeJson(connection, { ...JSON.parse(good), env: { NEXO_ROOT: join(root, "elsewhere") } });
+    assert.match(memoryFindings().map((f) => f.message).join("\n"), /out of date .* run `nexo memory update`/, "pinned to another environment");
+    writeFileSync(connection, "{ truncated");
+    assert.match(memoryFindings().map((f) => f.message).join("\n"), /cannot be read/, "a broken file is a finding, not a crash");
+    writeFileSync(connection, good);
+    rmSync(connection);
+    rmSync(engramPaths(root, readConfig(root)).base, { recursive: true });
+    assert.deepEqual(memoryFindings().map((f) => f.level), ["ok", "warn", "warn"]);
+  } finally {
+    process.env.PATH = path;
+  }
+  process.env.PATH = "";
+  try {
+    assert.match(memoryFindings().map((f) => f.message).join("\n"), /`nexo` is not on PATH/);
+  } finally {
+    process.env.PATH = path;
+  }
+});
+
+test("a project named environment would share the root's memory: refused from both sides", async () => {
+  const root = await freshEnv();
+  const archive = releaseArchive();
+  const pin = pinFor(archive);
+  await memory("install", { root }, { pin, fetcher: async () => archive });
+  create("environment", { root });
+  const before = process.cwd();
+  try {
+    process.chdir(root);
+    await assert.rejects(memory("mcp", { root, ai: "claude" }, { pin }), /the environment's own memory would share Engram's memory with .*environment.*rename the project/);
+    process.chdir(join(root, "projects", "environment"));
+    await assert.rejects(memory("mcp", { root, ai: "claude" }, { pin }), /"environment" would share Engram's memory/);
+  } finally {
+    process.chdir(before);
+  }
+});
+
+test("pruning old Engram versions is best effort: one still in use is kept and reported", { skip: process.platform === "win32" || process.getuid?.() === 0 }, async () => {
+  const root = await freshEnv();
+  const paths = engramPaths(root, readConfig(root));
+  for (const v of ["1.0.0", "2.0.0"]) writeFileSync(join(ensureDirSync(join(paths.base, v)), "engram"), "");
+  chmodSync(join(paths.base, "1.0.0"), 0o500); // its file cannot be removed, like a running engram.exe on Windows
+  try {
+    assert.deepEqual(pruneVersions(paths, "3.0.0"), { gone: ["2.0.0"], busy: ["1.0.0"] });
+  } finally {
+    chmodSync(join(paths.base, "1.0.0"), 0o700);
+  }
+});
+
+test("sameFolder: symlinks resolved; letter case ignored only where disks ignore it", () => {
+  const dir = tempDir();
+  const link = `${dir}-same`;
+  symlinkSync(dir, link, process.platform === "win32" ? "junction" : "dir");
+  try {
+    assert.equal(sameFolder(dir, link), true);
+    assert.equal(sameFolder(join(dir, "Shop"), join(dir, "shop"), "win32"), true);
+    assert.equal(sameFolder(join(dir, "Shop"), join(dir, "shop"), "linux"), false);
+  } finally {
+    rmSync(link, { force: true });
+  }
 });

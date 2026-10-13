@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { folder, readConfig } from "./config.ts";
 import { ensureDir, listDir, readJson, writeJson, writeText } from "./fsx.ts";
 
 /** The CLI's folder inside a Nexo checkout. */
@@ -27,7 +28,7 @@ export const defaultGit: Git = (args, cwd, input) => {
   return r.stdout;
 };
 
-/** What the last self-update installed, in `.state/nexo/cli.json`. */
+/** What the last self-update installed, in `<state>/nexo/cli.json` (the environment's state folder, `.state` by default). */
 export interface CliState {
   source: string;
   ref: string;
@@ -38,7 +39,10 @@ export interface CliState {
   installedAt: string;
 }
 
-export const stateFile = (root: string): string => join(root, ".state", "nexo", "cli.json");
+export const stateFile = (root: string): string => join(folder(root, readConfig(root), "state"), "nexo", "cli.json");
+
+/** Where installed copies go: `<os>/runtime/cli` (the environment's os folder, `os` by default). */
+export const copiesDir = (root: string): string => join(folder(root, readConfig(root), "os"), "runtime", "cli");
 
 export function readCliState(root: string): CliState | null {
   try {
@@ -131,7 +135,7 @@ export function selfUpdate(opts: SelfUpdateOptions): { state: CliState; changed:
   const git = opts.git ?? defaultGit;
   const source = resolve(opts.source);
   const { commit, version } = resolveCommit(git, source, opts.ref);
-  const base = join(opts.root, "os", "runtime", "cli");
+  const base = copiesDir(opts.root);
   const name = `${version}-${commit.slice(0, 7)}`;
   const dir = join(base, name);
   const entry = join(dir, "src", "bin.ts");

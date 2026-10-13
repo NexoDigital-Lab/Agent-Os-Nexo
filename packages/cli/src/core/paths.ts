@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,4 +40,18 @@ export function findRoot(explicit?: string, from = process.cwd()): string {
     dir = parent;
   }
   throw new Error("Not inside a Nexo environment. Run `nexo init`, or pass --root / set NEXO_ROOT.");
+}
+
+/** Two spellings of one folder: symlinks resolved, and letter case ignored on Windows and macOS, whose disks usually ignore it. */
+export function sameFolder(a: string, b: string, platform: NodeJS.Platform = process.platform): boolean {
+  const canonical = (path: string) => {
+    let r = resolve(path);
+    try {
+      r = realpathSync.native(r);
+    } catch {
+      // missing: compared as written
+    }
+    return platform === "win32" || platform === "darwin" ? r.toLowerCase() : r;
+  };
+  return canonical(a) === canonical(b);
 }

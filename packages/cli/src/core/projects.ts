@@ -5,6 +5,7 @@ import { folder, type EnvironmentConfig } from "./config.ts";
 import { copyTemplate, ensureDir, isDir, listDir } from "./fsx.ts";
 import { generateAdapters } from "./adapters.ts";
 import { loadPermissions, mergePermissions } from "./permissions.ts";
+import { writeMemoryConnection } from "./engram.ts";
 
 const NAME = /^[a-z0-9][a-z0-9._-]*$/;
 
@@ -93,6 +94,9 @@ export function listProjectDirs(root: string, config: EnvironmentConfig): string
 
 /** Regenerates every AI's files, at the root and in every project, so a library change applies at once. */
 export function refreshAll(root: string, config: EnvironmentConfig): void {
+  // The memory connection is Nexo's own: rewritten with every refresh, so an older one (another OS, before the
+  // environment was pinned) never outlives an update.
+  if (config.memory === "engram") writeMemoryConnection(folder(root, config, "library"), root);
   generateAdapters(root, config, root, loadPermissions(join(folder(root, config, "library"), "permissions.json")));
   for (const dir of listProjectDirs(root, config)) refreshAdapters(root, config, dir);
 }

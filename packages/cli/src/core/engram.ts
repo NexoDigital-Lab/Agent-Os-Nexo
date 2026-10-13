@@ -3,7 +3,7 @@
 // Engram's own setup, hooks, HTTP server and cloud are never used: agents reach it only through `nexo memory mcp`.
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { tarGzMember, zipMember } from "./archive.ts";
 import { folder, TOOLS, type EnvironmentConfig } from "./config.ts";
 import type { Connection } from "./connections.ts";
@@ -61,6 +61,11 @@ export function engramPaths(root: string, config: EnvironmentConfig): EngramPath
   return { base: join(os, "runtime", "engram"), data: join(os, "data", "engram") };
 }
 
+/** The read rule that keeps agents out of Engram's database, as a path relative to the environment. */
+export function engramDenyRule(root: string, paths: EngramPaths): string {
+  return `${relative(root, paths.data).replace(/\\/g, "/")}/**`;
+}
+
 export function binaryPath(paths: EngramPaths, version: string, platform: string = process.platform): string {
   return join(paths.base, version, binaryName(platform));
 }
@@ -107,32 +112,52 @@ export async function installEngram(
   return { binary, downloaded: true };
 }
 
-/** Removes every installed version except `keep`. */
-export function pruneVersions(paths: EngramPaths, keep: string | null): string[] {
-  const gone = listDir(paths.base).filter((v) => v !== keep);
-  for (const v of gone) rmSync(join(paths.base, v), { recursive: true, force: true });
-  return gone.filter((v) => !v.startsWith("."));
+/**
+ * Removes every installed version except `keep`, as far as it can: on Windows an engram.exe still running for an open
+ * AI session cannot be deleted, and that version is reported as kept instead of failing the whole command.
+ */
+export function pruneVersions(paths: EngramPaths, keep: string | null): { gone: string[]; busy: string[] } {
+  const gone: string[] = [];
+  const busy: string[] = [];
+  for (const v of listDir(paths.base).filter((n) => n !== keep)) {
+    try {
+      rmSync(join(paths.base, v), { recursive: true, force: true });
+      if (!v.startsWith(".")) gone.push(v);
+    } catch {
+      if (!v.startsWith(".")) busy.push(v);
+    }
+  }
+  return { gone, busy };
 }
 
-/** The `memory` connection every AI gets: Nexo's proxy, told which AI it serves. */
-export function memoryConnection(): Connection {
+/**
+ * The `memory` connection every AI gets: Nexo's proxy, told which AI it serves and which environment it belongs to.
+ * The environment travels as NEXO_ROOT in the connection's env, not on the command line: on Windows `nexo` is a .cmd
+ * (npm shim or self-update launcher) that MCP clients can only start through `cmd /c`, and cmd would re-read a path
+ * with `&` or `^` in it. The command line stays fixed words only.
+ */
+export function memoryConnection(root: string, platform: string = process.platform): Connection {
+  const run = ["nexo", "memory", "mcp", "--ai", "{{ai}}"];
   return {
     name: MEMORY_CONNECTION,
     description: "Agent memory (Engram, third party, MIT) through Nexo's proxy: project-pinned, filtered, no prompts.",
     type: "mcp",
-    command: "nexo",
-    args: ["memory", "mcp", "--ai", "{{ai}}"],
+    command: platform === "win32" ? "cmd" : run[0]!,
+    args: platform === "win32" ? ["/d", "/c", ...run] : run.slice(1),
+    env: { NEXO_ROOT: root },
     tools: [...TOOLS],
     owner: "nexo",
   };
 }
 
-export function writeMemoryConnection(libraryDir: string): void {
-  writeJson(join(libraryDir, "connections", `${MEMORY_CONNECTION}.json`), memoryConnection());
+export const memoryConnectionFile = (libraryDir: string): string => join(libraryDir, "connections", `${MEMORY_CONNECTION}.json`);
+
+export function writeMemoryConnection(libraryDir: string, root: string): void {
+  writeJson(memoryConnectionFile(libraryDir), memoryConnection(root));
 }
 
 export function removeMemoryConnection(libraryDir: string): void {
-  rmSync(join(libraryDir, "connections", `${MEMORY_CONNECTION}.json`), { force: true });
+  rmSync(memoryConnectionFile(libraryDir), { force: true });
 }
 
 /** Total bytes under a folder (the memory database and its WAL files). */

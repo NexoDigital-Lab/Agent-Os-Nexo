@@ -112,26 +112,39 @@ export async function installEngram(
   return { binary, downloaded: true };
 }
 
-/** Removes every installed version except `keep`. */
-export function pruneVersions(paths: EngramPaths, keep: string | null): string[] {
-  const gone = listDir(paths.base).filter((v) => v !== keep);
-  for (const v of gone) rmSync(join(paths.base, v), { recursive: true, force: true });
-  return gone.filter((v) => !v.startsWith("."));
+/**
+ * Removes every installed version except `keep`, as far as it can: on Windows an engram.exe still running for an open
+ * AI session cannot be deleted, and that version is reported as kept instead of failing the whole command.
+ */
+export function pruneVersions(paths: EngramPaths, keep: string | null): { gone: string[]; busy: string[] } {
+  const gone: string[] = [];
+  const busy: string[] = [];
+  for (const v of listDir(paths.base).filter((n) => n !== keep)) {
+    try {
+      rmSync(join(paths.base, v), { recursive: true, force: true });
+      if (!v.startsWith(".")) gone.push(v);
+    } catch {
+      if (!v.startsWith(".")) busy.push(v);
+    }
+  }
+  return { gone, busy };
 }
 
 /**
- * The `memory` connection every AI gets: Nexo's proxy, told which AI it serves and which environment it belongs to
- * (`--root`, so neither NEXO_ROOT nor the folder an AI starts in can point it at another environment). On Windows
- * `nexo` is a .cmd (npm shim or self-update launcher), which MCP clients cannot start without a shell: `cmd /c`.
+ * The `memory` connection every AI gets: Nexo's proxy, told which AI it serves and which environment it belongs to.
+ * The environment travels as NEXO_ROOT in the connection's env, not on the command line: on Windows `nexo` is a .cmd
+ * (npm shim or self-update launcher) that MCP clients can only start through `cmd /c`, and cmd would re-read a path
+ * with `&` or `^` in it. The command line stays fixed words only.
  */
 export function memoryConnection(root: string, platform: string = process.platform): Connection {
-  const run = ["nexo", "memory", "mcp", "--ai", "{{ai}}", "--root", root];
+  const run = ["nexo", "memory", "mcp", "--ai", "{{ai}}"];
   return {
     name: MEMORY_CONNECTION,
     description: "Agent memory (Engram, third party, MIT) through Nexo's proxy: project-pinned, filtered, no prompts.",
     type: "mcp",
     command: platform === "win32" ? "cmd" : run[0]!,
     args: platform === "win32" ? ["/d", "/c", ...run] : run.slice(1),
+    env: { NEXO_ROOT: root },
     tools: [...TOOLS],
     owner: "nexo",
   };

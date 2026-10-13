@@ -16,8 +16,24 @@ export const READ_TOOLS = ["mem_search", "mem_context", "mem_get_observation", "
 export const WRITE_TOOLS = ["mem_save", "mem_update", "mem_session_start", "mem_session_end", "mem_session_summary"] as const;
 const WRITES = new Set<string>(WRITE_TOOLS);
 
-/** Arguments that would point a call at another project (or every project): the proxy decides the project. */
-const PROJECT_ARGS = ["project", "all_projects", "project_choice_reason", "recovery_token", "directory"];
+/**
+ * The arguments each tool may receive, by exact name (Engram 3.2.1's schemas minus what picks a project, a scope or
+ * history). Anything else is dropped: another case or a look-alike letter of a blocked key (Go matches JSON keys
+ * case-insensitively, `ſ` as `s`), and arguments a later Engram adds, until Nexo has looked at them. The proxy sets
+ * expected_project (mem_update), capture_prompt and scope (mem_save) itself.
+ */
+const ARGUMENTS: Record<string, readonly string[]> = {
+  mem_search: ["query", "limit", "match_mode", "response_format", "type"],
+  mem_context: ["compact", "max_bytes"],
+  mem_get_observation: ["id"],
+  mem_current_project: [],
+  mem_suggest_topic_key: ["content", "title", "type"],
+  mem_save: ["title", "content", "observation", "type", "topic_key", "session_id"],
+  mem_update: ["id", "title", "content", "find", "replace", "type", "topic_key"],
+  mem_session_start: ["id"],
+  mem_session_end: ["id", "summary"],
+  mem_session_summary: ["content", "session_id"],
+};
 
 /** Methods an AI may send through the proxy; anything else (prompts, resources, a later Engram's additions) is refused. */
 const METHODS = new Set(["initialize", "ping", "tools/list", "tools/call"]);
@@ -59,12 +75,11 @@ export function filterCall(policy: ProxyPolicy, name: string, input: unknown): C
     const rule = WRITES.has(name) ? "write" : (READ_TOOLS as readonly string[]).includes(name) ? "read" : null;
     return { ok: false, error: rule ? `${name}: this AI may not ${rule} memory here (connections.memory.${rule}).` : `${name} is not available through Nexo.` };
   }
-  // Keys are dropped whatever their case: Engram is written in Go, whose JSON decoding can match keys case-insensitively.
-  // History is appended after the metadata observationProject reads, and old versions may hold any text.
-  const dropped = new Set([...PROJECT_ARGS, "scope", ...(name === GET_OBSERVATION ? ["include_history", "history_cursor"] : [])]);
   const given = input && typeof input === "object" && !Array.isArray(input) ? (input as Args) : {};
-  const args: Args = Object.fromEntries(Object.entries(given).filter(([key]) => !dropped.has(key.toLowerCase()) && key.toLowerCase() !== "expected_project"));
-  if (Object.keys(given).some((key) => key.toLowerCase() === "expected_project") || name === "mem_update") args.expected_project = policy.project;
+  const known = new Set(ARGUMENTS[name] ?? []);
+  // Plain values only: nothing nested travels unread.
+  const args: Args = Object.fromEntries(Object.entries(given).filter(([key, value]) => known.has(key) && ["string", "number", "boolean"].includes(typeof value)));
+  if (name === "mem_update") args.expected_project = policy.project;
   if (!WRITES.has(name)) return { ok: true, args };
 
   for (const [key, value] of Object.entries(args)) {
@@ -92,14 +107,40 @@ interface Message {
   error?: unknown;
 }
 
+/**
+ * The requests on their way to Engram. The proxy numbers them itself and remembers the AI's own id, so an AI cannot
+ * reuse an id to swap which answer gets checked, and an answer the proxy did not ask for never reaches the AI.
+ */
+export class ProxySession {
+  private next = 0;
+  private readonly waiting = new Map<number, { id: string | number | null; kind: string }>();
+
+  /** The proxy's id for a request, or null when the AI already has one in flight with the same id. */
+  open(id: string | number | null, kind: string): number | null {
+    for (const w of this.waiting.values()) if (w.id === id) return null;
+    this.next += 1;
+    this.waiting.set(this.next, { id, kind });
+    return this.next;
+  }
+
+  /** The AI's id and what was asked, for an answer to one of the proxy's ids (once). */
+  close(id: unknown): { id: string | number | null; kind: string } | undefined {
+    if (typeof id !== "number") return undefined;
+    const w = this.waiting.get(id);
+    this.waiting.delete(id);
+    return w;
+  }
+}
+
 const reply = (id: Message["id"], body: Record<string, unknown>) => JSON.stringify({ jsonrpc: "2.0", id: id ?? null, ...body });
+const refusal = (id: Message["id"], text: string) => reply(id, { result: { content: [{ type: "text", text }], isError: true } });
 
 /**
  * One line from the AI: forwarded to Engram, or answered right here. What reaches Engram is always a message the proxy
  * rebuilt from the fields it read (never the AI's line), so keys it did not look at — another case of `method` or
  * `params`, a second copy — cannot carry anything past the filter.
  */
-export function fromClient(policy: ProxyPolicy, line: string, pending: Map<unknown, string>): { toServer?: string; toClient?: string } {
+export function fromClient(policy: ProxyPolicy, line: string, session: ProxySession): { toServer?: string; toClient?: string } {
   let msg: Message;
   try {
     msg = JSON.parse(line) as Message;
@@ -114,56 +155,86 @@ export function fromClient(policy: ProxyPolicy, line: string, pending: Map<unkno
   if (hasId && msg.id !== null && typeof msg.id !== "string" && typeof msg.id !== "number") {
     return { toClient: reply(null, { error: { code: -32600, message: "Invalid Request: bad id" } }) };
   }
-  const id = hasId ? { id: msg.id } : {};
   if (typeof msg.method !== "string") {
-    // An answer to a request Engram made (it makes none today): only its own fields go through.
+    // An answer to a request Engram made (it makes none today): only its own fields go through, under Engram's id.
     if (!hasId) return {};
-    return { toServer: JSON.stringify({ jsonrpc: "2.0", ...id, ...("error" in msg ? { error: msg.error } : { result: msg.result ?? {} }) }) };
+    return { toServer: JSON.stringify({ jsonrpc: "2.0", id: msg.id, ...("error" in msg ? { error: msg.error } : { result: msg.result ?? {} }) }) };
   }
   const method = msg.method;
   const params = msg.params && typeof msg.params === "object" && !Array.isArray(msg.params) ? msg.params : undefined;
-  if (method.startsWith("notifications/")) return { toServer: JSON.stringify({ jsonrpc: "2.0", method, ...(params ? { params } : {}) }) };
+  if (method.startsWith("notifications/")) {
+    // A cancellation names the AI's id, which Engram never saw: drop it rather than cancel the wrong request.
+    return method === "notifications/cancelled" ? {} : { toServer: JSON.stringify({ jsonrpc: "2.0", method, ...(params ? { params } : {}) }) };
+  }
   if (!METHODS.has(method)) {
     return hasId ? { toClient: reply(msg.id, { error: { code: -32601, message: `${method} is not available through Nexo.` } }) } : {};
   }
-  if (method !== "tools/call") {
-    if (hasId) pending.set(msg.id, method);
-    return { toServer: JSON.stringify({ jsonrpc: "2.0", ...id, method, ...(params ? { params } : {}) }) };
+  if (!hasId) return {}; // a request without an id expects no answer: nothing to forward
+  let forward: Record<string, unknown> = { method, ...(params ? { params } : {}) };
+  let kind = method;
+  if (method === "tools/call") {
+    const name = typeof params?.name === "string" ? params.name : "";
+    const decision = filterCall(policy, name, params?.arguments);
+    if (!decision.ok) return { toClient: refusal(msg.id, decision.error) };
+    forward = { method, params: { name, arguments: decision.args } };
+    kind = name === GET_OBSERVATION ? GET_OBSERVATION_CALL : method;
   }
-  const name = typeof params?.name === "string" ? params.name : "";
-  const decision = filterCall(policy, name, params?.arguments);
-  if (!decision.ok) return { toClient: reply(msg.id, { result: { content: [{ type: "text", text: decision.error }], isError: true } }) };
-  if (hasId) pending.set(msg.id, name === GET_OBSERVATION ? GET_OBSERVATION_CALL : method);
-  return { toServer: JSON.stringify({ jsonrpc: "2.0", ...id, method, params: { name, arguments: decision.args } }) };
+  const id = session.open(msg.id ?? null, kind);
+  if (id === null) return { toClient: reply(msg.id, { error: { code: -32600, message: "Invalid Request: that id is already in use" } }) };
+  return { toServer: JSON.stringify({ jsonrpc: "2.0", id, ...forward }) };
 }
 
-/** One line from Engram: Nexo's instructions on initialize, the allowed tools on tools/list, the rest as is. */
-export function fromServer(policy: ProxyPolicy, line: string, pending: Map<unknown, string>): string {
+/**
+ * One line from Engram, for the AI, or null when it must not reach it (an answer the proxy did not ask for). Answers get
+ * the AI's id back, Nexo's instructions on initialize, the allowed tools on tools/list, and the project check on
+ * mem_get_observation.
+ */
+export function fromServer(policy: ProxyPolicy, line: string, session: ProxySession): string | null {
   let msg: Message;
   try {
     msg = JSON.parse(line) as Message;
   } catch {
-    return line;
+    return null;
   }
-  if (msg.id === undefined || msg.method || !pending.has(msg.id)) return line;
-  const method = pending.get(msg.id);
-  pending.delete(msg.id);
-  if (!msg.result) return line;
-  if (method === GET_OBSERVATION_CALL && msg.result.isError !== true && observationProject(msg.result) !== canonicalProject(policy.project)) {
-    const text = `${GET_OBSERVATION}: that memory belongs to another project; only ${policy.project}'s memories are available here.`;
-    return JSON.stringify({ ...msg, result: { content: [{ type: "text", text }], isError: true } });
+  if (!msg || typeof msg !== "object" || Array.isArray(msg)) return null;
+  if (typeof msg.method === "string") return line; // Engram's own notifications and requests
+  const asked = session.close(msg.id);
+  if (!asked) return null;
+  const id = asked.id;
+  if (!msg.result) return JSON.stringify({ jsonrpc: "2.0", id, error: msg.error ?? { code: -32603, message: "Engram returned no result" } });
+  if (asked.kind === GET_OBSERVATION_CALL && msg.result.isError !== true && observationProject(msg.result) !== canonicalProject(policy.project)) {
+    return refusal(id, `${GET_OBSERVATION}: that memory belongs to another project; only ${policy.project}'s memories are available here.`);
   }
-  if (method === "initialize") {
+  if (asked.kind === "initialize") {
     // Only tools are offered: the AI never learns of prompts or resources a later Engram might add.
     const caps = (msg.result.capabilities ?? {}) as Record<string, unknown>;
     const capabilities = caps.tools ? { tools: caps.tools } : {};
-    return JSON.stringify({ ...msg, result: { ...msg.result, capabilities, instructions: NEXO_MEMORY_INSTRUCTIONS } });
+    return JSON.stringify({ jsonrpc: "2.0", id, result: { ...msg.result, capabilities, instructions: NEXO_MEMORY_INSTRUCTIONS } });
   }
-  if (method === "tools/list" && Array.isArray(msg.result.tools)) {
+  if (asked.kind === "tools/list" && Array.isArray(msg.result.tools)) {
     const allowed = new Set(allowedTools(policy));
-    return JSON.stringify({ ...msg, result: { ...msg.result, tools: (msg.result.tools as Array<{ name?: string }>).filter((t) => allowed.has(String(t.name))) } });
+    return JSON.stringify({ jsonrpc: "2.0", id, result: { ...msg.result, tools: (msg.result.tools as Array<{ name?: string }>).filter((t) => allowed.has(String(t.name))) } });
   }
-  return line;
+  return JSON.stringify({ jsonrpc: "2.0", id, result: msg.result });
+}
+
+/**
+ * The whole conversation when the AI may neither read nor write memory: answered by Nexo, Engram never started (its
+ * `--tools=` would be empty, and an empty list is not a promise Engram makes).
+ */
+export function answerLocally(policy: ProxyPolicy, line: string): string | null {
+  const session = new ProxySession();
+  const out = fromClient(policy, line, session);
+  if (out.toClient || !out.toServer) return out.toClient ?? null;
+  const msg = JSON.parse(out.toServer) as Message;
+  const asked = session.close(msg.id);
+  if (!asked) return null; // a notification: nothing to answer
+  if (msg.method === "initialize") {
+    const version = (msg.params as { protocolVersion?: unknown } | undefined)?.protocolVersion;
+    return reply(asked.id, { result: { protocolVersion: typeof version === "string" ? version : "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "nexo-memory", version: "0" }, instructions: NEXO_MEMORY_INSTRUCTIONS } });
+  }
+  if (msg.method === "tools/list") return reply(asked.id, { result: { tools: [] } });
+  return reply(asked.id, { result: {} }); // ping
 }
 
 /**
@@ -214,17 +285,30 @@ export interface ProxyIo {
 
 /** Runs the proxy until either side closes; resolves with Engram's exit code. */
 export function runProxy(policy: ProxyPolicy, binary: string, dataDir: string, io: ProxyIo): Promise<number> {
-  const child = io.start(engramArgs(policy), engramEnv(process.env, dataDir));
-  const pending = new Map<unknown, string>();
-  const toServer = (line: string) => child.stdin?.write(`${line}\n`);
   const toClient = (line: string) => io.stdout.write(`${line}\n`);
+  if (!allowedTools(policy).length) {
+    return new Promise((resolve) => {
+      createInterface({ input: io.stdin }).on("line", (line) => {
+        const out = line.trim() ? answerLocally(policy, line) : null;
+        if (out) toClient(out);
+      }).on("close", () => resolve(0));
+    });
+  }
+  const child = io.start(engramArgs(policy), engramEnv(process.env, dataDir));
+  const session = new ProxySession();
+  const toServer = (line: string) => child.stdin?.write(`${line}\n`);
   createInterface({ input: io.stdin }).on("line", (line) => {
     if (!line.trim()) return;
-    const out = fromClient(policy, line, pending);
+    const out = fromClient(policy, line, session);
     if (out.toServer) toServer(out.toServer);
     if (out.toClient) toClient(out.toClient);
   }).on("close", () => child.stdin?.end());
-  if (child.stdout) createInterface({ input: child.stdout }).on("line", (line) => toClient(fromServer(policy, line, pending)));
+  if (child.stdout) {
+    createInterface({ input: child.stdout }).on("line", (line) => {
+      const out = fromServer(policy, line, session);
+      if (out !== null) toClient(out);
+    });
+  }
   child.stderr?.pipe(io.stderr);
   return new Promise((resolve) => {
     child.on("error", (e) => {

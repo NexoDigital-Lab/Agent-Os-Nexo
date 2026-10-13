@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { findRoot } from "../core/paths.ts";
+import { findRoot, sameFolder } from "../core/paths.ts";
 import { enabledTools, folder, readConfig, type EnvironmentConfig } from "../core/config.ts";
 import { parseFrontmatter } from "../core/frontmatter.ts";
 import { isDir, listDir, readJson, readText } from "../core/fsx.ts";
@@ -63,8 +63,18 @@ function checkMemory(findings: Finding[], root: string, config: EnvironmentConfi
   const file = memoryConnectionFile(folder(root, config, "library"));
   if (!existsSync(file)) {
     findings.push({ level: "warn", area, message: "the memory connection is missing — run `nexo memory install`" });
-  } else if (JSON.stringify(readJson(file)) !== JSON.stringify(memoryConnection(root))) {
-    findings.push({ level: "warn", area, message: "the memory connection is out of date (not pinned to this environment, or for another OS) — run `nexo memory update`" });
+  } else {
+    let current: { command?: unknown; args?: unknown; env?: { NEXO_ROOT?: unknown } } | null = null;
+    try {
+      current = readJson(file);
+    } catch {
+      findings.push({ level: "warn", area, message: `${file} cannot be read — run \`nexo memory update\`` });
+    }
+    const expected = memoryConnection(root);
+    const pinned = typeof current?.env?.NEXO_ROOT === "string" && sameFolder(current.env.NEXO_ROOT, root);
+    if (current && (!pinned || JSON.stringify([current.command, current.args]) !== JSON.stringify([expected.command, expected.args]))) {
+      findings.push({ level: "warn", area, message: "the memory connection is out of date (not pinned to this environment, or for another OS) — run `nexo memory update`" });
+    }
   }
   if (!onPath("nexo")) findings.push({ level: "warn", area, message: "`nexo` is not on PATH, so the AIs cannot start the memory connection — install the CLI (npm or `nexo self-update`) or add it to PATH" });
   const rule = engramDenyRule(root, paths);

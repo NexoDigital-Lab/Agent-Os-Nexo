@@ -10,8 +10,9 @@ import {
 import { readJson, writeJson } from "../core/fsx.ts";
 import { buildLibraryIndex } from "../core/libindex.ts";
 import { canonicalProject, runProxy, startEngram, type ProxyIo } from "../core/memoryproxy.ts";
-import { findRoot } from "../core/paths.ts";
+import { findRoot, sameFolder } from "../core/paths.ts";
 import { loadPermissions, mergePermissions, type Decision, type Permissions } from "../core/permissions.ts";
+import { compareVersions } from "../core/osversions.ts";
 import { listProjectDirs, refreshAll } from "../core/projects.ts";
 
 export interface MemoryOptions {
@@ -92,10 +93,15 @@ function memoryProjectDir(root: string, config: EnvironmentConfig, cwd: string):
   return existsSync(join(dir, "AGENTS.md")) ? dir : null;
 }
 
-/** Other project folders whose memory would land in the same Engram project as `name` (Engram folds case, `--` and `__`). */
+/**
+ * Other project folders whose memory would land in the same Engram project as `name` (Engram folds case, `--` and
+ * `__`). Outside every project `own` is null, so a project named `environment` collides with the root's memory too.
+ */
 function sharedMemory(root: string, config: EnvironmentConfig, name: string, own: string | null): string[] {
   const key = canonicalProject(name);
-  return listProjectDirs(root, config).filter((dir) => dir !== own && canonicalProject(memoryProject(root, config, dir)) === key);
+  const projects = listProjectDirs(root, config).filter((dir) => !(own && sameFolder(dir, own)) && canonicalProject(memoryProject(root, config, dir)) === key);
+  // The environment's own memory is `environment` too, and its root is not in the project list.
+  return own && key === "environment" ? [root, ...projects] : projects;
 }
 
 /** Adds the deny rule to library/permissions.json when it is missing (environments made before memory existed); true when added. */
@@ -108,14 +114,6 @@ function denyEngramData(root: string, config: EnvironmentConfig, paths: EngramPa
   if (deny.includes(rule)) return false;
   writeJson(file, { ...perms, files: { ...perms.files, read: { ...perms.files?.read, deny: [...deny, rule] } } });
   return true;
-}
-
-/** Newest first, by version number (3.10.0 after 3.9.0). */
-function byVersion(a: string, b: string): number {
-  const n = (v: string) => v.split(".").map((x) => Number.parseInt(x, 10) || 0);
-  const [x, y] = [n(a), n(b)];
-  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (y[i] ?? 0) - (x[i] ?? 0);
-  return 0;
 }
 
 function status(root: string, config: EnvironmentConfig, pin: EngramPin, json?: boolean): string {
@@ -145,16 +143,17 @@ function status(root: string, config: EnvironmentConfig, pin: EngramPin, json?: 
 async function install(root: string, config: EnvironmentConfig, pin: EngramPin, fetcher: Fetcher, verb: "install" | "update"): Promise<string> {
   const paths = engramPaths(root, config);
   const { binary, downloaded } = await installEngram(paths, pin, fetcher);
-  const old = pruneVersions(paths, pin.version);
   const library = folder(root, config, "library");
   writeMemoryConnection(library, root);
   const denied = denyEngramData(root, config, paths);
   writeConfig(root, { ...config, memory: "engram" });
   refreshAll(root, readConfig(root));
   buildLibraryIndex(library);
+  // Last, and best effort: an old engram.exe still open in an AI session (Windows) stays until that session ends.
+  const { gone: old, busy } = pruneVersions(paths, pin.version);
   return [
     `${downloaded ? `${verb === "update" ? "Updated to" : "Installed"}` : "Already installed:"} ${THIRD_PARTY} ${pin.version} (SHA-256 verified against Nexo's pin).`,
-    `  binary: ${binary}${old.length ? ` (removed ${old.join(", ")})` : ""}`,
+    `  binary: ${binary}${old.length ? ` (removed ${old.join(", ")})` : ""}${busy.length ? ` (kept ${busy.join(", ")}: still in use by an open AI session; run this again after closing it)` : ""}`,
     `  data: ${paths.data}${denied ? ` (agents may not read it: added ${engramDenyRule(root, paths)} to the read deny rules)` : ""}`,
     `  every enabled AI now has the "${MEMORY_CONNECTION}" connection (\`nexo memory mcp\`): project-pinned, no prompts, secrets masked.`,
   ].join("\n");
@@ -181,12 +180,13 @@ export async function memory(action: string | undefined, opts: MemoryOptions, de
       return install(root, config, pin, deps.fetcher ?? defaultFetcher, "update");
     case "remove": {
       const paths = engramPaths(root, config);
-      const gone = pruneVersions(paths, null);
       removeMemoryConnection(folder(root, config, "library"));
       writeConfig(root, { ...config, memory: "none" });
       refreshAll(root, readConfig(root));
       buildLibraryIndex(folder(root, config, "library"));
-      return `Agent memory off: removed Engram ${gone.join(", ") || "(nothing installed)"} and the "${MEMORY_CONNECTION}" connection. The memories stay in ${paths.data}.`;
+      const { gone, busy } = pruneVersions(paths, null);
+      const kept = busy.length ? ` Kept ${busy.join(", ")}: still in use by an open AI session.` : "";
+      return `Agent memory off: removed Engram ${gone.join(", ") || "(nothing installed)"} and the "${MEMORY_CONNECTION}" connection. The memories stay in ${paths.data}.${kept}`;
     }
     case "mcp": {
       const ai = opts.ai ?? "";
@@ -195,15 +195,19 @@ export async function memory(action: string | undefined, opts: MemoryOptions, de
       const paths = engramPaths(root, config);
       const stderr = deps.io?.stderr ?? process.stderr;
       // A newer Nexo may pin a newer Engram than the one installed: keep memory working on the installed one meanwhile.
-      const version = installedVersions(paths).includes(pin.version) ? pin.version : installedVersions(paths).sort(byVersion)[0];
+      // Never on one newer than the pin: this proxy has not looked at what a later Engram added.
+      const older = installedVersions(paths).filter((v) => compareVersions(v, pin.version) < 0).sort((a, b) => compareVersions(b, a));
+      const version = installedVersions(paths).includes(pin.version) ? pin.version : older[0];
       if (!version) throw new Error(`Engram ${pin.version} is not installed: run \`nexo memory update\`.`);
       if (version !== pin.version) stderr.write(`nexo memory mcp: running Engram ${version}; Nexo pins ${pin.version} — run \`nexo memory update\`.\n`);
       const binary = binaryPath(paths, version);
       const cwd = process.cwd();
       const project = memoryProject(root, config, cwd);
-      if (project !== "environment") {
-        const others = sharedMemory(root, config, project, memoryProjectDir(root, config, cwd));
-        if (others.length) throw new Error(`"${project}" would share Engram's memory with ${others.join(", ")} (Engram ignores case, -- and __ in names): rename one of them.`);
+      const own = memoryProjectDir(root, config, cwd);
+      const others = sharedMemory(root, config, project, own);
+      if (others.length) {
+        const mine = own ? `"${project}"` : "the environment's own memory";
+        throw new Error(`${mine} would share Engram's memory with ${others.join(", ")} (Engram ignores case, -- and __ in names): rename the project.`);
       }
       const policy = { ai, project, reads: memoryReads(root, config, cwd, ai), writes: memoryWrites(root, config, cwd, ai) };
       return runProxy(policy, binary, paths.data, deps.io ?? { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr, start: startEngram(binary) });

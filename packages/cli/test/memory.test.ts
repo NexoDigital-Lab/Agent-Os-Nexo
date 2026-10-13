@@ -257,8 +257,9 @@ test("messages: refusals answered locally, initialize gets Nexo's instructions, 
   assert.equal(initReply.result.instructions, NEXO_MEMORY_INSTRUCTIONS);
   assert.deepEqual(initReply.result.capabilities, { tools: {} });
   const list = send({ jsonrpc: "2.0", id: "b", method: "tools/list" });
-  const tools = JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(list), result: { tools: [{ name: "mem_search" }, { name: "mem_delete" }] } })!);
-  assert.deepEqual(tools, { jsonrpc: "2.0", id: "b", result: { tools: [{ name: "mem_search" }] } });
+  const search = { name: "mem_search", inputSchema: { type: "object", properties: { query: {}, project: {}, all_projects: {}, scope: {} }, required: ["query", "project"] } };
+  const tools = JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(list), result: { tools: [search, { name: "mem_delete" }] } })!);
+  assert.deepEqual(tools, { jsonrpc: "2.0", id: "b", result: { tools: [{ name: "mem_search", inputSchema: { type: "object", properties: { query: {} }, required: ["query"] } }] } }, "only the arguments that reach Engram are offered");
   const call = send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "mem_search", arguments: { query: "q", project: "x" } } });
   assert.deepEqual(sent(call).params.arguments, { query: "q" });
   assert.deepEqual(JSON.parse(answer({ jsonrpc: "2.0", id: proxyId(call), error: { code: 1 } })!), { jsonrpc: "2.0", id: 3, error: { code: 1 } });

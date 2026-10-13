@@ -213,9 +213,25 @@ export function fromServer(policy: ProxyPolicy, line: string, session: ProxySess
   }
   if (asked.kind === "tools/list" && Array.isArray(msg.result.tools)) {
     const allowed = new Set(allowedTools(policy));
-    return JSON.stringify({ jsonrpc: "2.0", id, result: { ...msg.result, tools: (msg.result.tools as Array<{ name?: string }>).filter((t) => allowed.has(String(t.name))) } });
+    const tools = (msg.result.tools as Tool[]).filter((t) => allowed.has(String(t.name))).map(offered);
+    return JSON.stringify({ jsonrpc: "2.0", id, result: { ...msg.result, tools } });
   }
   return JSON.stringify({ jsonrpc: "2.0", id, result: msg.result });
+}
+
+interface Tool {
+  name?: string;
+  inputSchema?: { properties?: Record<string, unknown>; required?: string[] } & Record<string, unknown>;
+}
+
+/** A tool as the AI sees it: only the arguments the proxy passes on, so it is never offered one that is dropped. */
+function offered(tool: Tool): Tool {
+  const known = new Set(ARGUMENTS[String(tool.name)] ?? []);
+  const schema = tool.inputSchema;
+  if (!schema?.properties) return tool;
+  const properties = Object.fromEntries(Object.entries(schema.properties).filter(([key]) => known.has(key)));
+  const required = schema.required?.filter((key) => known.has(key));
+  return { ...tool, inputSchema: { ...schema, properties, ...(required ? { required } : {}) } };
 }
 
 /**

@@ -11,7 +11,8 @@ import { frameworkContributions } from "../core/adapters.ts";
 import { defaultFramework, loadFrameworks, NEXO_METHOD } from "../core/frameworks.ts";
 import { buildTarget, currentTarget } from "../core/osruntime.ts";
 import { activeVersion } from "../core/osversions.ts";
-import { binaryPath, engramPaths, MEMORY_CONNECTION, readPin } from "../core/engram.ts";
+import { binaryPath, engramDenyRule, engramPaths, memoryConnection, memoryConnectionFile, readPin } from "../core/engram.ts";
+import { onPath } from "../core/exec.ts";
 
 export type Level = "ok" | "warn" | "error";
 export interface Finding {
@@ -59,8 +60,16 @@ function checkMemory(findings: Finding[], root: string, config: EnvironmentConfi
   const area = "memory";
   findings.push({ level: "ok", area, message: `Engram ${pin.version} (third party, MIT), reached only through \`nexo memory mcp\`` });
   if (!existsSync(binaryPath(paths, pin.version))) findings.push({ level: "warn", area, message: `Engram ${pin.version} is not installed — run \`nexo memory update\`` });
-  if (!existsSync(join(folder(root, config, "library"), "connections", `${MEMORY_CONNECTION}.json`))) {
+  const file = memoryConnectionFile(folder(root, config, "library"));
+  if (!existsSync(file)) {
     findings.push({ level: "warn", area, message: "the memory connection is missing — run `nexo memory install`" });
+  } else if (JSON.stringify(readJson(file)) !== JSON.stringify(memoryConnection(root))) {
+    findings.push({ level: "warn", area, message: "the memory connection is out of date (not pinned to this environment, or for another OS) — run `nexo memory update`" });
+  }
+  if (!onPath("nexo")) findings.push({ level: "warn", area, message: "`nexo` is not on PATH, so the AIs cannot start the memory connection — install the CLI (npm or `nexo self-update`) or add it to PATH" });
+  const rule = engramDenyRule(root, paths);
+  if (!(loadPermissions(join(folder(root, config, "library"), "permissions.json")).files?.read?.deny ?? []).includes(rule)) {
+    findings.push({ level: "warn", area, message: `agents may read Engram's database directly (${rule} is not denied) — run \`nexo memory update\`` });
   }
 }
 

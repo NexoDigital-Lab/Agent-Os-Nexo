@@ -3,7 +3,7 @@
 // Engram's own setup, hooks, HTTP server and cloud are never used: agents reach it only through `nexo memory mcp`.
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { tarGzMember, zipMember } from "./archive.ts";
 import { folder, TOOLS, type EnvironmentConfig } from "./config.ts";
 import type { Connection } from "./connections.ts";
@@ -61,6 +61,11 @@ export function engramPaths(root: string, config: EnvironmentConfig): EngramPath
   return { base: join(os, "runtime", "engram"), data: join(os, "data", "engram") };
 }
 
+/** The read rule that keeps agents out of Engram's database, as a path relative to the environment. */
+export function engramDenyRule(root: string, paths: EngramPaths): string {
+  return `${relative(root, paths.data).replace(/\\/g, "/")}/**`;
+}
+
 export function binaryPath(paths: EngramPaths, version: string, platform: string = process.platform): string {
   return join(paths.base, version, binaryName(platform));
 }
@@ -114,25 +119,32 @@ export function pruneVersions(paths: EngramPaths, keep: string | null): string[]
   return gone.filter((v) => !v.startsWith("."));
 }
 
-/** The `memory` connection every AI gets: Nexo's proxy, told which AI it serves. */
-export function memoryConnection(): Connection {
+/**
+ * The `memory` connection every AI gets: Nexo's proxy, told which AI it serves and which environment it belongs to
+ * (`--root`, so neither NEXO_ROOT nor the folder an AI starts in can point it at another environment). On Windows
+ * `nexo` is a .cmd (npm shim or self-update launcher), which MCP clients cannot start without a shell: `cmd /c`.
+ */
+export function memoryConnection(root: string, platform: string = process.platform): Connection {
+  const run = ["nexo", "memory", "mcp", "--ai", "{{ai}}", "--root", root];
   return {
     name: MEMORY_CONNECTION,
     description: "Agent memory (Engram, third party, MIT) through Nexo's proxy: project-pinned, filtered, no prompts.",
     type: "mcp",
-    command: "nexo",
-    args: ["memory", "mcp", "--ai", "{{ai}}"],
+    command: platform === "win32" ? "cmd" : run[0]!,
+    args: platform === "win32" ? ["/d", "/c", ...run] : run.slice(1),
     tools: [...TOOLS],
     owner: "nexo",
   };
 }
 
-export function writeMemoryConnection(libraryDir: string): void {
-  writeJson(join(libraryDir, "connections", `${MEMORY_CONNECTION}.json`), memoryConnection());
+export const memoryConnectionFile = (libraryDir: string): string => join(libraryDir, "connections", `${MEMORY_CONNECTION}.json`);
+
+export function writeMemoryConnection(libraryDir: string, root: string): void {
+  writeJson(memoryConnectionFile(libraryDir), memoryConnection(root));
 }
 
 export function removeMemoryConnection(libraryDir: string): void {
-  rmSync(join(libraryDir, "connections", `${MEMORY_CONNECTION}.json`), { force: true });
+  rmSync(memoryConnectionFile(libraryDir), { force: true });
 }
 
 /** Total bytes under a folder (the memory database and its WAL files). */

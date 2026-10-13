@@ -19,6 +19,9 @@ const WRITES = new Set<string>(WRITE_TOOLS);
 /** Arguments that would point a call at another project (or every project): the proxy decides the project. */
 const PROJECT_ARGS = ["project", "all_projects", "project_choice_reason", "recovery_token", "directory"];
 
+/** Methods an AI may send through the proxy; anything else (prompts, resources, a later Engram's additions) is refused. */
+const METHODS = new Set(["initialize", "ping", "tools/list", "tools/call"]);
+
 /** Engram looks an observation up by id in any project: the proxy checks the project in the answer (observationProject). */
 const GET_OBSERVATION = "mem_get_observation";
 const GET_OBSERVATION_CALL = `tools/call:${GET_OBSERVATION}`;
@@ -37,12 +40,14 @@ export interface ProxyPolicy {
   ai: string;
   /** The Engram project every call is pinned to. */
   project: string;
-  /** False: only READ_TOOLS. */
+  /** False: no READ_TOOLS (connections.memory.read). */
+  reads: boolean;
+  /** False: no WRITE_TOOLS (connections.memory.write). */
   writes: boolean;
 }
 
 export function allowedTools(policy: ProxyPolicy): string[] {
-  return policy.writes ? [...READ_TOOLS, ...WRITE_TOOLS] : [...READ_TOOLS];
+  return [...(policy.reads ? READ_TOOLS : []), ...(policy.writes ? WRITE_TOOLS : [])];
 }
 
 type Args = Record<string, unknown>;
@@ -51,14 +56,15 @@ export type CallDecision = { ok: true; args: Args } | { ok: false; error: string
 /** What reaches Engram for one tools/call, or why it is refused. */
 export function filterCall(policy: ProxyPolicy, name: string, input: unknown): CallDecision {
   if (!allowedTools(policy).includes(name)) {
-    return { ok: false, error: WRITES.has(name) ? `${name}: this AI may only read memory here (connections.memory.write).` : `${name} is not available through Nexo.` };
+    const rule = WRITES.has(name) ? "write" : (READ_TOOLS as readonly string[]).includes(name) ? "read" : null;
+    return { ok: false, error: rule ? `${name}: this AI may not ${rule} memory here (connections.memory.${rule}).` : `${name} is not available through Nexo.` };
   }
-  const args: Args = { ...(input && typeof input === "object" && !Array.isArray(input) ? (input as Args) : {}) };
-  for (const key of PROJECT_ARGS) delete args[key];
-  delete args.scope;
+  // Keys are dropped whatever their case: Engram is written in Go, whose JSON decoding can match keys case-insensitively.
   // History is appended after the metadata observationProject reads, and old versions may hold any text.
-  if (name === GET_OBSERVATION) for (const key of ["include_history", "history_cursor"]) delete args[key];
-  if ("expected_project" in args || name === "mem_update") args.expected_project = policy.project;
+  const dropped = new Set([...PROJECT_ARGS, "scope", ...(name === GET_OBSERVATION ? ["include_history", "history_cursor"] : [])]);
+  const given = input && typeof input === "object" && !Array.isArray(input) ? (input as Args) : {};
+  const args: Args = Object.fromEntries(Object.entries(given).filter(([key]) => !dropped.has(key.toLowerCase()) && key.toLowerCase() !== "expected_project"));
+  if (Object.keys(given).some((key) => key.toLowerCase() === "expected_project") || name === "mem_update") args.expected_project = policy.project;
   if (!WRITES.has(name)) return { ok: true, args };
 
   for (const [key, value] of Object.entries(args)) {
@@ -86,27 +92,49 @@ interface Message {
   error?: unknown;
 }
 
-/** One line from the AI: forwarded (maybe rewritten) to Engram, or answered right here. */
+const reply = (id: Message["id"], body: Record<string, unknown>) => JSON.stringify({ jsonrpc: "2.0", id: id ?? null, ...body });
+
+/**
+ * One line from the AI: forwarded to Engram, or answered right here. What reaches Engram is always a message the proxy
+ * rebuilt from the fields it read (never the AI's line), so keys it did not look at — another case of `method` or
+ * `params`, a second copy — cannot carry anything past the filter.
+ */
 export function fromClient(policy: ProxyPolicy, line: string, pending: Map<unknown, string>): { toServer?: string; toClient?: string } {
   let msg: Message;
   try {
     msg = JSON.parse(line) as Message;
   } catch {
-    return { toClient: JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }) };
+    return { toClient: reply(null, { error: { code: -32700, message: "Parse error" } }) };
   }
   // A batch would carry its tools/call past filterCall: every message must come on its own line.
   if (!msg || typeof msg !== "object" || Array.isArray(msg)) {
-    return { toClient: JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid Request: batches are not accepted" } }) };
+    return { toClient: reply(null, { error: { code: -32600, message: "Invalid Request: batches are not accepted" } }) };
   }
-  if (msg.method && msg.id !== undefined) pending.set(msg.id, msg.method);
-  if (msg.method !== "tools/call") return { toServer: line };
-  const decision = filterCall(policy, String(msg.params?.name ?? ""), msg.params?.arguments);
-  if (!decision.ok) {
-    pending.delete(msg.id);
-    return { toClient: JSON.stringify({ jsonrpc: "2.0", id: msg.id ?? null, result: { content: [{ type: "text", text: decision.error }], isError: true } }) };
+  const hasId = msg.id !== undefined;
+  if (hasId && msg.id !== null && typeof msg.id !== "string" && typeof msg.id !== "number") {
+    return { toClient: reply(null, { error: { code: -32600, message: "Invalid Request: bad id" } }) };
   }
-  if (msg.params?.name === GET_OBSERVATION && msg.id !== undefined) pending.set(msg.id, GET_OBSERVATION_CALL);
-  return { toServer: JSON.stringify({ ...msg, params: { ...msg.params, arguments: decision.args } }) };
+  const id = hasId ? { id: msg.id } : {};
+  if (typeof msg.method !== "string") {
+    // An answer to a request Engram made (it makes none today): only its own fields go through.
+    if (!hasId) return {};
+    return { toServer: JSON.stringify({ jsonrpc: "2.0", ...id, ...("error" in msg ? { error: msg.error } : { result: msg.result ?? {} }) }) };
+  }
+  const method = msg.method;
+  const params = msg.params && typeof msg.params === "object" && !Array.isArray(msg.params) ? msg.params : undefined;
+  if (method.startsWith("notifications/")) return { toServer: JSON.stringify({ jsonrpc: "2.0", method, ...(params ? { params } : {}) }) };
+  if (!METHODS.has(method)) {
+    return hasId ? { toClient: reply(msg.id, { error: { code: -32601, message: `${method} is not available through Nexo.` } }) } : {};
+  }
+  if (method !== "tools/call") {
+    if (hasId) pending.set(msg.id, method);
+    return { toServer: JSON.stringify({ jsonrpc: "2.0", ...id, method, ...(params ? { params } : {}) }) };
+  }
+  const name = typeof params?.name === "string" ? params.name : "";
+  const decision = filterCall(policy, name, params?.arguments);
+  if (!decision.ok) return { toClient: reply(msg.id, { result: { content: [{ type: "text", text: decision.error }], isError: true } }) };
+  if (hasId) pending.set(msg.id, name === GET_OBSERVATION ? GET_OBSERVATION_CALL : method);
+  return { toServer: JSON.stringify({ jsonrpc: "2.0", ...id, method, params: { name, arguments: decision.args } }) };
 }
 
 /** One line from Engram: Nexo's instructions on initialize, the allowed tools on tools/list, the rest as is. */
@@ -125,7 +153,12 @@ export function fromServer(policy: ProxyPolicy, line: string, pending: Map<unkno
     const text = `${GET_OBSERVATION}: that memory belongs to another project; only ${policy.project}'s memories are available here.`;
     return JSON.stringify({ ...msg, result: { content: [{ type: "text", text }], isError: true } });
   }
-  if (method === "initialize") return JSON.stringify({ ...msg, result: { ...msg.result, instructions: NEXO_MEMORY_INSTRUCTIONS } });
+  if (method === "initialize") {
+    // Only tools are offered: the AI never learns of prompts or resources a later Engram might add.
+    const caps = (msg.result.capabilities ?? {}) as Record<string, unknown>;
+    const capabilities = caps.tools ? { tools: caps.tools } : {};
+    return JSON.stringify({ ...msg, result: { ...msg.result, capabilities, instructions: NEXO_MEMORY_INSTRUCTIONS } });
+  }
   if (method === "tools/list" && Array.isArray(msg.result.tools)) {
     const allowed = new Set(allowedTools(policy));
     return JSON.stringify({ ...msg, result: { ...msg.result, tools: (msg.result.tools as Array<{ name?: string }>).filter((t) => allowed.has(String(t.name))) } });

@@ -1,7 +1,8 @@
 ---
 title: Module rules
 summary: The standard every module follows: M rules checked by the machine, R rules checked in review.
-order: 3
+group: build
+order: 5
 ---
 
 # Module rules

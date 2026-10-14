@@ -1,7 +1,8 @@
 ---
 title: Revisar un módulo
 summary: Cómo revisar un módulo o un cambio contra las reglas e informar qué corregir.
-order: 4
+group: build
+order: 6
 ---
 
 # Revisar un módulo

@@ -1,10 +1,13 @@
-// The agent-os-nexo documentation: docs/<lang>/<slug>.md with a frontmatter (title, summary, order). English is the
+// The agent-os-nexo documentation: docs/<lang>/<slug>.md with a frontmatter (title, summary, group, order). English is the
 // reference; every language has the same documents with the same sections. Used by scripts/docs-index.ts
 // (generates docs/README.md and checks the docs) and by the docs module (the in-app index and reader).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 
 export const DOC_LANGUAGES = ["en", "es"] as const;
+/** Where a document sits in the index: using the app, building modules for it, or looking something up. */
+export const DOC_GROUPS = ["start", "build", "reference"] as const;
+export type DocGroup = (typeof DOC_GROUPS)[number];
 export type DocLanguage = (typeof DOC_LANGUAGES)[number];
 
 export interface DocMeta {
@@ -12,6 +15,7 @@ export interface DocMeta {
   lang: DocLanguage;
   title: string;
   summary: string;
+  group: DocGroup;
   order: number;
   /** The `## ` headings, in order (the outline both languages must share). */
   sections: string[];
@@ -48,6 +52,7 @@ export function readDoc(docsDir: string, lang: DocLanguage, slug: string): Doc |
     lang,
     title: meta.title ?? slug,
     summary: meta.summary ?? "",
+    group: DOC_GROUPS.includes(meta.group as DocGroup) ? (meta.group as DocGroup) : "reference",
     order: Number(meta.order) || 999,
     sections: [...body.matchAll(/^## (.+)$/gm)].map((h) => h[1]!.trim()),
     body,
@@ -75,12 +80,15 @@ export function checkDocs(docsDir: string): string[] {
       const file = `docs/${lang}/${meta.slug}.md`;
       const doc = readDoc(docsDir, lang, meta.slug)!;
       const raw = readFileSync(join(docsDir, lang, `${meta.slug}.md`), "utf8");
-      for (const field of ["title", "summary", "order"]) if (!new RegExp(`^${field}:`, "m").test(raw.split("\n---")[0] ?? "")) problems.push(`${file}: frontmatter has no ${field}`);
+      for (const field of ["title", "summary", "group", "order"]) if (!new RegExp(`^${field}:`, "m").test(raw.split("\n---")[0] ?? "")) problems.push(`${file}: frontmatter has no ${field}`);
+      const group = /^group:\s*(.*)$/m.exec(raw.split("\n---")[0] ?? "")?.[1]?.trim();
+      if (group && !DOC_GROUPS.includes(group as DocGroup)) problems.push(`${file}: group ${group} is not one of ${DOC_GROUPS.join(", ")}`);
       if (lang !== "en") {
         const en = reference.find((d) => d.slug === meta.slug);
         if (!en) problems.push(`${file}: no English original (docs/en/${meta.slug}.md)`);
         else {
           if (en.sections.length !== meta.sections.length) problems.push(`${file}: ${meta.sections.length} sections, the English one has ${en.sections.length}`);
+          if (en.group !== meta.group) problems.push(`${file}: group ${meta.group}, the English one has ${en.group}`);
           if (en.order !== meta.order) problems.push(`${file}: order ${meta.order}, the English one has ${en.order}`);
         }
       }

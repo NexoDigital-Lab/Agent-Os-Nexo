@@ -1,7 +1,8 @@
 ---
 title: Reviewing a module
 summary: How to review a module or a change against the rules and report what to fix.
-order: 4
+group: build
+order: 6
 ---
 
 # Reviewing a module

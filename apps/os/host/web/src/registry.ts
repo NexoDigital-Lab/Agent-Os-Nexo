@@ -6,7 +6,7 @@ import type { ComponentType } from "react";
 import type { LucideIcon } from "lucide-react";
 import { addMessages, type Language } from "./i18n";
 
-/** A top-level view, shown as a rail button. */
+/** A top-level view, shown as a rail button unless `hidden`. */
 export interface ViewDef {
   id: string;
   /** English label (translated with t()). */
@@ -16,6 +16,8 @@ export interface ViewDef {
   component: ComponentType;
   /** Small number on the rail button (e.g. tabs waiting for the user). */
   useBadge?: () => number | null;
+  /** Not on the rail: another view opens it with goTo(id) (Docs, from the bottom of Settings). */
+  hidden?: boolean;
 }
 
 export interface WebModule {

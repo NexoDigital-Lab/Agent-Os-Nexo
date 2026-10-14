@@ -1,7 +1,8 @@
 ---
 title: Install, build, run
 summary: nexo os commands: install, preview, check, build, start, stop, versions, troubleshooting.
-order: 6
+group: start
+order: 3
 ---
 
 # Install, build, run

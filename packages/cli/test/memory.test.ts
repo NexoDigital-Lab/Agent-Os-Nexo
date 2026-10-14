@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { PassThrough } from "node:stream";
 import { deflateRawSync, gzipSync } from "node:zlib";
 import type { ChildProcess } from "node:child_process";
@@ -21,6 +21,7 @@ const ensureDirSync = (dir: string) => (mkdirSync(dir, { recursive: true }), dir
 import { create } from "../src/commands/project.ts";
 import { refreshAll } from "../src/core/projects.ts";
 import { sameFolder } from "../src/core/paths.ts";
+import { findOnPath } from "../src/core/exec.ts";
 import { chmodSync } from "node:fs";
 import { pruneVersions } from "../src/core/engram.ts";
 
@@ -120,7 +121,12 @@ test("install: downloads the pinned asset, refuses other bytes, writes the binar
   assert.throws(() => assetFor(pin, "plan9", "mips"), /no release for plan9-mips/);
 });
 
-test("nexo memory: install wires the connection per AI, status, update, remove keeps the data", async () => {
+test("nexo memory: install wires the connection per AI, status, update, remove keeps the data", async (t) => {
+  // The connection below expects the bare name, so no nexo may be on PATH (npm puts node_modules/.bin there, and its
+  // nexo is real once the CLI is built).
+  const path = process.env.PATH;
+  process.env.PATH = (path ?? "").split(delimiter).filter((dir) => !findOnPath("nexo", { PATH: dir })).join(delimiter);
+  t.after(() => (process.env.PATH = path));
   const root = await freshEnv("claude,opencode,codex");
   const archive = releaseArchive();
   const deps = { pin: pinFor(archive), fetcher: async () => archive };

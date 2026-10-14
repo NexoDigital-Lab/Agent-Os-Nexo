@@ -20,20 +20,26 @@ test("the docs are complete in English and Spanish, and the index is current", (
 const tmp = mkdtempSync(join(tmpdir(), "docs-"));
 after(() => rmSync(tmp, { recursive: true, force: true }));
 const write = (rel: string, text: string) => (mkdirSync(dirname(join(tmp, rel)), { recursive: true }), writeFileSync(join(tmp, rel), text));
-const doc = (title: string, sections: string[], extra = "") =>
-  `---\ntitle: ${title}\nsummary: s\norder: 1\n---\n\n# ${title}\n\n${sections.map((s) => `## ${s}\n\ntext\n`).join("\n")}${extra}`;
+const doc = (title: string, sections: string[], extra = "", group = "start") =>
+  `---\ntitle: ${title}\nsummary: s\ngroup: ${group}\norder: 1\n---\n\n# ${title}\n\n${sections.map((s) => `## ${s}\n\ntext\n`).join("\n")}${extra}`;
 
-test("checkDocs catches a missing translation, a different outline, a broken link, a missing field", () => {
+test("checkDocs catches a missing translation, a different outline or group, a broken link, a missing field, an unknown group", () => {
   write("en/a.md", doc("A", ["One", "Two"], "[b](b.md) [gone](nope.md)\n"));
   write("en/b.md", doc("B", ["One"]));
   write("es/a.md", doc("A es", ["Uno"]));
   write("es/c.md", "# no frontmatter\n");
+  write("en/d.md", doc("D", ["One"], "", "build"));
+  write("es/d.md", doc("D es", ["Uno"], "", "reference"));
+  write("en/e.md", doc("E", ["One"], "", "misc"));
+  write("es/e.md", doc("E es", ["Uno"], "", "misc"));
   const problems = checkDocs(tmp).join("\n");
   assert.match(problems, /docs\/es\/b\.md is missing/);
   assert.match(problems, /docs\/es\/a\.md: 1 sections, the English one has 2/);
   assert.match(problems, /docs\/en\/a\.md: broken link nope\.md/);
   assert.match(problems, /docs\/es\/c\.md: frontmatter has no title/);
   assert.match(problems, /docs\/es\/c\.md: no English original/);
+  assert.match(problems, /docs\/es\/d\.md: group reference, the English one has build/);
+  assert.match(problems, /docs\/en\/e\.md: group misc is not one of start, build, reference/);
   assert.doesNotMatch(problems, /broken link b\.md/);
 });
 

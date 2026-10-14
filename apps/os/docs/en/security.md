@@ -1,7 +1,8 @@
 ---
 title: Security
 summary: The trust model: local server, origin checks, agents' limits, the SSH vault and console.
-order: 7
+group: reference
+order: 8
 ---
 
 # Security

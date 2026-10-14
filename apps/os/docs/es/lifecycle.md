@@ -1,7 +1,8 @@
 ---
 title: Instalar, compilar, ejecutar
 summary: Los comandos nexo os: instalar, vista previa, chequear, compilar, arrancar, detener, versiones y solución de problemas.
-order: 6
+group: start
+order: 3
 ---
 
 # Instalar, compilar, ejecutar

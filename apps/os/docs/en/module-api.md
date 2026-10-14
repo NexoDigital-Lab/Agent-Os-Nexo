@@ -1,7 +1,8 @@
 ---
 title: Writing a module
 summary: Everything a module can use: manifest, server context, slots, session contributions, host library.
-order: 2
+group: build
+order: 4
 ---
 
 # Writing a module
@@ -180,7 +181,8 @@ with `waiting: false`. The web side renders it through the `chat.events` slot.
 `web/index.tsx` exports `defineModule({ root?, views?, slots?, messages?, setup? })`
 ([`host/web/src/registry.ts`](../../host/web/src/registry.ts)):
 
-- `views`: rail views `{ id, label, icon, order, component, useBadge? }`.
+- `views`: rail views `{ id, label, icon, order, component, useBadge?, hidden? }`. A `hidden` view has no rail button:
+  another part of the app opens it with `goTo(id)` (Docs, from the bottom of Settings).
 - `slots`: items for slots other modules render, `{ "tab.views": [ … ] }` — type each item with the
   owner's interface and `satisfies`.
 - `messages: { es }`: translations (M4).

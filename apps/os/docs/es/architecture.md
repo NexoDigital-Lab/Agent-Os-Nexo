@@ -1,7 +1,8 @@
 ---
 title: Cómo funciona agent-os-nexo
 summary: El servidor, la app web, dónde vive cada cosa en un entorno y cómo cooperan los módulos.
-order: 1
+group: start
+order: 2
 ---
 
 # Cómo funciona agent-os-nexo

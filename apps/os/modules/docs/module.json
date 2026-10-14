@@ -1,9 +1,8 @@
 {
   "name": "docs",
-  "version": "1.0.0",
-  "description": "The agent-os-nexo documentation in the app, in its language: an index, full-text search and a reader",
+  "version": "1.1.0",
+  "description": "The agent-os-nexo documentation in the app, in its language: opened from Settings, with a cover, a grouped index, full-text search and a reader with an outline",
   "owner": "nexo",
   "dependsOn": ["shell"],
-  "entry": { "server": "server/index.ts", "web": "web/index.tsx" },
-  "nav": { "label": "Docs", "icon": "book-open", "order": 92 }
+  "entry": { "server": "server/index.ts", "web": "web/index.tsx" }
 }

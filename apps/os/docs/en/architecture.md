@@ -1,7 +1,8 @@
 ---
 title: How agent-os-nexo works
 summary: The server, the web app, where things live in an environment, and how modules cooperate.
-order: 1
+group: start
+order: 2
 ---
 
 # How agent-os-nexo works

@@ -22,6 +22,10 @@ npm run build          # binary + installers (deb, rpm, AppImage on Linux; dmg o
 npm run dev            # debug build, runs it
 ```
 
+The app icon is drawn in `icon-src/icon.svg`. To change it, render that file to a 1024×1024 8-bit RGBA PNG and run
+`npx tauri icon <png> -o <tmp dir>`, then copy over the seven files `src-tauri/tauri.conf.json` lists
+(`src-tauri/icons/`).
+
 ## Runtime
 
 | Variable | Default | What it sets |

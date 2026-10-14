@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- agent-os-nexo app icon: an "N" drawn as a graph of connected nodes, in the brand gradient.
+       Rendered to apps/desktop/src-tauri/icons/ (see apps/desktop/README.md). -->
+  <defs>
+    <linearGradient id="brand" gradientUnits="userSpaceOnUse" x1="200" y1="200" x2="824" y2="824">
+      <stop offset="0" stop-color="#00f5ff"/>
+      <stop offset=".5" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#ff2d78"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="#0a0a0f"/>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="none" stroke="url(#brand)" stroke-width="12" opacity=".35"/>
+  <path d="M320 712 V312 L704 712 V312" fill="none" stroke="url(#brand)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#0a0a0f" stroke="url(#brand)" stroke-width="36">
+    <circle cx="320" cy="312" r="62"/>
+    <circle cx="320" cy="712" r="62"/>
+    <circle cx="704" cy="312" r="62"/>
+    <circle cx="704" cy="712" r="62"/>
+  </g>
+</svg>

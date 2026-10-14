@@ -1,7 +1,8 @@
 ---
 title: Modules
 summary: Every module: what it does, its dependencies, routes, slots and data.
-order: 5
+group: reference
+order: 7
 ---
 
 # Modules
@@ -236,9 +237,12 @@ A gallery of screenshots of what looks wrong in agent-os-nexo, with notes, for a
   **Stores:** data (images + `index.json` of notes).
 
 ## docs
-This documentation inside the app, in the app's language (English when a document has no translation yet):
-an index, full-text search and a reader where links between documents open in place.
-- **Depends on:** shell. **View:** Docs.
+This documentation inside the app, in the app's language (English when a document has no translation yet).
+It has no rail button: it opens from the last block of Settings. A cover lists every document by group (the
+`group` of its frontmatter: start, build, reference); the reader has the index, the document's outline, code
+blocks with a copy button, callouts (`> **Tip:**`, `> **Note:**`, `> **Warning:**`) and the previous / next
+document. Full-text search as you type (`/` focuses it); links between documents open in place.
+- **Depends on:** shell. **View:** Docs (hidden). **Contributes:** `settings.sections` (Documentation).
 - **Routes:** `GET /docs?lang=`, `GET /docs/search?q=&lang=`, `GET /docs/:slug?lang=`.
 - **Reads:** `docs/<lang>/*.md` of the running build (shipped with it); `src/core/docs.ts` parses them, and
   `npm run docs` regenerates `docs/README.md`, the index for reading outside the app.

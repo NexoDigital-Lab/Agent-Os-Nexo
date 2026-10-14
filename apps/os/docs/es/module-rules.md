@@ -1,7 +1,8 @@
 ---
 title: Reglas de módulos
 summary: El estándar que sigue todo módulo: reglas M que chequea la máquina y reglas R que se chequean en la revisión.
-order: 3
+group: build
+order: 5
 ---
 
 # Reglas de módulos

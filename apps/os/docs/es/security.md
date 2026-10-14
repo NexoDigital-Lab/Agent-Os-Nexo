@@ -1,7 +1,8 @@
 ---
 title: Seguridad
 summary: El modelo de confianza: servidor local, chequeos de origen, los límites de los agentes, la bóveda y la consola SSH.
-order: 7
+group: reference
+order: 8
 ---
 
 # Seguridad

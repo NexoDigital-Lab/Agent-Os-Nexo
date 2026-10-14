@@ -45,7 +45,7 @@ test("build: what a version leaves out of modules/", () => {
 
 test("docs index: checks, writes the index, and fails on a stale index or a broken doc", () => {
   const dir = join(tempDir(), "docs");
-  const doc = (title: string) => `---\ntitle: ${title}\nsummary: s\norder: 1\n---\n\n# ${title}\n\n## One\n\ntext\n`;
+  const doc = (title: string) => `---\ntitle: ${title}\nsummary: s\ngroup: start\norder: 1\n---\n\n# ${title}\n\n## One\n\ntext\n`;
   mkdirSync(join(dir, "en"), { recursive: true });
   mkdirSync(join(dir, "es"));
   writeFileSync(join(dir, "en", "start.md"), doc("Start"));

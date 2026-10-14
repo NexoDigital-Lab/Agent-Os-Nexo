@@ -1,4 +1,4 @@
-// The left rail: one button per view the active modules provide, their badges, and the footer items.
+// The left rail: one button per view the active modules provide (but the hidden ones), their badges, and the footer items.
 import { Minus, Plus } from "lucide-react";
 import { t } from "@os/i18n";
 import { slot, type ViewDef } from "@os/registry";
@@ -20,8 +20,9 @@ function RailButton({ v, on, onClick }: { v: ViewDef; on: boolean; onClick: () =
 export function Rail({ views, view, setView }: { views: ViewDef[]; view: string; setView: (v: string) => void }) {
   const zoom = useZoom();
   const footer = slot<RailItem>("rail.footer").sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
-  const top = views.filter((v) => (v.order ?? 100) < 900);
-  const bottom = views.filter((v) => (v.order ?? 100) >= 900);
+  const shown = views.filter((v) => !v.hidden);
+  const top = shown.filter((v) => (v.order ?? 100) < 900);
+  const bottom = shown.filter((v) => (v.order ?? 100) >= 900);
   return (
     <nav className="rail" aria-label={t("Views")}>
       <div className="logo" aria-hidden>N</div>

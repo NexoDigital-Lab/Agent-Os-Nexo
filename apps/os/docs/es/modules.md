@@ -1,7 +1,8 @@
 ---
 title: Módulos
 summary: Cada módulo: qué hace, sus dependencias, rutas, slots y datos.
-order: 5
+group: reference
+order: 7
 ---
 
 # Módulos
@@ -243,8 +244,12 @@ Una galería de capturas de lo que se ve mal en agent-os-nexo, con notas, para q
 
 ## docs
 Esta documentación dentro de la app, en el idioma de la app (en inglés cuando un documento todavía no tiene
-traducción): un índice, búsqueda de texto completo y un lector donde los links entre documentos se abren ahí mismo.
-- **Depende de:** shell. **Vista:** Docs.
+traducción). No tiene botón en el riel: se abre desde el último bloque de Ajustes. Una portada lista cada documento
+por grupo (el `group` de su frontmatter: start, build, reference); el lector tiene el índice, el esquema del
+documento, bloques de código con botón de copiar, avisos (`> **Tip:**`, `> **Nota:**`, `> **Atención:**`) y el
+documento anterior / siguiente. Búsqueda de texto completo mientras escribís (`/` la enfoca); los links entre
+documentos se abren ahí mismo.
+- **Depende de:** shell. **Vista:** Docs (oculta). **Aporta:** `settings.sections` (Documentación).
 - **Rutas:** `GET /docs?lang=`, `GET /docs/search?q=&lang=`, `GET /docs/:slug?lang=`.
 - **Lee:** `docs/<lang>/*.md` del build que corre (viaja con él); `src/core/docs.ts` los interpreta, y
   `npm run docs` regenera `docs/README.md`, el índice para leer fuera de la app.

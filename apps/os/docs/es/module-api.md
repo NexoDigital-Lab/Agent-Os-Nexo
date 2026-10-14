@@ -1,7 +1,8 @@
 ---
 title: Escribir un módulo
 summary: Todo lo que un módulo puede usar: manifiesto, contexto de servidor, slots, contribuciones a sesiones, librería del host.
-order: 2
+group: build
+order: 4
 ---
 
 # Escribir un módulo
@@ -180,7 +181,8 @@ pestaña (`setTabMeta(id, "archOff", true)`); llegan a cada contribución y al `
 `web/index.tsx` exporta `defineModule({ root?, views?, slots?, messages?, setup? })`
 ([`host/web/src/registry.ts`](../../host/web/src/registry.ts)):
 
-- `views`: vistas del riel `{ id, label, icon, order, component, useBadge? }`.
+- `views`: vistas del riel `{ id, label, icon, order, component, useBadge?, hidden? }`. Una vista `hidden` no tiene
+  botón en el riel: otra parte de la app la abre con `goTo(id)` (Docs, desde el final de Ajustes).
 - `slots`: ítems para slots que renderizan otros módulos, `{ "tab.views": [ … ] }` — tipá cada ítem con la
   interfaz del dueño y `satisfies`.
 - `messages: { es }`: traducciones (M4).

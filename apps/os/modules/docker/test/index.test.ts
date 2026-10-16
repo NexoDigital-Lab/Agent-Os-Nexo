@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { mountModule } from "../../../host/test/harness.ts";
 import { projectHooks } from "../../projects/server/hooks.ts";
+import { initProjects } from "../../projects/server/projects.ts";
 import { contributions } from "../../sessions/server/contributions.ts";
 import { shellFor } from "../../editor/submodules/terminal/server/terminal.ts";
 import * as docker from "../server/docker.ts";
@@ -28,6 +29,7 @@ beforeEach(() => {
 const hooksBefore = projectHooks().length;
 const contribBefore = contributions().length;
 const m = await mountModule(register, { id: "docker" });
+initProjects(m.ctx.env);
 const hooks = projectHooks()[hooksBefore]!;
 const contrib = contributions()[contribBefore]!;
 
@@ -85,10 +87,17 @@ test("container actions: unknown action 400, bad id 400, rm forgets the project'
   assert.deepEqual((await m.call("POST", "/docker/containers/web/restart")).body, { ok: true });
   assert.deepEqual(calls.at(-1), ["restart", "web"]);
 
+  const shopRepo = join(m.ctx.env.projects, "shop", "code");
+  mkdirSync(shopRepo, { recursive: true });
+  writeFileSync(join(m.ctx.env.projects, "shop", "AGENTS.md"), "");
   fakeDevEnv("shop");
-  reply = (a) => ({ stdout: a[0] === "inspect" ? "shop\n" : "" });
+  // Another environment's container for a project of the same name: removed, but this environment's shims stay.
+  reply = (a) => ({ stdout: a[0] === "inspect" ? "shop|/other/env/projects/shop/code\n" : "" });
+  assert.equal((await m.call("POST", "/docker/containers/agentos-shop-abc123/rm")).status, 200);
+  assert.deepEqual(calls.at(-1), ["rm", "-f", "agentos-shop-abc123"]);
+  assert.equal(devenv.hasDevEnv("shop"), true);
+  reply = (a) => ({ stdout: a[0] === "inspect" ? `shop|${shopRepo}\n` : "" });
   assert.equal((await m.call("POST", "/docker/containers/agentos-shop/rm")).status, 200);
-  assert.deepEqual(calls.at(-1), ["rm", "-f", "agentos-shop"]);
   assert.equal(devenv.hasDevEnv("shop"), false);
 });
 
@@ -136,8 +145,9 @@ test("session contribution: env file and prompt note only for projects with a de
 
 test("project delete hooks offer the container and remove it on request", async () => {
   const project = { id: "gone", path: "/x/code" } as never;
+  const name = devenv.containerName("gone");
   reply = () => ({ stdout: "true\n" });
-  assert.deepEqual(await hooks.deleteFacts!(project), { container: "agentos-gone" });
+  assert.deepEqual(await hooks.deleteFacts!(project), { container: name });
   reply = () => ({ err: true, stderr: "No such object: x" });
   assert.deepEqual(await hooks.deleteFacts!(project), { container: null });
   reply = () => ({ err: true, stderr: "Cannot connect to the Docker daemon" });
@@ -145,11 +155,13 @@ test("project delete hooks offer the container and remove it on request", async 
   assert.deepEqual(await hooks.deleteFacts!({ id: "nopath", path: null } as never), { container: null });
 
   const steps: string[] = [];
-  reply = () => ({ stdout: "" });
+  reply = (a) => ({ stdout: a[0] === "inspect" ? "/x/code\n" : "" });
   await hooks.afterLocalDelete!(project, { container: false } as never, steps);
   assert.deepEqual(steps, []);
+  await hooks.afterLocalDelete!({ id: "gone", path: null } as never, { container: true } as never, steps);
+  assert.deepEqual(steps, [], "no repo, nothing to match the container against");
   await hooks.afterLocalDelete!(project, { container: true } as never, steps);
-  assert.deepEqual(steps, ["Container agentos-gone and its shims removed"]);
+  assert.deepEqual(steps, [`Container ${name} and its shims removed`]);
   reply = () => ({ err: true, stderr: "daemon exploded" });
   await hooks.afterLocalDelete!(project, { container: true } as never, steps);
   assert.match(steps[1]!, /not removed: daemon exploded/);

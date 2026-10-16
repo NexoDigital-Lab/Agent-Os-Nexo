@@ -44,9 +44,9 @@ const register: ModuleServer = (ctx) => {
       container: p.path ? await devenv.status(p.id, p.path).then((s) => (s.state === "running" || s.state === "stopped" ? s.container : null), () => null) : null,
     }),
     afterLocalDelete: async (p, opts, steps) => {
-      if (!opts.container) return;
+      if (!opts.container || !p.path) return;
       try {
-        await devenv.remove(p.id);
+        await devenv.remove(p.id, p.path);
         steps.push(`Container ${devenv.containerName(p.id)} and its shims removed`);
       } catch (e) {
         steps.push(`Container ${devenv.containerName(p.id)} not removed: ${(e as Error).message}`);
@@ -63,10 +63,11 @@ const register: ModuleServer = (ctx) => {
     const action = String(req.params.action) as docker.ContainerAction;
     if (!["start", "stop", "restart", "rm"].includes(action)) throw httpError(400, `Unknown action: ${action}`);
     const id = String(req.params.id);
-    // Removing a project's dev container from here must also drop its shims, or terminals would point at a ghost.
-    const project = action === "rm" ? await docker.projectLabel(id) : null;
+    // Removing a project's dev container from here must also drop its shims, or terminals would point at a ghost,
+    // but only when it is this environment's container (another environment may have a project of the same name).
+    const owner = action === "rm" ? await docker.containerOwner(id) : null;
     await docker.containerAction(id, action);
-    if (project) devenv.forgetShims(project);
+    if (owner && owner.repo === projectPath(owner.project)) devenv.forgetShims(owner.project);
     return ok;
   }));
   api.get("/docker/containers/:id/logs", h(async (req) => ({ text: await docker.logs(String(req.params.id)) })));
@@ -90,7 +91,11 @@ const register: ModuleServer = (ctx) => {
     const { lang, version, ports } = req.body ?? {};
     return devenv.create(project, repoOf(project), { lang, version: String(version ?? ""), ports: Array.isArray(ports) ? ports : [] });
   }));
-  api.delete("/tabs/:id/devenv", h(async (req) => (await devenv.remove(tabOf(req).project), ok)));
+  api.delete("/tabs/:id/devenv", h(async (req) => {
+    const { project } = tabOf(req);
+    await devenv.remove(project, repoOf(project));
+    return ok;
+  }));
   api.post("/tabs/:id/devenv/install", h(async (req) => {
     const { id, project, cwd } = tabOf(req);
     const { config } = await devenv.status(project, repoOf(project));

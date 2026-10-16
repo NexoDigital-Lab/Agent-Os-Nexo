@@ -48,6 +48,19 @@ const daemonDownMessage = () => {
 
 const missingCliMessage = () => "The Docker CLI was not found.";
 
+const NOT_SHARED = /The path (\S+) is not shared from the host/;
+
+/** What docker said, whole: every line but the "Run 'docker run --help'" hint, which hides the real reason. */
+export function failureMessage(text: string): string {
+  const notShared = NOT_SHARED.exec(text);
+  if (notShared) {
+    return `Docker cannot mount ${notShared[1]}: the folder is not shared with Docker Desktop. Add it (or a parent folder) in Docker Desktop → Settings → Resources → File sharing.`;
+  }
+  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l && !/^(Run|See) '.*--help'/.test(l));
+  const msg = lines.join(" ").replace(/^docker: /, "");
+  return (msg.length > 600 ? `${msg.slice(0, 600)}…` : msg) || "docker failed";
+}
+
 export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
   return new Promise((resolve, reject) =>
     dockerExec.execFile("docker", args, { env: DOCKER_ENV, timeout, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
@@ -56,8 +69,7 @@ export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
       if (err.killed) return reject(httpError(504, `docker took more than ${Math.round(timeout / 1000)} s to answer`));
       if (DAEMON_DOWN.test(stderr)) return reject(httpError(503, daemonDownMessage()));
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return reject(httpError(503, missingCliMessage()));
-      const msg = (stderr || err.message).trim().split("\n").pop() || "docker failed";
-      reject(httpError(400, msg));
+      reject(httpError(400, failureMessage(stderr || err.message)));
     }),
   );
 }
@@ -151,9 +163,15 @@ function ref(x: string) {
   return x;
 }
 
-/** The agent-os-nexo project a container was created for (label agent-os-nexo.project), or null. */
-export const projectLabel = (id: string) =>
-  dockerRun(["inspect", "-f", '{{index .Config.Labels "agent-os-nexo.project"}}', ref(id)], 8000).then((o) => o.trim() || null, () => null);
+/** The agent-os-nexo project and repo a container was created for (labels agent-os-nexo.project/.repo), or null. */
+export const containerOwner = (id: string) =>
+  dockerRun(["inspect", "-f", '{{index .Config.Labels "agent-os-nexo.project"}}|{{index .Config.Labels "agent-os-nexo.repo"}}', ref(id)], 8000).then(
+    (o) => {
+      const [project = "", repo = ""] = o.trim().split("|");
+      return project ? { project, repo } : null;
+    },
+    () => null,
+  );
 
 export type ContainerAction = "start" | "stop" | "restart" | "rm";
 export async function containerAction(id: string, action: ContainerAction) {

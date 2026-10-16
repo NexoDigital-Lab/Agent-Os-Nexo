@@ -1,4 +1,5 @@
-// docker: containers, images, logs and shells (/api/docker/*), and each project's mirror dev container
+// docker: containers, images, logs and shells (/api/docker/*), each project's own stack (/api/tabs/:id/stack: its
+// compose files, start profiles in context/docker.json, up/stop/restart/logs) and its mirror dev container
 // (/api/tabs/:id/devenv). The dev container plugs into terminals (shell provider), AI sessions (env + prompt note)
 // and project deletion (offer to remove it).
 import os from "node:os";
@@ -6,12 +7,13 @@ import path from "node:path";
 import { h, httpError, ok } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
 import { addProjectHooks } from "../../projects/server/hooks.ts";
-import { projectPath } from "../../projects/server/projects.ts";
+import { projectDir, projectPath } from "../../projects/server/projects.ts";
 import { contributeToSessions } from "../../sessions/server/contributions.ts";
 import { tabOf } from "../../sessions/server/index.ts";
 import { addShellProvider, createTerm, killTerm, listTerms, shellFor } from "../../editor/submodules/terminal/server/terminal.ts";
 import * as docker from "./docker.ts";
 import * as devenv from "./devenv.ts";
+import * as compose from "./compose.ts";
 
 const DOCKER_TAB = "docker"; // the Docker view's terminals live under this pseudo-tab
 
@@ -96,6 +98,56 @@ const register: ModuleServer = (ctx) => {
     await devenv.remove(project, repoOf(project));
     return ok;
   }));
+  // The tab's project stack. Detection runs on demand (the view opening or refreshing); status is cheap and polled.
+  const stackOf = (req: Parameters<typeof tabOf>[0]) => {
+    const { project } = tabOf(req);
+    return { project, repo: repoOf(project), dir: projectDir(project)! };
+  };
+  const profileOf = (dir: string, raw: unknown) => {
+    const config = compose.readStack(dir);
+    if (!config) throw httpError(409, "This project has no start profile yet");
+    const id = raw ? String(raw) : config.default;
+    const profile = Object.hasOwn(config.profiles, id) ? config.profiles[id] : undefined;
+    if (!profile) throw httpError(404, `Unknown profile: ${id}`);
+    return { id, profile };
+  };
+  api.get("/tabs/:id/stack", h(async (req) => {
+    const { repo, dir } = stackOf(req);
+    const [detection, stacks, local] = await Promise.all([
+      compose.detect(repo),
+      compose.linkedStacks(repo).catch(() => []),
+      compose.contextIsLocal(),
+    ]);
+    const config = compose.readStack(dir);
+    const proposed = config ? null : compose.propose(detection, repo);
+    const shown = config ?? proposed;
+    const prod = shown ? Object.keys(shown.profiles).filter((id) => compose.isProd(shown.profiles[id]!)) : [];
+    return { detection, config, proposed, prod, stacks, local };
+  }));
+  api.put("/tabs/:id/stack/profiles", h((req) => {
+    const { repo, dir } = stackOf(req);
+    return compose.saveStack(dir, repo, req.body);
+  }));
+  api.get("/tabs/:id/stack/status", h((req) => {
+    const { project, repo, dir } = stackOf(req);
+    const { id, profile } = profileOf(dir, req.query.profile);
+    return compose.status(project, id, profile, repo);
+  }));
+  api.post("/tabs/:id/stack/:action", h((req) => {
+    const action = String(req.params.action) as compose.Action;
+    if (!["up", "stop", "restart"].includes(action)) throw httpError(400, `Unknown action: ${action}`);
+    const { project, repo, dir } = stackOf(req);
+    const { id, profile } = profileOf(dir, req.body?.profile);
+    // A production-looking profile may share volumes with dev: the user confirms each start and stop.
+    if (compose.isProd(profile) && req.body?.confirm !== true) throw httpError(409, "This profile looks like production: confirm to continue");
+    return compose.act(project, id, profile, repo, action);
+  }));
+  api.get("/tabs/:id/stack/logs", h(async (req) => {
+    const { repo, dir } = stackOf(req);
+    const { profile } = profileOf(dir, req.query.profile);
+    return { text: await compose.logs(profile, repo, req.query.service ? String(req.query.service) : undefined) };
+  }));
+
   api.post("/tabs/:id/devenv/install", h(async (req) => {
     const { id, project, cwd } = tabOf(req);
     const { config } = await devenv.status(project, repoOf(project));

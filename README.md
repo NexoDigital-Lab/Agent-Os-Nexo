@@ -90,6 +90,7 @@ docs/                    architecture, every-AI support, packages and releases, 
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | The environment, factory vs user content, agent-os-nexo's lifecycle |
 | [docs/ai-tools.md](docs/ai-tools.md) | What each AI gets from the library, and how agent-os runs each one |
+| [docs/ai-tools-detection.md](docs/ai-tools-detection.md) | A snapshot of the AI CLIs and models one machine actually reports |
 | [docs/release.md](docs/release.md) | The npm packages, the desktop installers, what publishing needs |
 | [docs/decisions/](docs/decisions/README.md) | Design decisions, newest at the bottom |
 

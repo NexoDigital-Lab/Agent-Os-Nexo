@@ -5,6 +5,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { projectOfPath } from "../../projects/server/projects.ts";
+import { listOpencodeSessions } from "./usage-opencode.ts";
 
 export const PROJECTS_DIR = path.join(os.homedir(), ".claude", "projects");
 
@@ -219,7 +220,7 @@ function listClaudeSessions(days = 7): SessionUsage[] {
   return out.sort((a, b) => (b.end ?? "").localeCompare(a.end ?? ""));
 }
 
-// One reader per provider; T2-T4 add opencode/codex/gemini entries here.
+// One reader per provider; each usage-*.ts adapter registers here.
 const ADAPTERS: Record<string, (days: number) => SessionUsage[]> = { claude: listClaudeSessions };
 
 export const PROVIDERS = Object.keys(ADAPTERS);
@@ -227,6 +228,8 @@ export const PROVIDERS = Object.keys(ADAPTERS);
 export function registerUsageAdapter(provider: string, read: (days: number) => SessionUsage[]) {
   ADAPTERS[provider] = read;
 }
+
+registerUsageAdapter("opencode", listOpencodeSessions);
 
 /** Sessions from every provider (or just `provider`), newest first. */
 export function listSessions(days = 7, provider = "all"): SessionUsage[] {

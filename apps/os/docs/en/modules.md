@@ -177,16 +177,20 @@ saves are atomic and refused when the file changed on disk meanwhile, and `conte
   **Stores:** the project's context/.
 
 ## docker
-The engine's containers, images, logs and shells; and a mirror dev container per project whose tools
-(python, node, go…) the tab's terminals and agent use first.
+The engine's containers, images, logs and shells; each project's own stack (its compose files, start profiles,
+one start / stop / restart button with status and logs); and a mirror dev container per project — only its repo
+and worktrees mounted — whose tools (python, node, go…) the tab's terminals and agent use first.
 - **Depends on:** shell, projects, sessions, editor/terminal. **View:** Docker.
-- **Contributes:** `terminal.bar` (dev container controls), a shell provider, a session contribution
+- **Contributes:** `tab.views` (Docker: the project's stack), `terminal.bar` (dev container controls), a shell
+  provider, a session contribution
   (`CLAUDE_ENV_FILE` + prompt note), project hooks (offer to remove the container).
 - **Routes:** `GET /docker/info|containers|images|terms`, `POST /docker/containers/:id/:action`,
   `GET /docker/containers/:id/logs`, `DELETE /docker/images/:id`, `POST /docker/pull`,
   `POST /docker/terms`, `DELETE /docker/terms/:tid`, `GET/POST/DELETE /tabs/:id/devenv`,
-  `POST /tabs/:id/devenv/install`.
-- **Stores:** state `shims/<project>/` (shims, env file, container config).
+  `POST /tabs/:id/devenv/install`, `GET /tabs/:id/stack`, `PUT /tabs/:id/stack/profiles`,
+  `GET /tabs/:id/stack/status|logs`, `POST /tabs/:id/stack/up|stop|restart`.
+- **Stores:** the project's `context/docker.json` (start profiles: compose files, `-p` name, services, stop or
+  down); state `shims/<project>/` (shims, env file, container config).
 
 ## ssh
 Saved SSH accesses in an encrypted vault, an SSH console per session tab, and tools the tab's agent can

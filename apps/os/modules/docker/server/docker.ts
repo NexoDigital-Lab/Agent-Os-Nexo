@@ -7,6 +7,12 @@ import { httpError, userBinPath } from "../../../host/server/http.ts";
 
 export const DOCKER_ENV = { ...process.env, PATH: userBinPath().join(path.delimiter) };
 
+/** What compose sees: the docker settings, never the rest of the server's environment (provider keys, tokens), which
+ * a compose file could otherwise interpolate (`image: ${SOME_KEY}`) into what the UI shows or a container gets. */
+export const COMPOSE_ENV: NodeJS.ProcessEnv = Object.fromEntries(
+  Object.entries(DOCKER_ENV).filter(([k]) => /^(PATH|HOME|USER|LOGNAME|LANG|LC_\w+|TMPDIR|TEMP|TMP|XDG_\w+|DOCKER_\w+|COMPOSE_\w+|SystemRoot|ProgramData|ProgramFiles|APPDATA|LOCALAPPDATA|USERPROFILE)$/.test(k)),
+);
+
 /** The process launcher; tests swap `execFile` for a fake so no real docker runs. */
 export const dockerExec: { execFile: typeof execFile } = { execFile };
 
@@ -48,21 +54,37 @@ const daemonDownMessage = () => {
 
 const missingCliMessage = () => "The Docker CLI was not found.";
 
-export function dockerRun(args: string[], timeout = 30_000): Promise<string> {
+const NOT_SHARED = /The path (\S+) is not shared from the host/;
+
+const PROBLEM = /error|denied|not found|no such|failed|invalid|unable|cannot|can't|conflict|not available|already/i;
+
+/** What docker said: the lines that state a problem (progress lines such as "Container x Creating" are noise), else
+ * every line but the "Run 'docker run --help'" hint. Long output keeps its end, where the reason is. */
+export function failureMessage(text: string): string {
+  const notShared = NOT_SHARED.exec(text);
+  if (notShared) {
+    return `Docker cannot mount ${notShared[1]}: the folder is not shared with Docker Desktop. Add it (or a parent folder) in Docker Desktop → Settings → Resources → File sharing.`;
+  }
+  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l && !/^(Run|See) '.*--help'/.test(l));
+  const problems = lines.filter((l) => PROBLEM.test(l));
+  const msg = (problems.length ? problems : lines).join(" ").replace(/^docker: /, "");
+  return (msg.length > 600 ? `…${msg.slice(-600)}` : msg) || "docker failed";
+}
+
+export function dockerRun(args: string[], timeout = 30_000, env: NodeJS.ProcessEnv = DOCKER_ENV): Promise<string> {
   return new Promise((resolve, reject) =>
-    dockerExec.execFile("docker", args, { env: DOCKER_ENV, timeout, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
+    dockerExec.execFile("docker", args, { env, timeout, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (!err) return resolve(stdout);
       // A killed process is our own timeout (stderr is empty then, so check it first).
       if (err.killed) return reject(httpError(504, `docker took more than ${Math.round(timeout / 1000)} s to answer`));
       if (DAEMON_DOWN.test(stderr)) return reject(httpError(503, daemonDownMessage()));
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return reject(httpError(503, missingCliMessage()));
-      const msg = (stderr || err.message).trim().split("\n").pop() || "docker failed";
-      reject(httpError(400, msg));
+      reject(httpError(400, failureMessage(stderr || err.message)));
     }),
   );
 }
 
-const jsonLines = <T>(out: string): T[] => out.split("\n").filter(Boolean).map((l) => JSON.parse(l) as T);
+export const jsonLines = <T>(out: string): T[] => out.split("\n").filter(Boolean).map((l) => JSON.parse(l) as T);
 
 export type Container = {
   id: string; name: string; image: string; state: string; status: string; ports: string; created: string;
@@ -151,9 +173,15 @@ function ref(x: string) {
   return x;
 }
 
-/** The agent-os-nexo project a container was created for (label agent-os-nexo.project), or null. */
-export const projectLabel = (id: string) =>
-  dockerRun(["inspect", "-f", '{{index .Config.Labels "agent-os-nexo.project"}}', ref(id)], 8000).then((o) => o.trim() || null, () => null);
+/** The agent-os-nexo project and repo a container was created for (labels agent-os-nexo.project/.repo), or null. */
+export const containerOwner = (id: string) =>
+  dockerRun(["inspect", "-f", '{{index .Config.Labels "agent-os-nexo.project"}}|{{index .Config.Labels "agent-os-nexo.repo"}}', ref(id)], 8000).then(
+    (o) => {
+      const [project = "", repo = ""] = o.trim().split("|");
+      return project ? { project, repo } : null;
+    },
+    () => null,
+  );
 
 export type ContainerAction = "start" | "stop" | "restart" | "rm";
 export async function containerAction(id: string, action: ContainerAction) {

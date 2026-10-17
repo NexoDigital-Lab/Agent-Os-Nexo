@@ -52,7 +52,7 @@ test("dockerRun maps a timeout, a dead daemon, a missing binary and plain failur
   reply = () => ({ err: {}, stderr: "first line\nError: no such image\n" });
   e = await fails(docker.dockerRun(["ps"]));
   assert.equal(e.status, 400);
-  assert.equal(e.message, "Error: no such image");
+  assert.equal(e.message, "Error: no such image", "the line that states the problem");
   reply = () => ({ err: { message: "spawn failed" }, stderr: "" });
   assert.equal((await fails(docker.dockerRun(["ps"]))).message, "spawn failed", "falls back to the error message");
   reply = () => ({ err: { message: "" }, stderr: "  \n" });
@@ -248,13 +248,25 @@ test("logs, removeImage and pull", async () => {
   assert.equal(await docker.logs("gone"), "(no such container)");
 });
 
-test("projectLabel returns the label, or null when empty or failing", async () => {
-  reply = () => ({ stdout: " crm \n" });
-  assert.equal(await docker.projectLabel("c"), "crm");
-  reply = () => ({ stdout: "\n" });
-  assert.equal(await docker.projectLabel("c"), null);
+test("containerOwner returns the project and repo labels, or null when unlabelled or failing", async () => {
+  reply = () => ({ stdout: "crm|/env/projects/crm/code\n" });
+  assert.deepEqual(await docker.containerOwner("c"), { project: "crm", repo: "/env/projects/crm/code" });
+  reply = () => ({ stdout: "|\n" });
+  assert.equal(await docker.containerOwner("c"), null);
   reply = () => ({ err: {}, stderr: "x" });
-  assert.equal(await docker.projectLabel("c"), null);
+  assert.equal(await docker.containerOwner("c"), null);
+});
+
+test("failureMessage keeps every meaningful line and explains a folder Docker Desktop does not share", () => {
+  const denied = "docker: Error response from daemon: mounts denied: \nThe path /mnt/data/env/projects is not shared from the host and is not known to Docker.\nYou can configure shared paths from Docker -> Preferences... -> Resources -> File Sharing.\nSee https://docs.docker.com/ for more info.\n\nRun 'docker run --help' for more information\n";
+  assert.match(docker.failureMessage(denied), /^Docker cannot mount \/mnt\/data\/env\/projects: .*File sharing\.$/);
+  assert.equal(docker.failureMessage("docker: Error response from daemon: Conflict.\nSee 'docker run --help'.\n"), "Error response from daemon: Conflict.");
+  assert.equal(docker.failureMessage(`${"x".repeat(700)}END`).length, 601, "long output is cut");
+  assert.ok(docker.failureMessage(`${"x".repeat(700)}END`).endsWith("END"), "keeping its end");
+  const up = `${Array.from({ length: 40 }, (_, i) => ` Container shop-svc${i}-1  Creating`).join("\n")}\nError response from daemon: ports are not available: 5433\n`;
+  assert.equal(docker.failureMessage(up), "Error response from daemon: ports are not available: 5433", "progress lines are noise");
+  assert.equal(docker.failureMessage("first line\nsecond line"), "first line second line", "no problem line: every line");
+  assert.equal(docker.failureMessage("Run 'docker run --help' for more information"), "docker failed");
 });
 
 test("execShellArgs adds the working dir only when given", () => {

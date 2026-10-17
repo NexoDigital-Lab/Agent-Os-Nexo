@@ -1,4 +1,5 @@
-// docker: containers, images, logs and shells (/api/docker/*), and each project's mirror dev container
+// docker: containers, images, logs and shells (/api/docker/*), each project's own stack (/api/tabs/:id/stack: its
+// compose files, start profiles in context/docker.json, up/stop/restart/logs) and its mirror dev container
 // (/api/tabs/:id/devenv). The dev container plugs into terminals (shell provider), AI sessions (env + prompt note)
 // and project deletion (offer to remove it).
 import os from "node:os";
@@ -6,12 +7,13 @@ import path from "node:path";
 import { h, httpError, ok } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
 import { addProjectHooks } from "../../projects/server/hooks.ts";
-import { projectPath } from "../../projects/server/projects.ts";
+import { projectDir, projectPath } from "../../projects/server/projects.ts";
 import { contributeToSessions } from "../../sessions/server/contributions.ts";
 import { tabOf } from "../../sessions/server/index.ts";
 import { addShellProvider, createTerm, killTerm, listTerms, shellFor } from "../../editor/submodules/terminal/server/terminal.ts";
 import * as docker from "./docker.ts";
 import * as devenv from "./devenv.ts";
+import * as compose from "./compose.ts";
 
 const DOCKER_TAB = "docker"; // the Docker view's terminals live under this pseudo-tab
 
@@ -44,12 +46,13 @@ const register: ModuleServer = (ctx) => {
       container: p.path ? await devenv.status(p.id, p.path).then((s) => (s.state === "running" || s.state === "stopped" ? s.container : null), () => null) : null,
     }),
     afterLocalDelete: async (p, opts, steps) => {
-      if (!opts.container) return;
+      if (!opts.container || !p.path) return;
+      const name = devenv.containerName(p.id); // before remove() drops the config that names it
       try {
-        await devenv.remove(p.id);
-        steps.push(`Container ${devenv.containerName(p.id)} and its shims removed`);
+        await devenv.remove(p.id, p.path);
+        steps.push(`Container ${name} and its shims removed`);
       } catch (e) {
-        steps.push(`Container ${devenv.containerName(p.id)} not removed: ${(e as Error).message}`);
+        steps.push(`Container ${name} not removed: ${(e as Error).message}`);
       }
     },
   });
@@ -63,10 +66,11 @@ const register: ModuleServer = (ctx) => {
     const action = String(req.params.action) as docker.ContainerAction;
     if (!["start", "stop", "restart", "rm"].includes(action)) throw httpError(400, `Unknown action: ${action}`);
     const id = String(req.params.id);
-    // Removing a project's dev container from here must also drop its shims, or terminals would point at a ghost.
-    const project = action === "rm" ? await docker.projectLabel(id) : null;
+    // Removing a project's dev container from here must also drop its shims, or terminals would point at a ghost,
+    // but only when it is this environment's container (another environment may have a project of the same name).
+    const owner = action === "rm" ? await docker.containerOwner(id) : null;
     await docker.containerAction(id, action);
-    if (project) devenv.forgetShims(project);
+    if (owner && owner.repo === projectPath(owner.project)) devenv.forgetShims(owner.project);
     return ok;
   }));
   api.get("/docker/containers/:id/logs", h(async (req) => ({ text: await docker.logs(String(req.params.id)) })));
@@ -90,7 +94,60 @@ const register: ModuleServer = (ctx) => {
     const { lang, version, ports } = req.body ?? {};
     return devenv.create(project, repoOf(project), { lang, version: String(version ?? ""), ports: Array.isArray(ports) ? ports : [] });
   }));
-  api.delete("/tabs/:id/devenv", h(async (req) => (await devenv.remove(tabOf(req).project), ok)));
+  api.delete("/tabs/:id/devenv", h(async (req) => {
+    const { project } = tabOf(req);
+    await devenv.remove(project, repoOf(project));
+    return ok;
+  }));
+  // The tab's project stack. Detection runs on demand (the view opening or refreshing); status is cheap and polled.
+  const stackOf = (req: Parameters<typeof tabOf>[0]) => {
+    const { project } = tabOf(req);
+    return { project, repo: repoOf(project), dir: projectDir(project)! };
+  };
+  const profileOf = (dir: string, repo: string, raw: unknown) => {
+    const config = compose.readStack(dir);
+    if (!config) throw httpError(409, "This project has no start profile yet");
+    const id = raw ? String(raw) : config.default;
+    const profile = Object.hasOwn(config.profiles, id) ? config.profiles[id] : undefined;
+    if (!profile) throw httpError(404, `Unknown profile: ${id}`);
+    return { id, profile: compose.checkProfile(id, profile, repo) };
+  };
+  api.get("/tabs/:id/stack", h(async (req) => {
+    const { repo, dir } = stackOf(req);
+    const [detection, stacks, local] = await Promise.all([
+      compose.detect(repo),
+      compose.linkedStacks(repo).catch(() => []),
+      compose.contextIsLocal(),
+    ]);
+    const config = compose.readStack(dir);
+    const proposed = config ? null : compose.propose(detection, repo);
+    const shown = config ?? proposed;
+    const prod = shown ? Object.keys(shown.profiles).filter((id) => compose.isProd(shown.profiles[id]!)) : [];
+    return { detection, config, proposed, prod, stacks, local };
+  }));
+  api.put("/tabs/:id/stack/profiles", h((req) => {
+    const { repo, dir } = stackOf(req);
+    return compose.saveStack(dir, repo, req.body);
+  }));
+  api.get("/tabs/:id/stack/status", h((req) => {
+    const { project, repo, dir } = stackOf(req);
+    const { id, profile } = profileOf(dir, repo, req.query.profile);
+    return compose.status(project, id, profile, repo);
+  }));
+  api.post("/tabs/:id/stack/:action", h((req) => {
+    const action = String(req.params.action) as compose.Action;
+    if (!["up", "stop", "restart"].includes(action)) throw httpError(400, `Unknown action: ${action}`);
+    const { project, repo, dir } = stackOf(req);
+    const { id, profile } = profileOf(dir, repo, req.body?.profile);
+    // Production-looking profiles, remote engines and stacks asking for more than their repo wait for a confirmation.
+    return compose.act(project, id, profile, repo, action, req.body?.confirm === true);
+  }));
+  api.get("/tabs/:id/stack/logs", h(async (req) => {
+    const { repo, dir } = stackOf(req);
+    const { profile } = profileOf(dir, repo, req.query.profile);
+    return { text: await compose.logs(profile, repo, req.query.service ? String(req.query.service) : undefined) };
+  }));
+
   api.post("/tabs/:id/devenv/install", h(async (req) => {
     const { id, project, cwd } = tabOf(req);
     const { config } = await devenv.status(project, repoOf(project));

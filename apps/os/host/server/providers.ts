@@ -279,7 +279,12 @@ function parseNames(stdout: string | undefined, isAgent: boolean): string[] {
   for (const raw of String(stdout ?? "").split(/\r?\n/)) {
     const line = raw.replace(ANSI, "").trim().replace(BULLET, "").replace(TABLE_EDGE, "").trim();
     if (!line || !/^[A-Za-z0-9]/.test(line)) continue; // empty or still decorated (table borders, ellipses)
-    if (line.length > 80 || line.includes(":") || line.endsWith(".")) continue; // prose, logs, URLs
+    // A `:` opens a log timestamp (`14:32:11 …`) or prose (`Note: …`, `INFO: …`), never a name: a model id's
+    // tag comes after the name and carries no space (`ollama/qwen3:8b`), so a colon that shares the line with
+    // a space is noise and every model the provider exposes still reaches the Composer's dropdown.
+    // A sentence and a URL (`https://…`) are prose, not names either.
+    if (line.length > 80 || /^\d{1,2}:\d{2}/.test(line) || line.includes("://") || line.endsWith(".")) continue;
+    if (line.includes(":") && /\s/.test(line)) continue;
     if (/\s{2,}/.test(line)) continue; // table columns, not a name
     const name = isAgent ? (AGENT_LINE.exec(line)?.[1] ?? line) : line;
     if (isAgent ? AGENT_RE.test(name) : CHOICE_RE.test(name)) out.push(name);

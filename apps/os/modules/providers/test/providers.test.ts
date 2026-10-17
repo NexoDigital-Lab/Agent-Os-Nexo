@@ -464,6 +464,24 @@ test("listProviderChoices: `opencode agent list`/`models` output is parsed conse
   assert.equal(runCalls.length, 2);
 });
 
+test("listProviderChoices: model ids keep their `:` tag (the full list the user's provider exposes); log lines still drop", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = (args) => {
+    // The shape `opencode models` prints for a local runtime: a `:tag` and an `@quantization` are part of the id.
+    if (args.includes("models")) {
+      return { stdout: "opencode-go/mimo-v2.5\nollama/qwen3:8b\nollama/gemma4:latest\nlmstudio/qwen3.5-4b@q4_1\n" };
+    }
+    // An agent list still drops a timestamped log line and a sentence: the `:` filter stays for noise.
+    if (args.includes("agent")) {
+      return { stdout: "build (primary)\n14:32:11 INFO registered MCP server foo:bar\nNo agent named that.\n" };
+    }
+    return { stdout: "" };
+  };
+  const r = await providers.listProviderChoices("opencode", "/colon-proj");
+  assert.deepEqual(r.models, ["opencode-go/mimo-v2.5", "ollama/qwen3:8b", "ollama/gemma4:latest", "lmstudio/qwen3.5-4b@q4_1"], "every model the provider exposes reaches the Composer dropdown");
+  assert.deepEqual(r.agents, ["build"], "a log line and a sentence are still noise");
+});
+
 test("listProviderChoices: `gemini -l` lists extensions (agents) and never models; noise lines are dropped", async () => {
   findHits = { gemini: "/usr/bin/gemini" };
   runReply = () => ({ stdout: "docs-helper\r\n- code-reviewer\r\nNo extensions installed.\r\n" });

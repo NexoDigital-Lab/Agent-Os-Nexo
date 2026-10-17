@@ -61,9 +61,13 @@ export function Docs() {
     scroller.current?.scrollTo({ top: 0 });
   };
 
+  /** Where `el` sits inside the scrolling reader (offsetTop counts from the page, bars and banners included). */
+  const topIn = (box: HTMLElement, el: HTMLElement) => el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+
   const jump = (id: string) => {
-    const target = scroller.current?.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null;
-    if (target) scroller.current!.scrollTo({ top: target.offsetTop - 16, behavior: "smooth" });
+    const box = scroller.current;
+    const target = box?.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null;
+    if (box && target) box.scrollTo({ top: topIn(box, target) - 16, behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -103,21 +107,32 @@ export function Docs() {
 
   const view = useMemo(() => (doc ? enhance(renderMarkdown(doc.body), t("Copy")) : null), [doc]);
 
-  // The outline follows the reading: the last heading above the top of the reader is "here".
+  // The outline follows the reading: the last heading above the top of the reader is "here". The headings are looked
+  // up once per document and positions read at most once a frame, however fast the scroll events come.
   useEffect(() => {
     const box = scroller.current;
     if (!box || !view?.outline.length) return setHere("");
-    const onScroll = () => {
+    const heads = view.outline.flatMap((o) => {
+      const el = box.querySelector<HTMLElement>(`#${CSS.escape(o.id)}`);
+      return el ? [{ id: o.id, el }] : [];
+    });
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const top = box.getBoundingClientRect().top;
       let current = view.outline[0]!.id;
-      for (const o of view.outline) {
-        const el = box.querySelector<HTMLElement>(`#${CSS.escape(o.id)}`);
-        if (el && el.offsetTop - box.scrollTop <= 96) current = o.id;
-      }
+      for (const h of heads) if (h.el.getBoundingClientRect().top - top <= 96) current = h.id;
       setHere(current);
     };
-    onScroll();
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    measure();
     box.addEventListener("scroll", onScroll, { passive: true });
-    return () => box.removeEventListener("scroll", onScroll);
+    return () => {
+      box.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [view]);
 
   function onClick(e: MouseEvent<HTMLDivElement>) {
@@ -144,9 +159,11 @@ export function Docs() {
   }
 
   const index = docs ?? [];
-  const at = doc ? index.findIndex((d) => d.slug === doc.slug) : -1;
-  const prev = at > 0 ? index[at - 1] : undefined;
-  const next = at >= 0 ? index[at + 1] : undefined;
+  // Previous / next walk the docs in the order the sidebar shows them: group by group.
+  const reading = GROUPS.flatMap((g) => index.filter((d) => d.group === g.id));
+  const at = doc ? reading.findIndex((d) => d.slug === doc.slug) : -1;
+  const prev = at > 0 ? reading[at - 1] : undefined;
+  const next = at >= 0 ? reading[at + 1] : undefined;
   const groupOf = (id: DocMeta["group"]) => GROUPS.find((g) => g.id === id) ?? GROUPS[2]!;
   const needle = query.trim();
 

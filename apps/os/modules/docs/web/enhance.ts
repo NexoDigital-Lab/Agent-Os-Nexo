@@ -17,9 +17,11 @@ const CALLOUTS: Record<string, CalloutKind> = {
   warning: "warning", important: "warning", atención: "warning", importante: "warning", cuidado: "warning",
 };
 
-/** "Personalize it" → "personalize-it", "Cómo empezar" → "como-empezar": the id GitHub would give the heading. */
+/** The id GitHub gives a heading, so a #link works both there and here: lowercase, every character but letters
+ * (accents kept), digits, spaces, "-" and "_" dropped, each space a "-" ("Cómo empezar" → "cómo-empezar",
+ * "A & B" → "a--b"). */
 export function headingId(text: string): string {
-  return text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return text.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, "").replace(/\s/g, "-");
 }
 
 export function enhance(html: string, copyLabel: string): { html: string; outline: OutlineEntry[] } {
@@ -39,7 +41,9 @@ export function enhance(html: string, copyLabel: string): { html: string; outlin
   }
 
   for (const quote of root.querySelectorAll("blockquote")) {
-    const lead = quote.querySelector("p > strong:first-child");
+    // Only a quote that opens with the bold word ("> **Tip:** …"), not one with a bold word somewhere inside.
+    const first = quote.firstElementChild;
+    const lead = first?.tagName === "P" && first.firstChild?.nodeName === "STRONG" ? first.firstChild : null;
     const kind = lead && CALLOUTS[lead.textContent!.replace(/[:：]\s*$/, "").trim().toLowerCase()];
     if (kind) quote.className = `docs-callout docs-${kind}`;
   }

@@ -1,5 +1,6 @@
-// Token/cost monitor over Claude Code's own transcripts (~/.claude/projects/**.jsonl):
-// every session — CLI or agent-os-nexo tab — plus its subagent sidechains.
+// Token/cost monitor over every AI CLI's local session records: Claude Code's own transcripts
+// (~/.claude/projects/**.jsonl) plus the opencode/codex/gemini adapters (usage-*.ts).
+// Sessions, CLI or agent-os-nexo tab, include their subagent sidechains.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -113,6 +114,7 @@ export type AgentRun = {
 
 export type SessionUsage = {
   id: string;
+  provider: string; // claude | opencode | codex | gemini
   file: string;
   cwd: string | null;
   project: string;
@@ -121,6 +123,7 @@ export type SessionUsage = {
   start: string | null;
   end: string | null;
   active: boolean;
+  usageAvailable: boolean; // false when the CLI persists no tokens/cost (gemini)
   main: Tokens;
   mainModels: string[];
   agents: AgentRun[];
@@ -176,6 +179,7 @@ function readSession(dir: string, file: string, mtime: number): SessionUsage {
   const total = sumModels(byModel);
   return {
     id,
+    provider: "claude",
     file: path.join(dir, file),
     cwd: p.cwd,
     project: projectOf(p.cwd),
@@ -184,6 +188,7 @@ function readSession(dir: string, file: string, mtime: number): SessionUsage {
     start: p.start,
     end: p.end,
     active: Date.now() - mtime < ACTIVE_MS || agents.some((a) => a.active),
+    usageAvailable: true,
     main,
     mainModels: Object.keys(p.byModel),
     agents,
@@ -192,8 +197,8 @@ function readSession(dir: string, file: string, mtime: number): SessionUsage {
   };
 }
 
-/** Sessions touched in the last `days` days, newest first. */
-export function listSessions(days = 7): SessionUsage[] {
+/** Claude Code sessions touched in the last `days` days, newest first. */
+function listClaudeSessions(days = 7): SessionUsage[] {
   if (!existsSync(PROJECTS_DIR)) return [];
   const since = Date.now() - days * 86_400_000;
   const out: SessionUsage[] = [];
@@ -214,6 +219,22 @@ export function listSessions(days = 7): SessionUsage[] {
   return out.sort((a, b) => (b.end ?? "").localeCompare(a.end ?? ""));
 }
 
+// One reader per provider; T2-T4 add opencode/codex/gemini entries here.
+const ADAPTERS: Record<string, (days: number) => SessionUsage[]> = { claude: listClaudeSessions };
+
+export const PROVIDERS = Object.keys(ADAPTERS);
+
+export function registerUsageAdapter(provider: string, read: (days: number) => SessionUsage[]) {
+  ADAPTERS[provider] = read;
+}
+
+/** Sessions from every provider (or just `provider`), newest first. */
+export function listSessions(days = 7, provider = "all"): SessionUsage[] {
+  const readers = provider === "all" ? Object.values(ADAPTERS) : [ADAPTERS[provider]].filter(Boolean);
+  const out = readers.flatMap((read) => read(days));
+  return out.sort((a, b) => (b.end ?? "").localeCompare(a.end ?? ""));
+}
+
 export type Bucket = { key: string; tokens: Tokens; count: number };
 
 function bucket(map: Map<string, Bucket>, key: string, t: Tokens, n = 1) {
@@ -223,16 +244,20 @@ function bucket(map: Map<string, Bucket>, key: string, t: Tokens, n = 1) {
   map.set(key, b);
 }
 
-export function usageSummary(days = 7) {
-  const sessions = listSessions(days);
+export function usageSummary(days = 7, provider = "all") {
+  // byProvider always spans the whole window (it feeds the selector), the rest honors the filter.
+  const all = listSessions(days);
+  const sessions = provider === "all" ? all : all.filter((s) => s.provider === provider);
   const today = new Date().toLocaleDateString("sv-SE");
   const byProject = new Map<string, Bucket>();
   const byAgent = new Map<string, Bucket>();
   const byModel = new Map<string, Bucket>();
+  const byProvider = new Map<string, Bucket>();
   const byDay = new Map<string, Bucket>();
   const total = zero();
   const todayTotal = zero();
 
+  for (const s of all) bucket(byProvider, s.provider, s.total);
   for (const s of sessions) {
     add(total, s.total);
     const day = s.end ? new Date(s.end).toLocaleDateString("sv-SE") : "?";
@@ -247,6 +272,7 @@ export function usageSummary(days = 7) {
   const sorted = (m: Map<string, Bucket>) => [...m.values()].sort((a, b) => b.tokens.cost - a.tokens.cost);
   return {
     days,
+    provider,
     total,
     today: todayTotal,
     sessions: sessions.length,
@@ -254,6 +280,7 @@ export function usageSummary(days = 7) {
     byProject: sorted(byProject),
     byAgent: sorted(byAgent),
     byModel: sorted(byModel),
+    byProvider: sorted(byProvider),
     byDay: [...byDay.values()].sort((a, b) => a.key.localeCompare(b.key)),
   };
 }

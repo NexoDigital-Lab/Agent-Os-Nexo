@@ -182,16 +182,21 @@ la pestaña reciben una línea que les indica dónde está el contexto.
   **Guarda:** el context/ del proyecto.
 
 ## docker
-Los contenedores, imágenes, logs y shells del motor; y un contenedor de desarrollo espejo por proyecto
-cuyas herramientas (python, node, go…) usan primero las terminales y el agente de la pestaña.
+Los contenedores, imágenes, logs y shells del motor; el stack propio de cada proyecto (sus archivos compose,
+perfiles de arranque, un botón de iniciar / detener / reiniciar con estado y logs); y un contenedor de desarrollo
+espejo por proyecto —con solo su repo y worktrees montados— cuyas herramientas (python, node, go…) usan primero las
+terminales y el agente de la pestaña.
 - **Depende de:** shell, projects, sessions, editor/terminal. **Vista:** Docker.
-- **Aporta:** `terminal.bar` (controles del contenedor de desarrollo), un proveedor de shell, una
+- **Aporta:** `tab.views` (Docker: el stack del proyecto), `terminal.bar` (controles del contenedor de desarrollo),
+  un proveedor de shell, una
   contribución a sesiones (`CLAUDE_ENV_FILE` + nota de prompt), hooks de proyectos (ofrece borrar el contenedor).
 - **Rutas:** `GET /docker/info|containers|images|terms`, `POST /docker/containers/:id/:action`,
   `GET /docker/containers/:id/logs`, `DELETE /docker/images/:id`, `POST /docker/pull`,
   `POST /docker/terms`, `DELETE /docker/terms/:tid`, `GET/POST/DELETE /tabs/:id/devenv`,
-  `POST /tabs/:id/devenv/install`.
-- **Guarda:** state `shims/<proyecto>/` (shims, archivo de entorno, configuración del contenedor).
+  `POST /tabs/:id/devenv/install`, `GET /tabs/:id/stack`, `PUT /tabs/:id/stack/profiles`,
+  `GET /tabs/:id/stack/status|logs`, `POST /tabs/:id/stack/up|stop|restart`.
+- **Guarda:** `context/docker.json` del proyecto (perfiles de arranque: archivos compose, nombre `-p`, servicios,
+  stop o down); state `shims/<proyecto>/` (shims, archivo de entorno, configuración del contenedor).
 
 ## ssh
 Accesos SSH guardados en una bóveda cifrada, una consola SSH por pestaña de sesión, y herramientas que el

@@ -74,6 +74,23 @@ R9 en [module-rules.md](module-rules.md).
 - **Lanzadores en Windows.** Un shim `.cmd` de npm corre su script con node, nunca por `cmd.exe`, que ejecutaría
   `& | < > ^ % ! "` dentro de un prompt; a un lanzador que no es de npm se le rechaza cualquier argumento con esos
   caracteres.
+- **Los contenedores de desarrollo ven solo su proyecto.** El contenedor espejo de un proyecto monta su repo y sus
+  worktrees (cada `.git` en solo lectura) y nada más de `projects/`: ni los otros proyectos ni ninguna carpeta
+  `secrets/`. Así, ni el `ctr …` del agente ni el script de instalación de una dependencia pueden leer fuera del
+  proyecto. Los nombres de contenedor llevan una marca del entorno, y un contenedor cuyo label `agent-os-nexo.repo`
+  nombra otro repositorio nunca se reemplaza ni se borra. Un contenedor creado antes de esta regla todavía monta
+  todo `projects/`: la vista Terminal lo marca hasta que se vuelva a crear.
+- **El stack de un proyecto.** `docker compose config` expande el `.env` del proyecto en su salida, así que el
+  servidor se queda solo con nombres de servicio, imágenes, puertos y dependencias: ningún valor de entorno llega al
+  navegador, a un log ni a un agente, y los errores de compose pasan por `redact`. Compose corre solo con las
+  variables de Docker del entorno del servidor, así que un archivo compose no puede interpolar una clave de un
+  proveedor ni un token. Cada llamada a compose es un argv (`execFile`) con nombres y archivos relativos al repo
+  validados al guardar **y de nuevo antes de cada uso** (`context/docker.json` se puede editar a mano o desde un
+  agente); `down` nunca lleva `-v`. Se rechaza un `-p` cuyos contenedores se crearon desde archivos fuera del repo
+  (tomaría los contenedores y volúmenes de otro proyecto). Arrancar pide confirmación, con los motivos, cuando el
+  perfil tiene pinta de producción, el contexto Docker es otra máquina, o el stack resuelto pide más que su repo:
+  `privileged`, `pid`/`ipc`/`network_mode` del host, `cap_add`, dispositivos, el socket de Docker, o una carpeta del
+  host o un contexto de build fuera del repo.
 
 ## SSH: la bóveda y la consola
 
@@ -111,6 +128,8 @@ El contrato completo está en `modules/ssh/CONTRACT.md`. En resumen:
   del token; a los agentes los mantiene afuera la guardia, que lee lo que dice cada llamada.
 - **El módulo http guarda sus entornos en texto plano** en `os/data/http/`. Los agentes no llegan a
   `os/data`, pero otros programas que corren como el usuario pueden leerlo.
+- **El `docker` del propio agente.** El stack del proyecto está controlado en la app; un agente cuyos permisos le
+  dejan correr `docker` en Bash igual puede correr compose (o `docker exec`) por su cuenta.
 
 ## Reportar un problema
 

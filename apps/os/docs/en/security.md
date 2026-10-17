@@ -69,6 +69,22 @@ in [module-rules.md](module-rules.md).
   MCP servers. Tools such as the permission prompts and `confineHook` apply to its tool calls as to any other.
 - **Windows launchers.** An npm `.cmd` shim runs its script with node, never through `cmd.exe`, which would run
   `& | < > ^ % ! "` inside a prompt; a launcher that is not npm's is refused any argument with those characters.
+- **Dev containers see only their project.** A project's mirror dev container mounts its repo and worktrees (each
+  `.git` read-only) and nothing else of `projects/`: not the other projects, not any `secrets/` folder. So the
+  agent's `ctr …` and a dependency's install script cannot read past the project either. Container names carry a
+  tag of the environment, and a container whose `agent-os-nexo.repo` label names another repository is never
+  replaced or removed. A container created before this rule still mounts all of `projects/`: the Terminal view
+  flags it until it is recreated.
+- **A project's stack.** `docker compose config` expands the project's `.env` into its output, so the server keeps
+  only service names, images, ports and dependencies: no environment value reaches the browser, a log or an agent,
+  and compose errors go through `redact`. Compose runs with only the docker-related variables of the server's
+  environment, so a compose file cannot interpolate a provider key or token. Every compose call is an argv
+  (`execFile`) with names and repo-relative files checked on save **and again before each use** (`context/docker.json`
+  can be edited by hand or by an agent); `down` never takes `-v`. A `-p` whose containers were created from files
+  outside the repo is refused (it would take over another project's containers and volumes). Starting asks for a
+  confirmation, with the reasons, when the profile looks like production, the Docker context is another machine, or
+  the resolved stack asks for more than its repo: `privileged`, host `pid`/`ipc`/`network_mode`, `cap_add`,
+  devices, the Docker socket, or a host folder or build context outside the repo.
 
 ## SSH: the vault and the console
 
@@ -105,6 +121,8 @@ The full contract is `modules/ssh/CONTRACT.md`. In short:
   are kept out of it by the guard, which reads what a tool call says.
 - **The http module keeps its environments in clear text** in `os/data/http/`. Agents are kept away from
   `os/data`, but other programs running as the user can read it.
+- **The agent's own `docker`.** The project's stack is gated in the app; an agent whose permissions let it run
+  `docker` in Bash can still run compose (or `docker exec`) itself.
 
 ## Reporting a problem
 

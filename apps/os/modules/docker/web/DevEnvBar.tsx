@@ -106,6 +106,7 @@ export function DevEnvBar({ tab, onChanged, onTerm }: { tab: Tab; onChanged: () 
       <span className="pill accent">{cfg.lang} {cfg.version}</span>
       <span className={`pill ${st.cls}`}>{t(st.text)}</span>
       <span className="faint mono">{env.container}</span>
+      {env.outdated && <span className="pill bad" title={t("Created before dev containers were limited to the repository: it can still read the other projects. Recreate it.")}>{t("recreate to isolate it")}</span>}
       <span className="faint dk-note">{t("{shims} of this project run in the container", { shims: SHIMS[cfg.lang] })}</span>
       <span style={{ flex: 1 }} />
       <button className="btn sm" disabled={busy !== null || state !== "running"} aria-label={t("Install dependencies in the container")} title={t("Runs the dependency install inside the container, in a new terminal")} onClick={install}>

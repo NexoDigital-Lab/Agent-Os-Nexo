@@ -8,7 +8,16 @@ import { promisify } from "node:util";
 import type { NextFunction, Request, Response } from "express";
 import { accessCookie, hasAccess, OPEN_PATHS, validToken } from "./access.ts";
 
-export const run = promisify(execFile);
+/**
+ * `execFile` promisified. Its callers ask a CLI for its full answer — a model list, an agent list, a chat
+ * reply — so stdout is the payload, not a log tail: Node's 1 MiB `execFile` default cut a 1.2 MB
+ * `opencode debug agents` answer off with ERR_CHILD_PROCESS_STDIO_MAXBUFFER. The buffer is a hard cap, not
+ * a hint, so it sits above what a provider can reasonably answer; a run that really exceeds it still fails
+ * loudly instead of silently truncating. Callers may lower it per call.
+ */
+export const RUN_MAX_BUFFER = 64 * 1024 * 1024;
+export const run = (file: string, args: string[], opts?: Parameters<typeof execFile>[2]) =>
+  promisify(execFile)(file, args, { maxBuffer: RUN_MAX_BUFFER, ...opts });
 
 /** An Error the `h()` route wrapper turns into `{ error }` with this HTTP status. */
 export function httpError(status: number, message: string, extra: Record<string, unknown> = {}): Error & { status: number } {

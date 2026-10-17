@@ -1,5 +1,5 @@
 // Helpers every module's server code shares: errors, JSON files, the route wrapper, request guards.
-import { execFile } from "node:child_process";
+import { execFile, type ExecFileOptions } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
@@ -16,8 +16,9 @@ import { accessCookie, hasAccess, OPEN_PATHS, validToken } from "./access.ts";
  * loudly instead of silently truncating. Callers may lower it per call.
  */
 export const RUN_MAX_BUFFER = 64 * 1024 * 1024;
-export const run = (file: string, args: string[], opts?: Parameters<typeof execFile>[2]) =>
-  promisify(execFile)(file, args, { maxBuffer: RUN_MAX_BUFFER, ...opts });
+const execFileText = promisify(execFile);
+export const run = (file: string, args: string[], opts: ExecFileOptions = {}): Promise<{ stdout: string; stderr: string }> =>
+  execFileText(file, args, { maxBuffer: RUN_MAX_BUFFER, ...opts, encoding: "utf8" });
 
 /** An Error the `h()` route wrapper turns into `{ error }` with this HTTP status. */
 export function httpError(status: number, message: string, extra: Record<string, unknown> = {}): Error & { status: number } {

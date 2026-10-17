@@ -64,8 +64,37 @@ writeFileSync(
 );
 const D = "rollout-2026-10-16T09-00-00-44444444-4444-4444-4444-444444444444.jsonl";
 writeFileSync(join(sessionsDir, D), jl({ timestamp: "2026-10-16T09:00:00.000Z", type: "session_meta", payload: { session_id: "44444444-4444-4444-4444-444444444444", cwd: "C:/work/shop/code" } }) + "not json\n");
+// No session_id, no cwd, no turn_context, no user message: every fallback at once.
+const E = "rollout-2026-10-17T12-00-00-55555555-5555-5555-5555-555555555555.jsonl";
+writeFileSync(
+  join(sessionsDir, E),
+  jl(
+    { timestamp: "2026-10-17T12:00:00.000Z", type: "session_meta", payload: {} },
+    { timestamp: "2026-10-17T12:01:00.000Z", type: "event_msg", payload: { type: "token_count", info: { total_token_usage: { input_tokens: 200, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 50, total_tokens: 250 } } } },
+  ),
+);
+// Live-ish but not active (5 min old): kept because it has cost. Text-less content blocks first.
+const F = "rollout-2026-10-17T13-00-00-66666666-6666-6666-6666-666666666666.jsonl";
+writeFileSync(
+  join(sessionsDir, F),
+  jl(
+    { timestamp: "2026-10-17T13:00:00.000Z", type: "session_meta", payload: { session_id: "66666666-6666-6666-6666-666666666666", cwd: "C:/work/shop/code", originator: "Codex Desktop" } },
+    { timestamp: "2026-10-17T13:00:01.000Z", type: "turn_context", payload: { model: "gpt-5-nano" } },
+    { timestamp: "2026-10-17T13:01:00.000Z", type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text" }] } },
+    { timestamp: "2026-10-17T13:02:00.000Z", type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "Write a test" }] } },
+    { timestamp: "2026-10-17T13:03:00.000Z", type: "event_msg", payload: { type: "token_count", info: { total_token_usage: { input_tokens: 1_000_000, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0, total_tokens: 1_000_000 } } } },
+  ),
+);
+// Not live and no usage: dropped.
+const G = "rollout-2026-10-17T14-00-00-77777777-7777-7777-7777-777777777777.jsonl";
+writeFileSync(
+  join(sessionsDir, G),
+  jl({ timestamp: "2026-10-17T14:00:00.000Z", type: "session_meta", payload: { session_id: "77777777-7777-7777-7777-777777777777", cwd: "C:/work/shop/code" } }),
+);
 const fresh = new Date();
-for (const f of [join(sessionsDir, A), join(sessionsDir, C)]) utimesSync(f, fresh, fresh);
+for (const f of [join(sessionsDir, A), join(sessionsDir, C), join(sessionsDir, E)]) utimesSync(f, fresh, fresh);
+const fiveMinAgo = new Date(Date.now() - 5 * 60_000);
+for (const f of [join(sessionsDir, F), join(sessionsDir, G)]) utimesSync(f, fiveMinAgo, fiveMinAgo);
 const longAgo = new Date(Date.now() - 30 * 86_400_000);
 for (const f of [join(home, ".codex", "sessions", "2026", "9", "10", B), join(sessionsDir, D)]) utimesSync(f, longAgo, longAgo);
 
@@ -90,6 +119,19 @@ test("rollouts yield the last cumulative token_count, priced with the GPT table"
   const c = list.find((s) => s.id === "33333333-3333-3333-3333-333333333333")!;
   assert.equal(c.title, "Refactor the router", "the environment dump is skipped for the title");
   assert.equal(c.total.cost, 0, "an unknown model keeps its tokens but costs 0");
+  const e = list.find((s) => s.id === "55555555-5555-5555-5555-555555555555")!;
+  assert.ok(e, "a rollout without session_id takes its id from the file name");
+  assert.equal(e.project, "?", "no cwd at all");
+  assert.equal(e.source, "codex", "no originator keeps the default");
+  assert.deepEqual(e.mainModels, [], "no turn_context: no model to name");
+  assert.equal(e.title, "55555555", "no user message: the id prefix");
+  assert.equal(e.total.cost, 0);
+  assert.equal(e.total.input, 200);
+  const f = list.find((s) => s.id === "66666666-6666-6666-6666-666666666666")!;
+  assert.equal(f.title, "Write a test", "a content block without text is skipped");
+  assert.ok(Math.abs(f.total.cost - 0.05) < 1e-9, "gpt-5-nano: 1M input at $0.05");
+  assert.equal(f.active, false, "five minutes old");
+  assert.ok(!list.some((s) => s.id === "77777777-7777-7777-7777-777777777777"), "no usage and not live: dropped");
   assert.equal(list.find((s) => s.id === "22222222-2222-2222-2222-222222222222"), undefined, "older than the window");
   assert.equal(list.find((s) => s.id === "44444444-4444-4444-4444-444444444444"), undefined, "no usage and stale");
 });
@@ -100,6 +142,6 @@ test("the provider registers: listSessions and usageSummary see codex sessions",
   assert.ok(!listSessions(7, "claude").some((s) => s.id === "11111111-1111-1111-1111-111111111111"));
   const bucket = usageSummary(7).byProvider.find((b) => b.key === "codex")!;
   assert.ok(bucket, "byProvider includes codex");
-  assert.ok(Math.abs(bucket.tokens.cost - 9) < 1e-9);
-  assert.equal(bucket.count, 2, "two recent rollouts");
+  assert.ok(Math.abs(bucket.tokens.cost - 9.05) < 1e-9, "A's 9 plus F's 0.05");
+  assert.equal(bucket.count, 4, "A, C, E and F");
 });

@@ -66,7 +66,7 @@ export function listOpencodeSessions(days = 7): SessionUsage[] {
         .prepare(
           `SELECT id, parent_id, title, directory, cost, tokens_input, tokens_output, tokens_cache_read,
                   tokens_cache_write, agent, model, time_created, time_updated
-           FROM session_v2 WHERE time_updated >= ?`,
+           FROM session_v2 WHERE time_updated IS NULL OR time_updated >= ?`,
         )
         .all(Date.now() - days * 86_400_000) as Row[];
     } finally {

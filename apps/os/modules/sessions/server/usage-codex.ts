@@ -70,7 +70,9 @@ export function listCodexSessions(days = 7): SessionUsage[] {
   const since = Date.now() - days * 86_400_000;
   const out: SessionUsage[] = [];
   for (const file of rollouts(since)) {
-    let id = path.basename(file).replace(/^rollout-|\.jsonl$/g, "");
+    // Fallback id from the file name: rollout-<timestamp>-<uuid>.jsonl -> <uuid>.
+    const fallbackId = path.basename(file).replace(/^rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-/, "").replace(/\.jsonl$/, "");
+    let id = fallbackId;
     let cwd: string | null = null;
     let source = "codex";
     let model = "?";
@@ -92,7 +94,7 @@ export function listCodexSessions(days = 7): SessionUsage[] {
       }
       const p = e.payload ?? {};
       if (e.type === "session_meta") {
-        id = p.session_id ?? id;
+        id = p.session_id ?? fallbackId;
         cwd ??= p.cwd ?? null;
         source = p.originator ?? source;
       }

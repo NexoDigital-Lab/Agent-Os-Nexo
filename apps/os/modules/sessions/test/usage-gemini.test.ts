@@ -61,9 +61,15 @@ utimesSync(join(chats, OLD), longAgo, longAgo);
 const chats2 = join(home, ".gemini", "tmp", "misc-xyz", "chats");
 mkdirSync(chats2, { recursive: true });
 writeFileSync(join(chats2, "session-2026-10-17T06-00-cccc.jsonl"), jl({ sessionId: "cccc", projectHash: "xyz", startTime: start, lastUpdated: end, kind: "main" }));
+// An empty .project_root also falls back to the folder name.
+const chats3 = join(home, ".gemini", "tmp", "empty-root", "chats");
+mkdirSync(chats3, { recursive: true });
+writeFileSync(join(home, ".gemini", "tmp", "empty-root", ".project_root"), "");
+writeFileSync(join(chats3, "session-2026-10-17T06-30-dddd.jsonl"), jl({ sessionId: "dddd", projectHash: "er", startTime: start, lastUpdated: end, kind: "subagent" }));
 const fresh = new Date();
 utimesSync(join(chats, A), fresh, fresh);
 utimesSync(join(chats2, "session-2026-10-17T06-00-cccc.jsonl"), fresh, fresh);
+utimesSync(join(chats3, "session-2026-10-17T06-30-dddd.jsonl"), fresh, fresh);
 
 test("sessions are listed with no tokens, no cost and usage flagged unavailable", () => {
   const list = listGeminiSessions(7);
@@ -85,9 +91,11 @@ test("sessions are listed with no tokens, no cost and usage flagged unavailable"
 
 test("the provider registers: listSessions and usageSummary see gemini sessions", () => {
   const list = listSessions(7, "gemini");
-  assert.equal(list.length, 2);
+  assert.equal(list.length, 3);
+  const bare = list.find((s) => s.id === "dddd")!;
+  assert.equal(bare.project, "empty-root", "an empty .project_root falls back to the folder name");
   const bucket = usageSummary(7).byProvider.find((b) => b.key === "gemini")!;
   assert.ok(bucket, "byProvider includes gemini");
-  assert.equal(bucket.count, 2);
+  assert.equal(bucket.count, 3);
   assert.equal(bucket.tokens.cost, 0, "sessions count, spend stays at zero");
 });

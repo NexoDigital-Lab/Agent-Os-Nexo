@@ -52,6 +52,12 @@ insert.run(CHILD, MAIN, null, "C:/work/shop/code", 0.5, 100_000, 50_000, 0, 500_
 insert.run(ORPHAN, "ses_missing00000000000000000000", "Orphan run", "C:/work/elsewhere", 0.25, 10_000, 5_000, 0, 0, 0, null, "plain-string-model", NOW - 3 * HOUR, NOW - 2 * HOUR);
 insert.run(OLD, null, "Ancient", "C:/work/shop/code", 9, 1, 1, 0, 0, 0, null, model, NOW - 30 * 86_400_000, NOW - 29 * 86_400_000);
 insert.run(IDLE, null, "Idle", "C:/work/shop/code", 0, 0, 0, 0, 0, 0, null, model, NOW - 5 * 86_400_000, NOW - 4 * 86_400_000);
+// A second child with no agent, a model JSON without id, and its own model bucket.
+insert.run("ses_child20000000000000000000000", MAIN, null, "C:/work/shop/code", 0.25, 10_000, 5_000, 0, 0, 0, null, JSON.stringify({ providerID: "opencode-go" }), NOW - HOUR, NOW - 45 * 60_000);
+// No directory, no title, no model, fresh with zero cost: kept because it is live.
+insert.run("ses_bare000000000000000000000000", null, null, null, 0, 0, 0, 0, 0, 0, null, null, NOW - HOUR, NOW);
+// No timestamps at all, but real cost: kept by cost, never live.
+insert.run("ses_notime00000000000000000000000", null, "No time", "C:/work/shop/code", 9, 1_000_000, 0, 0, 0, 0, null, model, null, null);
 db.close();
 
 test("sessions carry opencode's own cost, tokens, model and agent; children become AgentRuns", () => {
@@ -69,13 +75,26 @@ test("sessions carry opencode's own cost, tokens, model and agent; children beco
   assert.deepEqual(main.mainModels, ["mimo-v2.5"], "the model JSON is unwrapped to its id");
   assert.equal(main.active, false, "last touch was half an hour ago, outside the 90 s live window");
   assert.ok(main.total.cost > 0, "kept because it has cost, not because it is active");
-  assert.equal(main.agents.length, 1);
+  assert.equal(main.agents.length, 2);
   const child = main.agents[0]!;
   assert.equal(child.agentId, CHILD);
   assert.equal(child.type, "gentle-worker");
   assert.equal(child.tokens.cost, 0.5);
-  assert.equal(main.total.cost, 4, "parent + child");
+  assert.equal(main.total.cost, 4.25, "parent + two children");
   assert.equal(main.byModel["mimo-v2.5"]!.input, 1_100_000);
+  const child2 = main.agents.find((a) => a.agentId === "ses_child20000000000000000000000")!;
+  assert.equal(child2.type, "subagent", "no agent name falls back to subagent");
+  assert.ok(main.byModel[JSON.stringify({ providerID: "opencode-go" })], "a model JSON without id stays raw and gets its own bucket");
+  const bare = list.find((s) => s.id === "ses_bare000000000000000000000000")!;
+  assert.equal(bare.project, "?", "no directory at all");
+  assert.equal(bare.title, bare.id, "no title falls back to the id");
+  assert.deepEqual(bare.mainModels, ["?"], "no model at all");
+  assert.equal(bare.active, true, "zero cost but live: still listed");
+  const notime = list.find((s) => s.id === "ses_notime00000000000000000000000")!;
+  assert.equal(notime.start, null, "no timestamps stay null");
+  assert.equal(notime.end, null);
+  assert.equal(notime.active, false);
+  assert.ok(notime.total.cost > 0, "zero timestamps but real cost: listed");
   const orphan = list.find((s) => s.id === ORPHAN)!;
   assert.ok(orphan, "a child whose parent is outside the window stands alone");
   assert.equal(orphan.agents.length, 0);
@@ -91,8 +110,8 @@ test("the provider registers: listSessions and usageSummary see opencode session
   const sum = usageSummary(7);
   const bucket = sum.byProvider.find((b) => b.key === "opencode")!;
   assert.ok(bucket, "byProvider includes opencode once the adapter is registered");
-  assert.ok(Math.abs(bucket.tokens.cost - 4.25) < 1e-9, "orphan included: 4 + 0.25");
-  assert.equal(bucket.count, 2, "parent and orphan");
+  assert.ok(Math.abs(bucket.tokens.cost - 13.5) < 1e-9, "main 4.25 + orphan 0.25 + notime 9");
+  assert.equal(bucket.count, 4, "main, orphan, bare and notime");
 });
 
 test("a corrupt database lists nothing instead of crashing", () => {

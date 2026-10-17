@@ -116,3 +116,22 @@ test("the routes report limits and the usage of the transcripts", async () => {
   assert.equal(typeof ctx.id, "string");
 });
 
+test("the usage routes accept a provider filter, always list every provider and reject unknown ones", async () => {
+  const all = await get("/usage/summary?days=3");
+  assert.equal(all.status, 200);
+  assert.equal(all.body.provider, "all");
+  assert.deepEqual(all.body.byProvider.map((b: { key: string }) => b.key), ["claude"]);
+  const claude = await get("/usage/summary?days=3&provider=claude");
+  assert.equal(claude.status, 200);
+  assert.equal(claude.body.provider, "claude");
+  assert.equal(claude.body.sessions, all.body.sessions, "the only provider with data keeps every session");
+  const only = await get("/usage/sessions?days=3&provider=claude");
+  assert.equal(only.status, 200);
+  assert.equal(only.body.length, 1, "the filter reaches the session list too");
+  const gemini = await get("/usage/sessions?days=3&provider=gemini");
+  assert.equal(gemini.status, 200);
+  assert.deepEqual(gemini.body, [], "a registered provider without data lists nothing");
+  const bad = await get("/usage/summary?days=3&provider=nope");
+  assert.equal(bad.status, 400);
+});
+

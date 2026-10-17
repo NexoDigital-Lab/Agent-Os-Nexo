@@ -222,10 +222,12 @@ An HTTP client with collections, environments and curl / Postman import.
 - **Routes:** `GET/PUT /http`, `POST /http/send`. **Stores:** data (collections, environments).
 
 ## monitor
-Token use and estimated cost of every AI session, and the plan's usage limits in the rail.
+Token use and estimated cost of every AI session — Claude Code transcripts, OpenCode's SQLite
+store, Codex rollout files and Gemini chats (listed without usage figures: the CLI persists none) —
+with a provider selector whose general view covers all of them, plus the plan's usage limits in the rail.
 - **Depends on:** shell, sessions. **View:** Monitor. **Contributes:** `rail.footer`, a session
   contribution (reads rate limits).
-- **Routes:** `GET /limits`, `GET /usage/summary`, `GET /usage/sessions`.
+- **Routes:** `GET /limits`, `GET /usage/summary` (days, provider), `GET /usage/sessions` (days, provider).
 
 ## extensions
 VS Code extensions per project (recommended by stack or by an agent, synced to `.vscode/extensions.json`)

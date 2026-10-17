@@ -147,3 +147,32 @@ test("transcriptEvents replays user text, tool calls and results; skips meta, si
   assert.equal(ev[4].text, "");
   assert.equal(transcriptEvents(file, 2).length, 2, "only the tail");
 });
+
+// Multi-provider contract: every session names its provider and whether usage data exists.
+test("sessions carry their provider and usage availability", () => {
+  const list = listSessions(7);
+  assert.ok(list.length > 0);
+  for (const s of list) {
+    assert.equal(s.provider, "claude");
+    assert.equal(s.usageAvailable, true);
+  }
+});
+
+test("listSessions filters by provider; a provider without data yields nothing", () => {
+  assert.ok(listSessions(7, "claude").some((s) => s.id === A), "provider=claude keeps the current behavior");
+  assert.deepEqual(listSessions(7, "codex"), []);
+  assert.deepEqual(listSessions(7, "all"), listSessions(7), '"all" is the unfiltered default');
+});
+
+test("usageSummary exposes byProvider over the whole window and honors the provider filter", () => {
+  const all = usageSummary(7);
+  assert.deepEqual(all.byProvider.map((b) => b.key), ["claude"]);
+  const only = usageSummary(7, "claude");
+  assert.equal(only.sessions, all.sessions, "with only claude data the filter changes nothing");
+  assert.deepEqual(only.total, all.total);
+  assert.deepEqual(only.byProject, all.byProject);
+  const none = usageSummary(7, "codex");
+  assert.equal(none.sessions, 0);
+  assert.equal(none.total.cost, 0);
+  assert.deepEqual(none.byProvider.map((b) => b.key), ["claude"], "byProvider still lists every provider with data, so the selector keeps its options");
+});

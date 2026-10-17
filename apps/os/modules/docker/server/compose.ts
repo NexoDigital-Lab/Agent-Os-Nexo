@@ -44,6 +44,9 @@ const PROD = /(^|[^a-z])prod(uction)?([^a-z]|$)/i;
 const OVERRIDE = /\.override\.ya?ml$/i;
 const MAX_FILES = 12; // each one is a `docker compose config` run when the view opens
 
+/** `p` inside `repo`, comparing normalized paths: Docker on Windows may mix separators in what it records. */
+const within = (repo: string, p: string) => inside(path.resolve(repo), path.resolve(p));
+
 /** docker for compose: never the server's whole environment (see COMPOSE_ENV). */
 const composeRun = (args: string[], timeout: number) => dockerRun(args, timeout, COMPOSE_ENV);
 
@@ -143,7 +146,7 @@ export async function linkedStacks(repo: string): Promise<{ name: string; status
   const out = await composeRun(["compose", "ls", "-a", "--format", "json"], 15_000);
   const rows = JSON.parse(out || "[]") as { Name: string; Status: string; ConfigFiles: string }[];
   return rows.flatMap((r) => {
-    const files = String(r.ConfigFiles ?? "").split(",").filter((f) => f !== repo && inside(repo, f)).map((f) => path.relative(repo, f).split(path.sep).join("/"));
+    const files = String(r.ConfigFiles ?? "").split(",").filter((f) => path.resolve(f) !== path.resolve(repo) && within(repo, f)).map((f) => path.relative(repo, f).split(path.sep).join("/"));
     return files.length ? [{ name: r.Name, status: r.Status, files }] : [];
   });
 }
@@ -285,7 +288,7 @@ export function actionArgs(action: Action, p: Profile, repo: string): string[] {
 async function foreignProject(p: Profile, repo: string): Promise<string | null> {
   const out = await dockerRun(["ps", "-a", "--filter", `label=com.docker.compose.project=${p.projectName}`, "--format", '{{.Label "com.docker.compose.project.config_files"}}'], 15_000);
   for (const line of out.split("\n").map((l) => l.trim()).filter(Boolean)) {
-    if (!line.split(",").some((f) => inside(repo, f))) return line.split(",")[0]!;
+    if (!line.split(",").some((f) => within(repo, f))) return line.split(",")[0]!;
   }
   return null;
 }
@@ -304,10 +307,10 @@ export function risks(config: Record<string, unknown>, repo: string): string[] {
       const src = typeof v?.source === "string" ? v.source : "";
       if (v?.type !== "bind" || !src) continue;
       if (/docker\.sock$/.test(src)) out.push(`${name}: the Docker socket (${src})`);
-      else if (!inside(repo, src)) out.push(`${name}: host folder ${src}`);
+      else if (!within(repo, src)) out.push(`${name}: host folder ${src}`);
     }
     const ctx = (s.build as { context?: unknown } | undefined)?.context;
-    if (typeof ctx === "string" && !inside(repo, ctx) && !/^[a-z]+:\/\//i.test(ctx)) out.push(`${name}: builds from ${ctx}`);
+    if (typeof ctx === "string" && !/^[a-z][a-z0-9+.-]+:\/\//i.test(ctx) && !within(repo, ctx)) out.push(`${name}: builds from ${ctx}`);
   }
   return out;
 }

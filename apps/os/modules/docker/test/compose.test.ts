@@ -116,7 +116,7 @@ test("detect resolves each compose file through docker and keeps a file's error"
   assert.deepEqual([prod!.file, prod!.prod, prod!.error], ["docker-compose.prod.yml", true, "env file .env.prod not found"]);
   assert.deepEqual([dev!.file, dev!.prod, dev!.project, dev!.services.length], ["docker-compose.yml", false, "shop", 3]);
   assert.ok(!JSON.stringify(d).includes("s3cr3t"));
-  assert.deepEqual(calls.find((c) => c[2]!.endsWith("/docker-compose.yml")), ["compose", "-f", join(repo, "docker-compose.yml"), "config", "--format", "json"]);
+  assert.deepEqual(calls.find((c) => /[\\/]docker-compose\.yml$/.test(c[2]!)), ["compose", "-f", join(repo, "docker-compose.yml"), "config", "--format", "json"]);
 });
 
 test("linkedStacks keeps the compose projects with a config file inside the repo", async () => {
@@ -286,11 +286,12 @@ test("act asks for a confirmation with the reasons: production, a remote engine,
 
 test("act refuses a -p that names another repository's compose project, even confirmed", async () => {
   const { repo } = project({ "docker-compose.yml": "" });
-  reply = (a) => (a[0] === "ps" ? { stdout: `${repo}/docker-compose.yml\n/other/repo/compose.yml\n` } : checksOk(a));
+  reply = (a) => (a[0] === "ps" ? { stdout: `${join(repo, "docker-compose.yml")}\n/other/repo/compose.yml\n` } : checksOk(a));
   const e = await fails(compose.act("shop", "p2", profile, repo, "up", true));
   assert.equal(e.status, 409);
   assert.match(e.message, /belongs to files outside this repository \(\/other\/repo\/compose.yml\)/);
   assert.deepEqual(calls[0]!.slice(0, 4), ["ps", "-a", "--filter", "label=com.docker.compose.project=shop"]);
+  // Docker on Windows may record a mix of separators: still this repo's file.
   reply = (a) => (a[0] === "ps" ? { stdout: `${repo}/docker-compose.yml,/old/checkout/docker-compose.yml\n` } : checksOk(a));
   assert.deepEqual(await compose.act("shop", "p2", profile, repo, "up"), { started: "up" }, "one of its files is here: it is this project's");
   await new Promise((r) => setTimeout(r, 10));

@@ -19,6 +19,17 @@ const GROUPS: { id: DocMeta["group"]; label: string; about: string; icon: Lucide
   { id: "reference", label: "Reference", about: "Every module, and the security model.", icon: Shapes },
 ];
 
+const groupFor = (id: DocMeta["group"]) => GROUPS.find((g) => g.id === id) ?? GROUPS[2]!;
+
+/** An anchor from an href as the heading id it names: markdown links arrive percent-encoded ("c%C3%B3mo"). */
+function anchor(raw: string): string {
+  try {
+    return decodeURIComponent(raw).normalize("NFC");
+  } catch {
+    return raw;
+  }
+}
+
 /** `text` with every case-insensitive `needle` marked. */
 function marked(text: string, needle: string): ReactNode[] {
   if (!needle) return [text];
@@ -106,22 +117,25 @@ export function Docs() {
   }, []);
 
   const view = useMemo(() => (doc ? enhance(renderMarkdown(doc.body), t("Copy")) : null), [doc]);
+  // The sidebar, the cover and previous / next all use this one grouping; a group the reader does not know yet
+  // shows under Reference, like its label.
+  const byGroup = useMemo(() => GROUPS.map((group) => ({ group, items: (docs ?? []).filter((d) => groupFor(d.group).id === group.id) })), [docs]);
 
   // The outline follows the reading: the last heading above the top of the reader is "here". The headings are looked
   // up once per document and positions read at most once a frame, however fast the scroll events come.
   useEffect(() => {
     const box = scroller.current;
     if (!box || !view?.outline.length) return setHere("");
-    const heads = view.outline.flatMap((o) => {
-      const el = box.querySelector<HTMLElement>(`#${CSS.escape(o.id)}`);
-      return el ? [{ id: o.id, el }] : [];
-    });
+    const ids = new Set(view.outline.map((o) => o.id));
     let frame = 0;
+    // One query per frame (not one per heading), so a reader remounted under the same document is followed too.
     const measure = () => {
       frame = 0;
       const top = box.getBoundingClientRect().top;
       let current = view.outline[0]!.id;
-      for (const h of heads) if (h.el.getBoundingClientRect().top - top <= 96) current = h.id;
+      for (const el of box.querySelectorAll<HTMLElement>("h2[id], h3[id]")) {
+        if (ids.has(el.id) && el.getBoundingClientRect().top - top <= 96) current = el.id;
+      }
       setHere(current);
     };
     const onScroll = () => {
@@ -153,18 +167,17 @@ export function Docs() {
     const href = a?.getAttribute("href");
     if (!a || !href || /^(https?|mailto):/.test(href)) return; // outside links open in a new window
     e.preventDefault();
-    if (href.startsWith("#")) return jump(href.slice(1));
+    if (href.startsWith("#")) return jump(anchor(href.slice(1)));
     const other = /^([a-z0-9-]+)\.md(?:#(.*))?$/.exec(href);
-    if (other) open(other[1]!, other[2]);
+    if (other) open(other[1]!, other[2] === undefined ? undefined : anchor(other[2]));
   }
 
-  const index = docs ?? [];
   // Previous / next walk the docs in the order the sidebar shows them: group by group.
-  const reading = GROUPS.flatMap((g) => index.filter((d) => d.group === g.id));
+  const reading = byGroup.flatMap((g) => g.items);
   const at = doc ? reading.findIndex((d) => d.slug === doc.slug) : -1;
   const prev = at > 0 ? reading[at - 1] : undefined;
   const next = at >= 0 ? reading[at + 1] : undefined;
-  const groupOf = (id: DocMeta["group"]) => GROUPS.find((g) => g.id === id) ?? GROUPS[2]!;
+  const groupOf = groupFor;
   const needle = query.trim();
 
   return (
@@ -203,7 +216,7 @@ export function Docs() {
             <p className="empty">{t("No documentation in this build.")}</p>
           ) : (
             GROUPS.map((g) => {
-              const items = index.filter((d) => d.group === g.id);
+              const items = byGroup.find((b) => b.group.id === g.id)!.items;
               return items.length ? (
                 <section key={g.id}>
                   <h2>{t(g.label)}</h2>
@@ -288,7 +301,7 @@ export function Docs() {
               <h1>{t("Documentation")}</h1>
               <p className="docs-lede">{t("How to use agent-os-nexo, how it works inside, and how to build and review modules for it.")}</p>
               {GROUPS.map((g) => {
-                const items = index.filter((d) => d.group === g.id);
+                const items = byGroup.find((b) => b.group.id === g.id)!.items;
                 const I = g.icon;
                 return items.length ? (
                   <div key={g.id} className="docs-group">

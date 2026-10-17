@@ -110,13 +110,14 @@ test("create validates the input before touching docker", async () => {
 
 test("create pulls, replaces the container, writes shims, config and devcontainer.json", { skip: linuxPaths }, async () => {
   const { name, dir } = repo();
+  owner[devenv.containerName(name)] = dir; // its own container from a previous create
   const st = await devenv.create(name, dir, { lang: "python", version: "3.12", ports: [8000, 8000, 0, 70000, 1.5, "9000"] as unknown as number[] });
   assert.equal(st.state, "running");
   assert.equal(st.devcontainerWritten, true);
   assert.equal(st.config?.image, "python:3.12-bookworm");
   assert.deepEqual(st.config?.ports, [8000, 9000]);
   const verbs = calls.map((c) => c[0]);
-  assert.deepEqual(verbs.slice(0, 4), ["inspect", "pull", "rm", "run"], "who owns the name is checked first");
+  assert.deepEqual(verbs.slice(0, 5), ["inspect", "pull", "inspect", "rm", "run"], "who owns the name is checked first, and again before rm");
   const runArgs = calls.find((c) => c[0] === "run")!;
   assert.ok(!runArgs.some((a) => a.startsWith(`${projects}:`)), "projects/ (other projects, secrets/) is never mounted");
   assert.deepEqual(runArgs.filter((a, i) => runArgs[i - 1] === "-v"), [`${dir}:${dir}`], "only the repo");
@@ -133,6 +134,8 @@ test("create pulls, replaces the container, writes shims, config and devcontaine
   const shim = readFileSync(join(sd, "python"), "utf8");
   assert.match(shim, /exec "\$D" exec \$T -w "\$W" -e TERM "\$C" python "\$@"/);
   assert.ok(shim.includes(`W='${dir}'`) && shim.includes(`for R in '${dir}'; do`), "works in the repo unless the cwd is a mounted tree");
+  assert.ok(shim.includes(`'${join(projects, name, "worktrees")}'/*) echo "agent-os-nexo: this worktree was created after the dev container`), "an unmounted worktree fails loudly");
+  assert.equal(runArgs[runArgs.indexOf("-w") + 1], dir);
   assert.match(readFileSync(join(sd, "env.sh"), "utf8"), /AGENT_OS_CONTAINER='agentos-/);
   assert.equal(devenv.hasDevEnv(name), true);
   const dc = JSON.parse(readFileSync(join(dir, ".devcontainer", "devcontainer.json"), "utf8"));
@@ -174,6 +177,7 @@ test("create refuses a second run for the same project while one is in flight", 
 
 test("a failed run drops the old shims; a missing old container on rm is fine, other rm errors are not", async () => {
   const { name, dir } = repo();
+  owner[devenv.containerName(name)] = dir;
   await devenv.create(name, dir, { lang: "node", version: "20", ports: [] });
   assert.equal(devenv.hasDevEnv(name), true);
   reply = (a) => (a[0] === "run" ? { err: true, stderr: "port is already allocated" } : { stdout: "" });
@@ -228,6 +232,7 @@ test("remove deletes the container and shims; tolerates a missing container; val
   const { name, dir } = repo();
   await devenv.create(name, dir, { lang: "node", version: "22", ports: [] });
   const container = devenv.containerName(name);
+  owner[container] = dir;
   await devenv.remove(name, dir);
   assert.deepEqual(calls.at(-1), ["rm", "-f", container]);
   assert.equal(devenv.hasDevEnv(name), false);
@@ -280,6 +285,26 @@ test("a container from before environment names keeps its name, is flagged outda
   await devenv.create(name, dir, { lang: "node", version: "22", ports: [] });
   const fresh = devenv.containerName(name);
   assert.notEqual(fresh, legacy);
-  assert.deepEqual(calls.filter((c) => c[0] === "rm"), [["rm", "-f", legacy], ["rm", "-f", fresh]]);
+  assert.deepEqual(calls.filter((c) => c[0] === "rm"), [["rm", "-f", legacy]], "the fresh name held nothing");
   assert.equal(calls.find((c) => c[0] === "run")![calls.find((c) => c[0] === "run")!.indexOf("--name") + 1], fresh);
+});
+
+test("an old-style name held by another environment is left alone: create moves on, remove only drops the shims", async () => {
+  const { name, dir } = repo();
+  const legacy = `agentos-${name}`;
+  const legacyConfig = () => {
+    mkdirSync(devenv.shimDir(name), { recursive: true });
+    writeFileSync(join(devenv.shimDir(name), "config.json"), JSON.stringify({ lang: "node", version: "20", ports: [], image: "node:20-bookworm" }));
+    writeFileSync(devenv.envFile(name), "");
+  };
+  legacyConfig();
+  owner[legacy] = "/other/env/projects/x/code";
+  await devenv.remove(name, dir);
+  assert.ok(!calls.some((c) => c[0] === "rm"), "never removes the other environment's container");
+  assert.equal(devenv.hasDevEnv(name), false);
+  legacyConfig();
+  calls = [];
+  await devenv.create(name, dir, { lang: "node", version: "22", ports: [] });
+  assert.ok(!calls.some((c) => c[0] === "rm" && c[2] === legacy));
+  assert.notEqual(devenv.containerName(name), legacy, "this project now has its own name");
 });

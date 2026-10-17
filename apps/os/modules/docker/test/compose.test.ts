@@ -8,7 +8,7 @@ import { tempDir } from "../../../host/test/harness.ts";
 import * as docker from "../server/docker.ts";
 import * as compose from "../server/compose.ts";
 
-type Reply = { stdout?: string; stderr?: string; err?: boolean };
+type Reply = { stdout?: string; stderr?: string; err?: boolean; wait?: Promise<void> };
 let calls: string[][] = [];
 let reply: (args: string[]) => Reply = () => ({});
 let gate: Promise<void> = Promise.resolve();
@@ -19,7 +19,7 @@ beforeEach(() => {
   docker.dockerExec.execFile = ((_f: string, args: string[], _o: unknown, cb: (e: unknown, o: string, s: string) => void) => {
     calls.push(args);
     const r = reply(args);
-    void gate.then(() => setImmediate(() => cb(r.err ? new Error("x") : null, r.stdout ?? "", r.stderr ?? "")));
+    void (r.wait ?? gate).then(() => setImmediate(() => cb(r.err ? new Error("x") : null, r.stdout ?? "", r.stderr ?? "")));
   }) as unknown as typeof docker.dockerExec.execFile;
 });
 const fails = async (p: Promise<unknown> | (() => unknown)) => {
@@ -144,6 +144,7 @@ test("saved profiles: validated against the repo, written to context/docker.json
   assert.match((await bad({ projectName: "Shop Name" })).message, /Invalid compose project name/);
   assert.match((await bad({ services: ["--rm"] })).message, /Invalid service name/);
   assert.match((await bad({ stop: "down -v" })).message, /Invalid stop mode/);
+  assert.match((await bad({ stop: "down" })).message, /cannot be limited to some services/, "down takes the whole project");
   assert.match((await bad({}, "prod")).message, /default profile/);
   assert.match((await fails(() => compose.saveStack(dir, repo, { default: "x", profiles: { "a b": good.profiles.dev } }))).message, /Invalid profile id/);
   assert.match((await fails(() => compose.saveStack(dir, repo, {}))).message, /At least one profile/);
@@ -184,10 +185,17 @@ test("propose makes one profile per readable compose file and defaults to the on
   assert.equal(p.profiles["default-2"]!.projectName, "code", "an invalid compose name falls back to the folder");
   assert.equal(compose.propose({ dockerfiles: [], compose: [d.compose[0]!] }, "/r")!.default, "prod", "only prod: it is still the default");
   assert.equal(compose.propose({ dockerfiles: ["Dockerfile"], compose: [] }, "/r"), null);
+  const withOverride = compose.propose({ dockerfiles: [], compose: [
+    { file: "docker-compose.override.yml", project: "shop", prod: false, services: svc },
+    { file: "docker-compose.yml", project: "shop", prod: false, services: svc },
+  ] }, "/r")!;
+  assert.deepEqual(withOverride.profiles, { default: { label: "docker-compose.yml", files: ["docker-compose.yml", "docker-compose.override.yml"], projectName: "shop", services: [], stop: "stop" } }, "an override joins its base file");
   assert.equal(compose.isProd(p.profiles.prod!), true);
   assert.equal(compose.isProd(p.profiles.default!), false);
   assert.equal(compose.isProd({ ...p.profiles.default!, projectName: "shop-prod" }), true);
-  assert.equal(compose.isProd({ ...p.profiles.default!, files: ["reproduce.yml"] }), false, "only prod as a word start");
+  assert.equal(compose.isProd({ ...p.profiles.default!, files: ["reproduce.yml"] }), false, "only prod as a word");
+  assert.equal(compose.isProd({ ...p.profiles.default!, files: ["products/compose.yml"] }), false);
+  assert.equal(compose.isProd({ ...p.profiles.default!, files: ["compose.production.yml"] }), true);
 });
 
 test("reduce turns container states into one stack state", () => {
@@ -199,8 +207,10 @@ test("reduce turns container states into one stack state", () => {
   assert.equal(compose.reduce([row("db", "running")], ["db", "api"]), "partial", "a wanted service is missing");
   assert.equal(compose.reduce([row("db", "running"), row("api", "exited", "", 1)], []), "partial");
   assert.equal(compose.reduce([row("db", "running", "unhealthy")], []), "partial");
-  assert.equal(compose.reduce([row("api", "exited", "", 137)], []), "error");
+  assert.equal(compose.reduce([row("api", "exited", "", 1)], []), "error");
+  assert.equal(compose.reduce([row("api", "exited", "", 137), row("db", "exited", "", 143)], []), "stopped", "killed by a stop is not a failure");
   assert.equal(compose.reduce([row("api", "exited")], []), "stopped");
+  assert.equal(compose.reduce([row("api", "running"), row("migrate", "exited")], []), "running", "a finished one-shot service is fine");
 });
 
 const profile: compose.Profile = { files: ["docker-compose.yml"], projectName: "shop", services: [], stop: "stop" };
@@ -233,25 +243,78 @@ test("actionArgs: up and restart take the profile's services; stop or down, neve
   for (const a of ["up", "stop", "restart"] as const) assert.ok(!compose.actionArgs(a, { ...profile, stop: "down" }, real).includes("-v"));
 });
 
+/** A docker that answers the checks act() makes before starting: no other owner of -p, a local engine, an empty config. */
+const checksOk = (a: string[], action: Reply = { stdout: "" }): Reply =>
+  a[0] === "ps" ? { stdout: "" } : a[0] === "context" ? { stdout: "unix:///var/run/docker.sock\n" } : a.includes("config") ? { stdout: '{"services":{}}' } : a.includes("ps") ? { stdout: "" } : action;
+
 test("act runs in the background: busy while it runs, one at a time, its error kept until the next run", async () => {
   const { repo } = project({ "docker-compose.yml": "" });
   let release!: () => void;
-  gate = new Promise((r) => (release = r));
-  reply = (a) => (a.includes("ps") ? { stdout: "" } : { err: true, stderr: "Error: port 5433 is already allocated" });
-  assert.deepEqual(compose.act("shop", "dev", profile, repo, "up"), { started: "up" });
-  assert.equal((await fails(() => compose.act("shop", "dev", profile, repo, "stop"))).status, 409);
-  compose.act("shop", "other", profile, repo, "stop"); // another profile is independent
-  gate = Promise.resolve();
+  const held = new Promise<void>((r) => (release = r));
+  reply = (a) => checksOk(a, { err: true, stderr: "Container shop-db-1 Creating\nError response from daemon: port 5433 is already allocated", wait: held });
+  assert.deepEqual(await compose.act("shop", "dev", profile, repo, "up"), { started: "up" });
+  assert.equal((await fails(compose.act("shop", "dev", profile, repo, "stop"))).status, 409);
+  await compose.act("shop", "other", profile, repo, "stop"); // another profile is independent
   const during = await compose.status("shop", "dev", profile, repo);
   assert.deepEqual([during.state, during.busy], ["starting", "up"]);
   assert.equal((await compose.status("shop", "other", profile, repo)).state, "stopping");
   release();
   await new Promise((r) => setTimeout(r, 20));
   const after = await compose.status("shop", "dev", profile, repo);
-  assert.deepEqual([after.state, after.busy, after.lastError], ["stopped", null, "Error: port 5433 is already allocated"]);
-  reply = () => ({ stdout: "" });
-  compose.act("shop", "dev", profile, repo, "up");
+  assert.deepEqual([after.state, after.busy, after.lastError], ["stopped", null, "Error response from daemon: port 5433 is already allocated"]);
+  reply = (a) => checksOk(a);
+  await compose.act("shop", "dev", profile, repo, "up");
   assert.equal((await compose.status("shop", "dev", profile, repo)).lastError, null, "a new run clears the old error");
+});
+
+test("act asks for a confirmation with the reasons: production, a remote engine, a stack asking for more than its repo", async () => {
+  const { repo } = project({ "docker-compose.prod.yml": "" });
+  const prod: compose.Profile = { files: ["docker-compose.prod.yml"], projectName: "shop", services: [], stop: "stop" };
+  const risky = { services: { web: { privileged: true, volumes: [{ type: "bind", source: "/var/run/docker.sock" }] } } };
+  reply = (a) => (a[0] === "context" ? { stdout: "tcp://10.0.0.5:2376\n" } : a.includes("config") ? { stdout: JSON.stringify(risky) } : checksOk(a));
+  const e = await fails(compose.act("shop", "p1", prod, repo, "up"));
+  assert.equal(e.status, 409);
+  assert.match(e.message, /^Confirm to continue: this profile looks like production; the active Docker context is another machine; web: privileged; web: the Docker socket/);
+  assert.ok(!calls.some((c) => c.includes("up")), "nothing started");
+  assert.deepEqual(await compose.act("shop", "p1", prod, repo, "up", true), { started: "up" }, "confirmed");
+  await new Promise((r) => setTimeout(r, 10));
+  calls = [];
+  const stop = await fails(compose.act("shop", "p1", prod, repo, "stop"));
+  assert.doesNotMatch(stop.message, /privileged/, "stopping does not depend on what the stack asks for");
+  assert.ok(!calls.some((c) => c.includes("config")));
+});
+
+test("act refuses a -p that names another repository's compose project, even confirmed", async () => {
+  const { repo } = project({ "docker-compose.yml": "" });
+  reply = (a) => (a[0] === "ps" ? { stdout: `${repo}/docker-compose.yml\n/other/repo/compose.yml\n` } : checksOk(a));
+  const e = await fails(compose.act("shop", "p2", profile, repo, "up", true));
+  assert.equal(e.status, 409);
+  assert.match(e.message, /belongs to files outside this repository \(\/other\/repo\/compose.yml\)/);
+  assert.deepEqual(calls[0]!.slice(0, 4), ["ps", "-a", "--filter", "label=com.docker.compose.project=shop"]);
+  reply = (a) => (a[0] === "ps" ? { stdout: `${repo}/docker-compose.yml,/old/checkout/docker-compose.yml\n` } : checksOk(a));
+  assert.deepEqual(await compose.act("shop", "p2", profile, repo, "up"), { started: "up" }, "one of its files is here: it is this project's");
+  await new Promise((r) => setTimeout(r, 10));
+});
+
+test("risks lists privileges, host namespaces, devices, the socket and host folders outside the repo", () => {
+  const repo = "/env/projects/shop/code";
+  assert.deepEqual(compose.risks({ services: {
+    a: { privileged: true, pid: "host", network_mode: "host", cap_add: ["SYS_ADMIN"], devices: ["/dev/kvm"] },
+    b: { volumes: [{ type: "bind", source: `${repo}/data` }, { type: "volume", source: "pgdata" }, { type: "bind", source: "/etc" }, { type: "bind", source: "/var/run/docker.sock" }] },
+    c: { build: { context: "/elsewhere" } },
+    d: { build: { context: `${repo}/api` }, network_mode: "bridge" },
+    e: { build: { context: "https://github.com/x/y.git" } },
+  } }, repo), [
+    "a: privileged", "a: pid host", "a: network_mode host", "a: cap_add SYS_ADMIN", "a: host devices",
+    "b: host folder /etc", "b: the Docker socket (/var/run/docker.sock)",
+    "c: builds from /elsewhere",
+  ]);
+  assert.deepEqual(compose.risks({}, repo), []);
+});
+
+test("compose never gets the server's own secrets in its environment", () => {
+  assert.ok(Object.keys(docker.COMPOSE_ENV).every((k) => !/KEY|TOKEN|SECRET|PASSWORD/i.test(k) || k.startsWith("DOCKER_") || k.startsWith("COMPOSE_")));
+  assert.equal(docker.COMPOSE_ENV.PATH, docker.DOCKER_ENV.PATH);
 });
 
 test("logs of one service or all, with the service name checked", async () => {

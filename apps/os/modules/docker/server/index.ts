@@ -47,11 +47,12 @@ const register: ModuleServer = (ctx) => {
     }),
     afterLocalDelete: async (p, opts, steps) => {
       if (!opts.container || !p.path) return;
+      const name = devenv.containerName(p.id); // before remove() drops the config that names it
       try {
         await devenv.remove(p.id, p.path);
-        steps.push(`Container ${devenv.containerName(p.id)} and its shims removed`);
+        steps.push(`Container ${name} and its shims removed`);
       } catch (e) {
-        steps.push(`Container ${devenv.containerName(p.id)} not removed: ${(e as Error).message}`);
+        steps.push(`Container ${name} not removed: ${(e as Error).message}`);
       }
     },
   });
@@ -103,13 +104,13 @@ const register: ModuleServer = (ctx) => {
     const { project } = tabOf(req);
     return { project, repo: repoOf(project), dir: projectDir(project)! };
   };
-  const profileOf = (dir: string, raw: unknown) => {
+  const profileOf = (dir: string, repo: string, raw: unknown) => {
     const config = compose.readStack(dir);
     if (!config) throw httpError(409, "This project has no start profile yet");
     const id = raw ? String(raw) : config.default;
     const profile = Object.hasOwn(config.profiles, id) ? config.profiles[id] : undefined;
     if (!profile) throw httpError(404, `Unknown profile: ${id}`);
-    return { id, profile };
+    return { id, profile: compose.checkProfile(id, profile, repo) };
   };
   api.get("/tabs/:id/stack", h(async (req) => {
     const { repo, dir } = stackOf(req);
@@ -130,21 +131,20 @@ const register: ModuleServer = (ctx) => {
   }));
   api.get("/tabs/:id/stack/status", h((req) => {
     const { project, repo, dir } = stackOf(req);
-    const { id, profile } = profileOf(dir, req.query.profile);
+    const { id, profile } = profileOf(dir, repo, req.query.profile);
     return compose.status(project, id, profile, repo);
   }));
   api.post("/tabs/:id/stack/:action", h((req) => {
     const action = String(req.params.action) as compose.Action;
     if (!["up", "stop", "restart"].includes(action)) throw httpError(400, `Unknown action: ${action}`);
     const { project, repo, dir } = stackOf(req);
-    const { id, profile } = profileOf(dir, req.body?.profile);
-    // A production-looking profile may share volumes with dev: the user confirms each start and stop.
-    if (compose.isProd(profile) && req.body?.confirm !== true) throw httpError(409, "This profile looks like production: confirm to continue");
-    return compose.act(project, id, profile, repo, action);
+    const { id, profile } = profileOf(dir, repo, req.body?.profile);
+    // Production-looking profiles, remote engines and stacks asking for more than their repo wait for a confirmation.
+    return compose.act(project, id, profile, repo, action, req.body?.confirm === true);
   }));
   api.get("/tabs/:id/stack/logs", h(async (req) => {
     const { repo, dir } = stackOf(req);
-    const { profile } = profileOf(dir, req.query.profile);
+    const { profile } = profileOf(dir, repo, req.query.profile);
     return { text: await compose.logs(profile, repo, req.query.service ? String(req.query.service) : undefined) };
   }));
 

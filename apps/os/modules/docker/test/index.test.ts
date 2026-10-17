@@ -183,6 +183,7 @@ test("the tab's stack: detection with a proposal, profiles saved in context/, st
   reply = (a) => {
     if (a[1] === "ls") return { stdout: JSON.stringify([{ Name: "stack", Status: "running(1)", ConfigFiles: join(repo, "docker-compose.yml") }]) };
     if (a[0] === "context") return { stdout: "unix:///var/run/docker.sock\n" };
+    if (a[0] === "ps") return { stdout: "" }; // nobody else owns the compose project
     if (a.includes("config")) return { stdout: JSON.stringify(config) };
     if (a.includes("ps")) return { stdout: JSON.stringify({ Service: "db", Name: "stack-db-1", State: "running", Health: "", ExitCode: 0 }) };
     if (a.includes("logs")) return { stdout: "db | ready\n" };
@@ -209,7 +210,7 @@ test("the tab's stack: detection with a proposal, profiles saved in context/, st
   assert.equal((await m.get(`${t}/status?profile=ghost`)).status, 404);
   assert.equal((await m.call("POST", `${t}/explode`, {})).status, 400);
   const prod = await m.call("POST", `${t}/up`, { profile: "prod" });
-  assert.deepEqual([prod.status, prod.body.error], [409, "This profile looks like production: confirm to continue"]);
+  assert.deepEqual([prod.status, prod.body.error], [409, "Confirm to continue: this profile looks like production."]);
   assert.deepEqual((await m.call("POST", `${t}/stop`, { profile: "prod", confirm: true })).body, { started: "stop" });
   assert.deepEqual((await m.call("POST", `${t}/restart`, {})).body, { started: "restart" });
   await new Promise((r) => setTimeout(r, 20));
@@ -217,4 +218,14 @@ test("the tab's stack: detection with a proposal, profiles saved in context/, st
   assert.deepEqual((await m.get(`${t}/logs?service=db`)).body, { text: "db | ready\n" });
   assert.equal((await m.get(`${t}/logs?service=-x`)).status, 400);
   assert.equal((await m.get("/tabs/ghost/stack")).status, 404);
+
+  // docker.json edited by hand (or by an agent) is checked again before any use: no flags smuggled in as services.
+  const hand = JSON.parse(readFileSync(join(dir, "context", "docker.json"), "utf8"));
+  hand.profiles.default.services = ["--build"];
+  writeFileSync(join(dir, "context", "docker.json"), JSON.stringify(hand));
+  calls = [];
+  const smuggled = await m.call("POST", `${t}/up`, {});
+  assert.deepEqual([smuggled.status, smuggled.body.error], [400, "Invalid service name: --build"]);
+  assert.equal((await m.get(`${t}/status`)).status, 400);
+  assert.ok(!calls.some((c) => c.includes("--build")));
 });

@@ -98,12 +98,20 @@ const samePath = (a: string, b: string) => {
   }
 };
 
+/** Whose container `name` is: none (it does not exist), ours (created for `repo`), or the other repo it names. */
+async function ownerOf(name: string, repo: string): Promise<{ is: "none" | "ours" } | { is: "foreign"; repo: string }> {
+  const label = await repoLabel(name);
+  if (label === null) return { is: "none" };
+  return samePath(label, repo) ? { is: "ours" } : { is: "foreign", repo: label };
+}
+
+const foreignError = (name: string, other: string) =>
+  httpError(409, `The container ${name} belongs to another repository (${other || "not created by agent-os-nexo"}); it was left alone.`);
+
 /** Throws 409 when `name` exists and was created for another repo (another environment's project of the same name). */
 async function assertOurs(name: string, repo: string) {
-  const label = await repoLabel(name);
-  if (label !== null && !samePath(label, repo)) {
-    throw httpError(409, `The container ${name} belongs to another repository (${label || "not created by agent-os-nexo"}); it was left alone.`);
-  }
+  const o = await ownerOf(name, repo);
+  if (o.is === "foreign") throw foreignError(name, o.repo);
 }
 const ver = (raw: string | undefined) => raw?.match(/\d+(\.\d+){0,2}/)?.[0];
 
@@ -184,7 +192,9 @@ function writeDevcontainer(project: string, repo: string, cfg: DevEnvConfig, ima
 /** Same lookup the shell would do, but over the user bin dirs so it works without the user's profile. */
 const dockerBin = () => userBinPath().map((d) => path.join(d, "docker")).find((f) => existsSync(f)) ?? "docker";
 
-/** `trees`: the folders mounted in the container (the repo and its worktrees); a shim run elsewhere works in the repo. */
+/** `trees`: the folders mounted in the container (the repo and its worktrees); a shim run elsewhere works in the repo,
+ * except in one of the project's worktrees created after the container, which it cannot see: that fails, loudly,
+ * instead of quietly running against the main checkout. */
 function writeShims(project: string, lang: Lang, c: string, repo: string, trees: string[]) {
   const dir = shimDir(project);
   rmSync(dir, { recursive: true, force: true });
@@ -193,7 +203,8 @@ function writeShims(project: string, lang: Lang, c: string, repo: string, trees:
 # agent-os-nexo shim: ${what} inside the project's dev container, where the repo is mounted at the same path.
 C=${shq(c)}; D=${shq(dockerBin())}; W=${shq(repo)}
 export DOCKER_CLI_HINTS=false
-for R in ${trees.map(shq).join(" ")}; do case "$PWD/" in "$R"/*) W=$PWD ;; esac; done
+M=0; for R in ${trees.map(shq).join(" ")}; do case "$PWD/" in "$R"/*) W=$PWD; M=1 ;; esac; done
+[ $M = 1 ] || case "$PWD/" in ${shq(path.join(path.dirname(repo), "worktrees"))}/*) echo "agent-os-nexo: this worktree was created after the dev container, which cannot see it. Recreate the container from the tab's Terminal view." >&2; exit 125 ;; esac
 [ "$("$D" inspect -f '{{.State.Running}}' "$C" 2>/dev/null)" = true ] || "$D" start "$C" >/dev/null 2>&1 || { echo "agent-os-nexo: could not start the container $C. Is Docker running? If you removed it, create it again from the tab's Terminal view." >&2; exit 125; }
 if [ -t 0 ] && [ -t 1 ]; then T=-it; else T=-i; fi
 `;
@@ -262,12 +273,18 @@ async function doCreate(project: string, repo: string, cfg: DevEnvConfig): Promi
   // neither may belong to another environment's project of the same name.
   const old = containerName(project);
   const name = freshName(project);
-  const names = [...new Set([old, name])];
-  for (const n of names) await assertOurs(n, repo);
+  await assertOurs(name, repo);
+  const real = realpathSync(repo); // mounts are real paths, so the working dir has to be one too
   const rw = await writablePaths(repo);
   // Pull first: if it fails, the working container is still there.
   await dockerRun(["pull", "--quiet", image], 15 * 60_000);
-  for (const n of names) await rmContainer(n);
+  // Checked again right before removing (the pull can take minutes). An old-style name held by another environment's
+  // project is that environment's container: left alone, and this project moves to its own name.
+  for (const n of [...new Set([old, name])]) {
+    const o = await ownerOf(n, repo);
+    if (o.is === "ours") await rmContainer(n);
+    else if (o.is === "foreign" && n === name) throw foreignError(n, o.repo);
+  }
   try {
     await dockerRun([
       "run", "-d", "--init", "--name", name,
@@ -275,7 +292,7 @@ async function doCreate(project: string, repo: string, cfg: DevEnvConfig): Promi
       "-e", "PIP_ROOT_USER_ACTION=ignore", "-e", "PIP_DISABLE_PIP_VERSION_CHECK=1",
       "-e", "HUSKY=0", // .git is read-only in here, so husky's install step must not try to write hooks
       ...rw.flatMap((p) => ["-v", `${p}:${p}`]),
-      ...readOnlyGit(rw).flatMap((g) => ["-v", `${g}:${g}:ro`]), "-w", repo,
+      ...readOnlyGit(rw).flatMap((g) => ["-v", `${g}:${g}:ro`]), "-w", real,
       ...ports.flatMap((p) => ["-p", `127.0.0.1:${p}:${p}`]),
       image, "sleep", "infinity",
     ], 120_000);
@@ -283,7 +300,7 @@ async function doCreate(project: string, repo: string, cfg: DevEnvConfig): Promi
     forgetShims(project); // the old container is gone, so its shims would point at nothing
     throw e;
   }
-  writeShims(project, lang as Lang, name, repo, rw);
+  writeShims(project, lang as Lang, name, real, rw);
   writeJson(configFile(project), { lang, version: cfg.version, ports, image, container: name, createdAt: new Date().toISOString() });
   const devcontainerWritten = writeDevcontainer(project, repo, { lang: lang as Lang, version: cfg.version, ports }, image);
   return { ...(await status(project, repo)), devcontainerWritten };
@@ -298,8 +315,10 @@ const rmContainer = (name: string) =>
 export async function remove(project: string, repo: string) {
   if (!validProject(project)) throw httpError(400, `Project name not supported for containers: ${project}`);
   const name = containerName(project);
-  await assertOurs(name, repo);
-  await rmContainer(name);
+  const o = await ownerOf(name, repo);
+  // An old-style name that another environment's project holds: this project's config is what is stale.
+  if (o.is === "foreign" && name === freshName(project)) throw foreignError(name, o.repo);
+  if (o.is === "ours") await rmContainer(name);
   forgetShims(project);
 }
 

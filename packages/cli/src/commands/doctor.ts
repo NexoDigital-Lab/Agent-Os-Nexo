@@ -13,6 +13,8 @@ import { buildTarget, currentTarget } from "../core/osruntime.ts";
 import { activeVersion } from "../core/osversions.ts";
 import { binaryPath, engramDenyRule, engramPaths, memoryConnection, memoryConnectionFile, nexoCommand, readPin, usableNexoCommand } from "../core/engram.ts";
 import { onPath } from "../core/exec.ts";
+import { cachedLatest, newer, updateNotice } from "../core/upgrade.ts";
+import { nexoVersion } from "../core/version.ts";
 
 export type Level = "ok" | "warn" | "error";
 export interface Finding {
@@ -125,6 +127,9 @@ export function diagnose(root: string, quick = false): Finding[] {
   for (const [key, rel] of Object.entries(config.folders)) {
     if (!isDir(join(root, rel))) findings.push({ level: "error", area: "folders", message: `${key} folder missing: ${rel}/` });
   }
+  // The newer version the CLI last saw on npm (the check itself runs after other commands, at most once a day).
+  const latest = cachedLatest(folder(root, config, "state"));
+  if (latest && newer(latest, nexoVersion())) findings.push({ level: "warn", area: "cli", message: updateNotice(nexoVersion(), latest) });
   const agents = join(root, "AGENTS.md");
   if (!existsSync(agents)) findings.push({ level: "error", area: "AGENTS.md", message: "missing at the root" });
   else if (lines(readText(agents)) > 120) {

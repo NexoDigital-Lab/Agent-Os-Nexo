@@ -16,6 +16,9 @@ import { importTool } from "./commands/import.ts";
 import { memory } from "./commands/memory.ts";
 import { selfUpdateCommand } from "./commands/selfupdate.ts";
 import { nexoVersion } from "./core/version.ts";
+import { folder, readConfig } from "./core/config.ts";
+import { findRoot } from "./core/paths.ts";
+import { latestVersion, newer, updateNotice } from "./core/upgrade.ts";
 
 const HELP = `nexo — install and maintain a Nexo agent environment
 
@@ -62,8 +65,10 @@ Usage: nexo <command> [options]
   memory install|update|remove      Install the pinned Engram and wire the "memory" connection into every AI;
                                     remove keeps the memories (os/data/engram)
   memory mcp --ai <name>            The proxy each AI's memory connection runs (project-pinned, filtered)
-  self-update [--from <checkout>] [--ref main|<tag>] [--bin <launcher>]
-                                    Install the CLI from one commit of a Nexo checkout into
+  self-update                       Upgrade the CLI with the package manager that installed it (npm, pnpm,
+                                    yarn, bun); a newer version is pointed out once a day
+  self-update --from <checkout> [--ref main|<tag>] [--bin <launcher>]
+                                    Developers: install the CLI from one commit of a Nexo checkout into
                                     os/runtime/cli/ and point the launcher (~/.local/bin/nexo) at it
   os [status|versions|next|use <x.y.z|latest>]
                                     agent-os-nexo builds
@@ -178,8 +183,30 @@ function print(text: string): number {
   return 0;
 }
 
+/**
+ * After a command, at most once a day: a line on stderr when a newer nexo is published. Never for commands whose
+ * output is a protocol or that run under another program (memory mcp, framework plugin), never in CI, never when
+ * stderr is not a terminal, and never at the cost of the command (1.5 s at most, failures ignored).
+ */
+async function notice(argv: string[]): Promise<void> {
+  const command = argv.find((a) => !a.startsWith("-"));
+  if (!command || ["memory", "framework", "self-update", "os"].includes(command)) return;
+  if (!process.stderr.isTTY || process.env.CI || process.env.NEXO_NO_UPDATE_CHECK) return;
+  try {
+    const root = findRoot();
+    const latest = await latestVersion(folder(root, readConfig(root), "state"));
+    const current = nexoVersion();
+    if (latest && newer(latest, current)) console.error(updateNotice(current, latest));
+  } catch {
+    // outside an environment, or the check failed: nothing to say
+  }
+}
+
 main(process.argv.slice(2)).then(
-  (code) => process.exit(code),
+  async (code) => {
+    await notice(process.argv.slice(2));
+    process.exit(code);
+  },
   (error: unknown) => {
     console.error(`nexo: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);

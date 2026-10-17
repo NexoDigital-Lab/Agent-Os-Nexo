@@ -7,8 +7,8 @@ desktop window) to drive it all. Free to use, study and modify for noncommercial
 Noncommercial License 1.0.0 (see LICENSE). Contributions welcome.
 
 > Status: early development (`0.x`). The CLI, the environment and agent-os-nexo work end to end and are tested on
-> Linux, macOS and Windows in CI. **Not yet published to npm**: install from a checkout (below). How the packages
-> are built and what publishing still needs: [docs/release.md](docs/release.md).
+> Linux, macOS and Windows in CI. **Not yet published to npm**: install from a checkout (below). Releases are
+> published from a tag `v<version>` by CI; how, and what the first one still needs: [docs/release.md](docs/release.md).
 
 ## Getting started (from a checkout)
 
@@ -24,7 +24,8 @@ nexo os start                                                            # agent
 ```
 
 After merging to `main`, `nexo self-update` installs the new commit (`--ref <tag>` for a release); see
-`docs/release.md`.
+`docs/release.md`. Installed from npm, `nexo self-update` upgrades with the same package manager, and nexo says once
+a day when a newer version is out.
 
 `init` asks where the environment lives, which AIs to enable, the permission preset (strict, normal, relaxed), your
 name and email for commits, the language agents answer in, which factory items to install and whether to install
@@ -62,7 +63,7 @@ replaces items marked `owner: nexo`; anything you mark `owner: user` is yours.
 | `nexo permissions [show]` · `allow\|ask\|deny\|remove\|set …` | Read or change one permission rule, validated; every AI's files follow |
 | `nexo dict [list\|show\|add\|rm]` | Your dictionary of concepts in `library/dictionary/`, listed in the index for agents |
 | `nexo memory [status]` · `install\|update\|remove` | Agent memory shared by every AI: [Engram](https://github.com/Gentleman-Programming/engram) (third party, MIT), pinned and hash-checked, reached only through Nexo's filtering proxy (`nexo memory mcp`); see `packages/cli/THIRD-PARTY.md` |
-| `nexo self-update [--from <checkout>] [--ref main\|<tag>]` | Install the CLI from one commit of a checkout into `os/runtime/cli/` and point `~/.local/bin/nexo` at it |
+| `nexo self-update [--from <checkout>] [--ref main\|<tag>]` | Upgrade the CLI with the package manager that installed it; developers: install it from one commit of a checkout into `os/runtime/cli/` and point `~/.local/bin/nexo` at it |
 | `nexo framework add\|list\|remove\|enable\|disable\|default\|plugin` | Third-party agent frameworks in `frameworks/` (pinned npm or a `path:`), chosen per tab like an AI or set as the environment default; off until enabled, hooks off until approved |
 | `nexo import <claude\|codex\|gemini\|opencode> [--apply]` | Bring another AI's MCP servers and permissions into the library; never weakens a rule |
 | `nexo connect <name> --command <cmd>` | Add a connection (MCP) and regenerate each AI's config |

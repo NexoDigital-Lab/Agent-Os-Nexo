@@ -45,7 +45,7 @@ test("installs the committed CLI only, writes the launcher and remembers the sou
   assert.equal(readCliState(root)?.commit, git(src, "rev-parse", "HEAD"));
 
   // A second run on the same commit copies nothing; the command reuses the remembered source.
-  const out = selfUpdateCommand({ root, bin }, undefined, probeOk("1.2.3"));
+  const out = selfUpdateCommand({ root, bin }, { probe: probeOk("1.2.3") });
   assert.match(out, /Already on main/);
 });
 
@@ -93,7 +93,7 @@ test("the command takes --from/--ref/--bin, reports a new commit and refuses a f
   const root = await freshEnv();
   const src = checkout("2.0.0");
   const bin = join(tempDir(), "nexo");
-  assert.match(selfUpdateCommand({ root, from: src, ref: "main", bin }, undefined, probeOk("2.0.0")), /Installed nexo 2\.0\.0 from main \([0-9a-f]{7}\), 3 files/);
+  assert.match(selfUpdateCommand({ root, from: src, ref: "main", bin }, { probe: probeOk("2.0.0") }), /Installed nexo 2\.0\.0 from main \([0-9a-f]{7}\), 3 files/);
   const empty = tempDir();
   git(empty, "init", "-q", "-b", "main");
   writeText(join(empty, "x.txt"), "x");
@@ -114,7 +114,7 @@ test("renamed os/ and state folders are honored; a newer Engram pin is pointed o
   git(src, "add", "-A");
   git(src, "commit", "-qm", "pin");
   const bin = join(tempDir(), "nexo");
-  const out = selfUpdateCommand({ root, from: src, bin }, undefined, probeOk("2.0.0"));
+  const out = selfUpdateCommand({ root, from: src, bin }, { probe: probeOk("2.0.0") });
   assert.match(readCliState(root)!.dir, /system[\\/]runtime[\\/]cli[\\/]2\.0\.0-/);
   assert.ok(existsSync(join(root, ".cache", "nexo", "cli.json")));
   assert.equal(existsSync(join(root, "os", "runtime", "cli")), false, "no stray os/ next to the renamed one");

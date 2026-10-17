@@ -1,10 +1,14 @@
-// nexo self-update: install the CLI from one commit of a Nexo checkout and point the launcher at it (core/selfupdate.ts).
+// nexo self-update: upgrade the CLI. From npm, with the package manager that installed it; for developers, from one
+// commit of a Nexo checkout, pointing the launcher at it (core/selfupdate.ts). Either way the memory connection,
+// which names the nexo the AIs start, is rewritten for the new one.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { readConfig } from "../core/config.ts";
-import { binaryPath, engramPaths, readPin } from "../core/engram.ts";
+import { folder, readConfig } from "../core/config.ts";
+import { binaryPath, engramPaths, memoryConnectionFile, readPin, writeMemoryConnection } from "../core/engram.ts";
 import { findRoot, expandHome } from "../core/paths.ts";
+import { refreshAll } from "../core/projects.ts";
 import { defaultLauncher, readCliState, selfUpdate, type Git } from "../core/selfupdate.ts";
+import { CLI_PACKAGE, defaultRunner, installKind, upgradeArgs, type Install, type Runner } from "../core/upgrade.ts";
 
 export interface SelfUpdateCommandOptions {
   root?: string;
@@ -13,14 +17,34 @@ export interface SelfUpdateCommandOptions {
   bin?: string;
 }
 
-export function selfUpdateCommand(opts: SelfUpdateCommandOptions, git?: Git, probe?: (entry: string) => string): string {
+export interface SelfUpdateDeps {
+  git?: Git;
+  probe?: (entry: string) => string;
+  install?: Install;
+  run?: Runner;
+}
+
+const USAGE = "Usage: nexo self-update [--from <nexo checkout>] [--ref main|<tag>] [--bin <launcher>] (the checkout is remembered after the first time)";
+
+export function selfUpdateCommand(opts: SelfUpdateCommandOptions, deps: SelfUpdateDeps = {}): string {
   const root = findRoot(opts.root);
   const last = readCliState(root);
   const source = opts.from ? expandHome(opts.from) : last?.source;
-  if (!source) throw new Error("Usage: nexo self-update --from <nexo checkout> [--ref main|<tag>] [--bin <launcher>] (the checkout is remembered after the first time)");
+  const lines = source ? fromCheckout(root, source, opts, last, deps) : fromPackage(deps);
+  // The AIs start the memory connection by the nexo it names: point it at the one installed now.
+  const config = readConfig(root);
+  if (config.memory === "engram" && existsSync(memoryConnectionFile(folder(root, config, "library")))) {
+    writeMemoryConnection(folder(root, config, "library"), root);
+    refreshAll(root, config);
+    lines.push("Memory connection refreshed for the new nexo.");
+  }
+  return lines.join("\n");
+}
+
+function fromCheckout(root: string, source: string, opts: SelfUpdateCommandOptions, last: ReturnType<typeof readCliState>, deps: SelfUpdateDeps): string[] {
   const ref = opts.ref ?? last?.ref ?? "main";
   const launcher = opts.bin ? expandHome(opts.bin) : last?.launcher ?? defaultLauncher();
-  const { state, changed, files } = selfUpdate({ root, source, ref, launcher, git, probe });
+  const { state, changed, files } = selfUpdate({ root, source, ref, launcher, git: deps.git, probe: deps.probe });
   const short = state.commit.slice(0, 7);
   const what = changed ? `Installed nexo ${state.version} from ${ref} (${short})${files ? `, ${files} files` : ""}.` : `Already on ${ref} (${short}); launcher refreshed.`;
   const lines = [what, `  copy: ${state.dir}`, `  launcher: ${state.launcher}`, `Only committed files of ${ref} were copied; the checkout itself is never run.`];
@@ -31,5 +55,16 @@ export function selfUpdateCommand(opts: SelfUpdateCommandOptions, git?: Git, pro
     const pinned = readPin(pinFile).version;
     if (!existsSync(binaryPath(engramPaths(root, config), pinned))) lines.push(`This version pins Engram ${pinned}: run \`nexo memory update\` to install it.`);
   }
-  return lines.join("\n");
+  return lines;
+}
+
+/** Installed from npm (or pnpm, yarn, bun): the same manager installs the latest version over it. */
+function fromPackage(deps: SelfUpdateDeps): string[] {
+  const install = deps.install ?? installKind();
+  if (install.kind === "npx") return [`This nexo runs through npx, which fetches the latest version each time. To install it: npm install --global ${CLI_PACKAGE}`];
+  if (install.kind !== "global") throw new Error(USAGE);
+  const args = upgradeArgs(install.manager);
+  const code = (deps.run ?? defaultRunner)(install.manager, args);
+  if (code !== 0) throw new Error(`${install.manager} ${args.join(" ")} failed (exit ${code}).`);
+  return [`Upgraded with ${install.manager} ${args.join(" ")}.`];
 }

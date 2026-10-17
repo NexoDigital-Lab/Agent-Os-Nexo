@@ -128,6 +128,9 @@ test("the usage routes accept a provider filter, always list every provider and 
   const only = await get("/usage/sessions?days=3&provider=claude");
   assert.equal(only.status, 200);
   assert.equal(only.body.length, 1, "the filter reaches the session list too");
+  const gemini = await get("/usage/sessions?days=3&provider=gemini");
+  assert.equal(gemini.status, 200);
+  assert.deepEqual(gemini.body, [], "a registered provider without data lists nothing");
   const bad = await get("/usage/summary?days=3&provider=nope");
   assert.equal(bad.status, 400);
 });

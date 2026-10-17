@@ -2,7 +2,7 @@
 import { h, httpError } from "../../../host/server/http.ts";
 import type { ModuleServer } from "../../../host/server/module-api.ts";
 import { contributeToSessions } from "../../sessions/server/contributions.ts";
-import { PROVIDERS, listSessions, usageSummary } from "../../sessions/server/usage.ts";
+import { listSessions, providers, usageSummary } from "../../sessions/server/usage.ts";
 import { limits, noteRateLimit } from "./limits.ts";
 
 const register: ModuleServer = (ctx) => {
@@ -10,7 +10,7 @@ const register: ModuleServer = (ctx) => {
   contributeToSessions({ onMessage: (_tab, msg) => msg.type === "rate_limit_event" && noteRateLimit(msg.rate_limit_info) });
   const provider = (q: unknown) => {
     const p = String(q ?? "all");
-    if (p !== "all" && !PROVIDERS.includes(p)) throw httpError(400, `unknown provider: ${p}`);
+    if (p !== "all" && !providers().includes(p)) throw httpError(400, `unknown provider: ${p}`);
     return p;
   };
   ctx.api.get("/usage/summary", h((req) => usageSummary(Number(req.query.days ?? 7), provider(req.query.provider))));

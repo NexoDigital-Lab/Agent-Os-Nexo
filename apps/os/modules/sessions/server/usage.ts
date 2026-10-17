@@ -7,6 +7,7 @@ import path from "node:path";
 import { projectOfPath } from "../../projects/server/projects.ts";
 import { listOpencodeSessions } from "./usage-opencode.ts";
 import { listCodexSessions } from "./usage-codex.ts";
+import { listGeminiSessions } from "./usage-gemini.ts";
 
 export const PROJECTS_DIR = path.join(os.homedir(), ".claude", "projects");
 
@@ -224,7 +225,8 @@ function listClaudeSessions(days = 7): SessionUsage[] {
 // One reader per provider; each usage-*.ts adapter registers here.
 const ADAPTERS: Record<string, (days: number) => SessionUsage[]> = { claude: listClaudeSessions };
 
-export const PROVIDERS = Object.keys(ADAPTERS);
+/** Registered provider ids, computed per call so late registrations show up. */
+export const providers = () => Object.keys(ADAPTERS);
 
 export function registerUsageAdapter(provider: string, read: (days: number) => SessionUsage[]) {
   ADAPTERS[provider] = read;
@@ -232,6 +234,7 @@ export function registerUsageAdapter(provider: string, read: (days: number) => S
 
 registerUsageAdapter("opencode", listOpencodeSessions);
 registerUsageAdapter("codex", listCodexSessions);
+registerUsageAdapter("gemini", listGeminiSessions);
 
 /** Sessions from every provider (or just `provider`), newest first. */
 export function listSessions(days = 7, provider = "all"): SessionUsage[] {

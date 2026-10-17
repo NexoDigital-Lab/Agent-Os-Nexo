@@ -14,10 +14,16 @@ import { accessCookie, hasAccess, OPEN_PATHS, validToken } from "./access.ts";
  * `opencode debug agents` answer off with ERR_CHILD_PROCESS_STDIO_MAXBUFFER. The buffer is a hard cap, not
  * a hint, so it sits above what a provider can reasonably answer; a run that really exceeds it still fails
  * loudly instead of silently truncating. Callers may lower it per call.
+ *
+ * The explicit return type keeps `stdout` as `string` — `promisify(execFile)` without it widens to
+ * `string | NonSharedBuffer`, which breaks every call site that reads `.stdout` directly.
  */
 export const RUN_MAX_BUFFER = 64 * 1024 * 1024;
-export const run = (file: string, args: string[], opts?: Parameters<typeof execFile>[2]) =>
-  promisify(execFile)(file, args, { maxBuffer: RUN_MAX_BUFFER, ...opts });
+export const run = (file: string, args: string[], opts?: Parameters<typeof execFile>[2]): Promise<{ stdout: string; stderr: string }> =>
+  promisify(execFile)(file, args, { maxBuffer: RUN_MAX_BUFFER, ...opts }).then(({ stdout, stderr }) => ({
+    stdout: stdout.toString(),
+    stderr: stderr.toString(),
+  }));
 
 /** An Error the `h()` route wrapper turns into `{ error }` with this HTTP status. */
 export function httpError(status: number, message: string, extra: Record<string, unknown> = {}): Error & { status: number } {

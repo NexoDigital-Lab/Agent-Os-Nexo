@@ -27,6 +27,7 @@ function Bars({ items, label }: { items: Bucket[]; label?: (b: Bucket) => string
 
 export function Monitor() {
   const [days, setDays] = useState(7);
+  const [provider, setProvider] = useState("all");
   const [sum, setSum] = useState<Summary | null>(null);
   const [sessions, setSessions] = useState<SessionUsage[]>([]);
   const [filter, setFilter] = useState("");
@@ -34,7 +35,7 @@ export function Monitor() {
   useEffect(() => {
     let alive = true;
     const load = () =>
-      Promise.all([api.summary(days), api.sessions(days)]).then(([s, l]) => {
+      Promise.all([api.summary(days, provider), api.sessions(days, provider)]).then(([s, l]) => {
         if (!alive) return;
         setSum(s);
         setSessions(l);
@@ -45,7 +46,7 @@ export function Monitor() {
       alive = false;
       clearInterval(timer);
     };
-  }, [days]);
+  }, [days, provider]);
 
   if (!sum) return <div className="page"><span className="spin" /></div>;
 
@@ -59,14 +60,20 @@ export function Monitor() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <h1>Monitor</h1>
-          <p className="sub">{t("Every Claude Code session (terminal and agent-os-nexo) with its subagents, read from the transcripts.")}</p>
+          <p className="sub">{t("Every AI session (Claude Code, OpenCode, Codex, Gemini — terminal and agent-os-nexo) with its subagents, read from each CLI's local records.")}</p>
         </div>
-        <div className="seg">
-          {[1, 7, 30].map((d) => (
-            <button key={d} className={days === d ? "on" : ""} onClick={() => setDays(d)}>
-              {d === 1 ? t("Today") : t("{n} days", { n: d })}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select className="field" aria-label={t("Provider")} style={{ width: "auto", padding: "4px 26px 4px 8px", fontSize: 12.5 }} value={provider} onChange={(e) => setProvider(e.target.value)}>
+            <option value="all">{t("All providers")}</option>
+            {sum.byProvider.map((b) => <option key={b.key} value={b.key}>{b.key}</option>)}
+          </select>
+          <div className="seg">
+            {[1, 7, 30].map((d) => (
+              <button key={d} className={days === d ? "on" : ""} onClick={() => setDays(d)}>
+                {d === 1 ? t("Today") : t("{n} days", { n: d })}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -82,7 +89,7 @@ export function Monitor() {
                 {runningAgents.map((a) => (
                   <span key={a.agentId} className="pill info">{a.type}</span>
                 ))}
-                <span className="num accent" style={{ color: "var(--accent-text)" }}>{usd(s.total.cost)}</span>
+                <span className="num accent" style={{ color: "var(--accent-text)" }}>{s.usageAvailable ? usd(s.total.cost) : "—"}</span>
               </div>
             );
           })}
@@ -157,27 +164,34 @@ export function Monitor() {
         </select>
       </div>
       {shown.map((s) => (
-        <details key={s.id} className="sess" open={s.active}>
+        <details key={`${s.provider}:${s.id}`} className="sess" open={s.active}>
           <summary>
             <span className={`dot ${s.active ? "live" : ""}`} />
             <span className="title">
               <b>{s.project}</b> <span className="muted">· {s.title}</span>
             </span>
+            <span className="pill info">{s.provider}</span>
             <span className="mono faint" style={{ fontSize: 12 }}>
               {s.source === "cli" ? t("terminal") : s.source.startsWith("sdk") ? "agent-os-nexo" : s.source} · {ago(s.end)}
             </span>
             <span className="mono faint" style={{ fontSize: 12 }}>{t("{n} subagents", { n: s.agents.length })}</span>
-            <span className="num muted" style={{ fontSize: 12.5 }}>{ktok(s.total.output)} out</span>
-            <span className="num" style={{ color: "var(--accent-text)", textAlign: "right" }}>{usd(s.total.cost)}</span>
+            <span className="num muted" style={{ fontSize: 12.5 }}>{s.usageAvailable ? `${ktok(s.total.output)} out` : "—"}</span>
+            <span className="num" style={{ color: "var(--accent-text)", textAlign: "right" }}>{s.usageAvailable ? usd(s.total.cost) : "—"}</span>
           </summary>
           <div className="tree">
             <div className="node">
               <span className="dot warn" />
               <span className="ty" style={{ color: "var(--accent-text)" }}>main</span>
               <span className="ds">{s.mainModels.map(shortModel).join(", ")}</span>
-              <span className="num faint">{ktok(s.main.input + s.main.cacheRead + s.main.cacheWrite)} in</span>
-              <span className="num muted">{ktok(s.main.output)} out</span>
-              <span className="num">{usd(s.main.cost)}</span>
+              {s.usageAvailable ? (
+                <>
+                  <span className="num faint">{ktok(s.main.input + s.main.cacheRead + s.main.cacheWrite)} in</span>
+                  <span className="num muted">{ktok(s.main.output)} out</span>
+                  <span className="num">{usd(s.main.cost)}</span>
+                </>
+              ) : (
+                <span className="faint">{t("The CLI stores no usage data")}</span>
+              )}
             </div>
             {s.agents.map((a) => (
               <div key={a.agentId} className="node">

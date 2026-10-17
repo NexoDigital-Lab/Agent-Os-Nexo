@@ -10,7 +10,9 @@ const REGISTRY = `https://registry.npmjs.org/${CLI_PACKAGE.replace("/", "%2f")}/
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type Manager = "npm" | "pnpm" | "yarn" | "bun";
-export type Install = { kind: "global"; manager: Manager } | { kind: "npx" } | { kind: "other" };
+/** global: a package manager's global install; npx: a one-off run (npx, bunx, pnpm dlx); local: a project's
+ * dependency (its package.json decides the version); other: a checkout or a self-update copy. */
+export type Install = { kind: "global"; manager: Manager } | { kind: "npx" } | { kind: "local" } | { kind: "other" };
 
 /** How the running CLI was installed, from where its entry file really lives. */
 export function installKind(entry: string | undefined = process.argv[1]): Install {
@@ -21,11 +23,14 @@ export function installKind(entry: string | undefined = process.argv[1]): Instal
   } catch {}
   const p = real.split(sep).join("/");
   if (!p.includes("/node_modules/@nexodigital/nexo/")) return { kind: "other" };
-  if (/\/_npx\/|\/\.pnpm-dlx|\/dlx-/.test(p)) return { kind: "npx" };
-  if (/\/\.bun\//.test(p)) return { kind: "global", manager: "bun" };
-  if (/\/pnpm\/|\/\.pnpm\//.test(p)) return { kind: "global", manager: "pnpm" };
-  if (/\/yarn\/global\/|\/\.config\/yarn\//.test(p)) return { kind: "global", manager: "yarn" };
-  return { kind: "global", manager: "npm" };
+  if (/\/_npx\/|\/\.pnpm-dlx|\/pnpm\/dlx\/|\/dlx-|\/bunx-/i.test(p)) return { kind: "npx" };
+  if (/\/\.bun\/install\/global\//i.test(p)) return { kind: "global", manager: "bun" };
+  if (/\/pnpm\/global\//i.test(p)) return { kind: "global", manager: "pnpm" };
+  if (/\/yarn\/global\/|\/\.config\/yarn\/global\/|\/yarn\/data\/global\/|\/\.yarn\/global\//i.test(p)) return { kind: "global", manager: "yarn" };
+  // npm's global folder: <prefix>/lib/node_modules (POSIX) or %APPDATA%\npm\node_modules (Windows); any other
+  // node_modules is a project's.
+  if (/\/lib\/node_modules\/@nexodigital\/nexo\/|\/npm\/node_modules\/@nexodigital\/nexo\//i.test(p)) return { kind: "global", manager: "npm" };
+  return { kind: "local" };
 }
 
 /** The command that upgrades a global install to the latest published version. */
@@ -86,14 +91,13 @@ export async function latestVersion(stateDir: string, opts: { now?: number; fetc
   const file = cacheFile(stateDir);
   const cache = readCache(stateDir);
   if (!opts.force && typeof cache.checkedAt === "number" && now - cache.checkedAt < DAY_MS) return cache.latest ?? null;
-  let latest: string | null = null;
+  // Anything but a valid answer (offline, 5xx, 429, a captive portal's page) keeps what was known.
+  let latest: string | null = cache.latest ?? null;
   try {
     const res = await (opts.fetcher ?? defaultFetcher)(REGISTRY, AbortSignal.timeout(1500));
     const body = res.ok ? ((await res.json()) as { version?: unknown }) : {};
-    latest = typeof body.version === "string" && /^\d+\.\d+\.\d+/.test(body.version) ? body.version : null;
-  } catch {
-    latest = cache.latest ?? null;
-  }
+    if (typeof body.version === "string" && /^\d+\.\d+\.\d+/.test(body.version)) latest = body.version;
+  } catch {}
   try {
     writeJson(file, { checkedAt: now, latest });
   } catch {}
@@ -104,6 +108,8 @@ export async function latestVersion(stateDir: string, opts: { now?: number; fetc
 export function updateNotice(current: string, latest: string, install: Install = installKind()): string {
   const how = install.kind === "global"
     ? `\`nexo self-update\` (${install.manager} ${upgradeArgs(install.manager).join(" ")})`
-    : install.kind === "npx" ? `\`npx ${CLI_PACKAGE}@latest\`` : "`nexo self-update`";
+    : install.kind === "npx" ? `\`npx ${CLI_PACKAGE}@latest\``
+    : install.kind === "local" ? `update ${CLI_PACKAGE} in this project's package.json`
+    : "`nexo self-update`";
   return `nexo ${latest} is available (this is ${current}): ${how}`;
 }

@@ -23,6 +23,12 @@ test("installKind reads the package manager from where the CLI really lives", ()
   assert.deepEqual(installKind(installed(".bun", "install", "global")), { kind: "global", manager: "bun" });
   assert.deepEqual(installKind(installed(".config", "yarn", "global")), { kind: "global", manager: "yarn" });
   assert.deepEqual(installKind(installed(".npm", "_npx", "abc123")), { kind: "npx" });
+  assert.deepEqual(installKind(installed("tmp", "bunx-1000-@nexodigital", "nexo@latest")), { kind: "npx" }, "bunx");
+  assert.deepEqual(installKind(installed(".cache", "pnpm", "dlx", "abc", "1")), { kind: "npx" }, "pnpm 9 dlx is not a global pnpm");
+  assert.deepEqual(installKind(installed("AppData", "Local", "Yarn", "Data", "global")), { kind: "global", manager: "yarn" }, "yarn on Windows");
+  assert.deepEqual(installKind(installed("AppData", "Roaming", "npm")), { kind: "global", manager: "npm" }, "npm on Windows");
+  assert.deepEqual(installKind(installed("work", "my-app")), { kind: "local" }, "a project's dependency");
+  assert.deepEqual(installKind(installed("work", "my-app", "node_modules", ".pnpm", "@nexodigital+nexo@0.1.1")), { kind: "local" }, "a project's pnpm dependency");
   assert.deepEqual(installKind(join(tempDir(), "packages", "cli", "src", "bin.ts")), { kind: "other" }, "a checkout");
   assert.deepEqual(installKind(undefined), { kind: "other" });
   // npm's global bin is a symlink to the package: followed.
@@ -75,8 +81,8 @@ test("latestVersion asks the registry at most once a day, and an offline machine
   assert.equal(await latestVersion(state, { now: tomorrow, fetcher: down }), "0.2.0", "offline: keeps what it knew");
   assert.equal(await latestVersion(state, { now: tomorrow + 1000, fetcher: down }), "0.2.0");
   assert.equal(calls, 2, "the failed check counts as today's");
-  assert.equal(await latestVersion(state, { now: tomorrow, fetcher: answer({ version: "not a version" }), force: true }), null);
-  assert.equal(await latestVersion(state, { now: tomorrow, fetcher: answer({}, false), force: true }), null);
+  assert.equal(await latestVersion(state, { now: tomorrow, fetcher: answer({ version: "not a version" }), force: true }), "0.2.0", "a strange answer keeps what was known");
+  assert.equal(await latestVersion(state, { now: tomorrow, fetcher: answer({}, false), force: true }), "0.2.0", "so does a 503");
   writeFileSync(cacheFile(state), "{ broken");
   assert.equal(cachedLatest(state), null, "a broken cache reads as nothing");
   assert.equal(await latestVersion(state, { now: tomorrow, fetcher: answer({ version: "0.3.0" }) }), "0.3.0", "and is rewritten");
@@ -87,6 +93,7 @@ test("updateNotice says how to upgrade for the way the CLI was installed", () =>
   assert.equal(updateNotice("0.1.0", "0.2.0", { kind: "global", manager: "pnpm" }), "nexo 0.2.0 is available (this is 0.1.0): `nexo self-update` (pnpm add --global @nexodigital/nexo@latest)");
   assert.match(updateNotice("0.1.0", "0.2.0", { kind: "npx" }), /`npx @nexodigital\/nexo@latest`$/);
   assert.match(updateNotice("0.1.0", "0.2.0", { kind: "other" }), /`nexo self-update`$/);
+  assert.match(updateNotice("0.1.0", "0.2.0", { kind: "local" }), /update @nexodigital\/nexo in this project's package\.json$/);
 });
 
 test("self-update without a checkout upgrades with the package manager that installed the CLI", async () => {
@@ -98,6 +105,16 @@ test("self-update without a checkout upgrades with the package manager that inst
   assert.throws(() => selfUpdateCommand({ root }, { install: { kind: "global", manager: "bun" }, run: () => 1 }), /bun add --global @nexodigital\/nexo@latest failed \(exit 1\)/);
   assert.match(selfUpdateCommand({ root }, { install: { kind: "npx" }, run: () => assert.fail("never runs") }), /runs through npx/);
   assert.throws(() => selfUpdateCommand({ root }, { install: { kind: "other" } }), /Usage: nexo self-update/);
+  assert.match(selfUpdateCommand({ root }, { install: { kind: "local" }, run: () => assert.fail("never runs") }), /dependency of a project/);
+});
+
+test("a global install upgrades from npm even when a checkout was used before; --from still means the checkout", async () => {
+  const root = await freshEnv();
+  writeFileSync(join(root, ".state", "nexo", "cli.json"), JSON.stringify({ source: "/old/checkout", ref: "main", commit: "abc", version: "0.1.0", dir: "/d", launcher: "/l", installedAt: "now" }));
+  const ran: string[][] = [];
+  selfUpdateCommand({ root }, { install: { kind: "global", manager: "npm" }, run: (cmd, args) => (ran.push([cmd, ...args]), 0) });
+  assert.deepEqual(ran, [["npm", "install", "--global", "@nexodigital/nexo@latest"]]);
+  assert.throws(() => selfUpdateCommand({ root, from: join(root, "nope") }, { install: { kind: "global", manager: "npm" }, run: () => assert.fail("not npm") }));
 });
 
 test("self-update rewrites the memory connection, which names the nexo the AIs start", async () => {

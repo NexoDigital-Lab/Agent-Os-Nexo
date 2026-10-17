@@ -11,7 +11,7 @@ import { frameworkContributions } from "../core/adapters.ts";
 import { defaultFramework, loadFrameworks, NEXO_METHOD } from "../core/frameworks.ts";
 import { buildTarget, currentTarget } from "../core/osruntime.ts";
 import { activeVersion } from "../core/osversions.ts";
-import { binaryPath, engramDenyRule, engramPaths, memoryConnection, memoryConnectionFile, nexoCommand, readPin, usableNexoCommand } from "../core/engram.ts";
+import { binaryPath, engramDenyRule, engramPaths, lastingNexoOnPath, memoryConnectionFile, nexoCommand, readPin, usableNexoCommand } from "../core/engram.ts";
 import { onPath } from "../core/exec.ts";
 import { cachedLatest, newer, updateNotice } from "../core/upgrade.ts";
 import { nexoVersion } from "../core/version.ts";
@@ -73,21 +73,20 @@ function checkMemory(findings: Finding[], root: string, config: EnvironmentConfi
       findings.push({ level: "warn", area, message: `${file} cannot be read — run \`nexo memory update\`` });
     }
     // What the connection runs is compared on its own terms, not against the nexo this doctor happens to see first on
-    // its PATH (agent-os, the desktop app and npx each see a different one): the saved one only has to still be lasting.
-    const expected = memoryConnection(root, process.platform, "nexo");
+    // its PATH (agent-os, the desktop app and npx each see a different one): the saved one only has to still be lasting,
+    // and its arguments end in `memory mcp --ai {{ai}}` (after `/d /c nexo` on Windows).
     const pinned = typeof current?.env?.NEXO_ROOT === "string" && sameFolder(current.env.NEXO_ROOT, root);
     const args = Array.isArray(current?.args) ? current.args : [];
-    const want = expected.args ?? [];
-    const sameArgs = JSON.stringify(process.platform === "win32" ? args.slice(3) : args) === JSON.stringify(process.platform === "win32" ? want.slice(3) : want);
+    const sameArgs = JSON.stringify(args.slice(-4)) === JSON.stringify(["memory", "mcp", "--ai", "{{ai}}"]);
     if (current && (!pinned || !sameArgs)) {
       findings.push({ level: "warn", area, message: "the memory connection is out of date (not pinned to this environment, or for another OS) — run `nexo memory update`" });
     } else if (current && !usableNexoCommand(current.command)) {
       findings.push({ level: "warn", area, message: "the memory connection starts a `nexo` that is gone or temporary (npx, node_modules/.bin) — install the CLI (npm or `nexo self-update`), then `nexo memory update`" });
     }
   }
-  // Without a saved connection to judge, check that a lasting nexo can be found at all.
-  const command = nexoCommand(root);
-  if (!existsSync(file) && (isAbsolute(command) ? !existsSync(command) : !onPath(command))) {
+  // Without a saved connection to judge, check that a lasting nexo can be found at all (never one npx put on PATH).
+  const command = existsSync(file) ? null : nexoCommand(root);
+  if (command !== null && (isAbsolute(command) ? !existsSync(command) : !lastingNexoOnPath())) {
     findings.push({ level: "warn", area, message: "the AIs cannot find `nexo` to start the memory connection — install the CLI (npm or `nexo self-update`), then `nexo memory update`" });
   }
   const rule = engramDenyRule(root, paths);

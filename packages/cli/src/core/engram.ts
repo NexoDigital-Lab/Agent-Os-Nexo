@@ -170,18 +170,25 @@ export function nexoCommand(root: string, platform: string = process.platform, e
     launcher = undefined; // not an environment with a config yet
   }
   if (launcher && existsSync(launcher)) return launcher;
-  for (const dir of String(env.PATH ?? "").split(":").filter((d) => isAbsolute(d))) {
+  return lastingNexoOnPath(env, platform) ?? "nexo";
+}
+
+/** The first `nexo` on PATH that is not temporary (npx's cache, node_modules/.bin, a relative dir), or null. */
+export function lastingNexoOnPath(env: NodeJS.ProcessEnv = process.env, platform: string = process.platform): string | null {
+  const sep = platform === "win32" ? ";" : ":";
+  for (const dir of String(env.PATH ?? env.Path ?? "").split(sep).filter((d) => isAbsolute(d))) {
     const found = findOnPath("nexo", { PATH: dir }, platform as NodeJS.Platform);
     if (found && !ephemeralNexo(found)) return found;
   }
-  return "nexo";
+  return null;
 }
 
-/** Whether the command a saved memory connection starts is still a lasting, existing `nexo` (or the bare name). */
-export function usableNexoCommand(command: unknown, platform: string = process.platform): boolean {
+/** Whether the command a saved memory connection starts still reaches a lasting `nexo`: its absolute path still
+ * there, or — for the bare name (and Windows' `cmd /c nexo`) — a lasting `nexo` on PATH to resolve it to. */
+export function usableNexoCommand(command: unknown, platform: string = process.platform, env: NodeJS.ProcessEnv = process.env): boolean {
   if (typeof command !== "string" || !command) return false;
-  if (platform === "win32") return command === "cmd";
-  if (command === "nexo") return true;
+  if (command === "nexo" || (platform === "win32" && command === "cmd")) return lastingNexoOnPath(env, platform) !== null;
+  if (platform === "win32") return false;
   return !ephemeralNexo(command) && existsSync(command);
 }
 

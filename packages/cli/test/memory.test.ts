@@ -607,8 +607,9 @@ test("the memory connection never names a nexo that lasts one run: npx's cache, 
   assert.equal(usableNexoCommand(join(npx, "nexo"), "linux"), false);
   assert.equal(usableNexoCommand("node_modules/.bin/nexo", "linux"), false);
   assert.equal(usableNexoCommand(join(root, "gone", "nexo"), "linux"), false);
-  assert.equal(usableNexoCommand("nexo", "linux"), true);
-  assert.equal(usableNexoCommand("cmd", "win32"), true);
+  assert.equal(usableNexoCommand("nexo", "linux", { PATH: global }), true, "the bare name, with a lasting nexo to find");
+  assert.equal(usableNexoCommand("nexo", "linux", { PATH: `${npx}:${local}` }), false, "only npx's: the AIs would find nothing");
+  assert.equal(usableNexoCommand("cmd", "win32", { PATH: "" }), false);
   assert.equal(usableNexoCommand(42, "linux"), false);
 });
 

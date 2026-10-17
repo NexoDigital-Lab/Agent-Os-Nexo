@@ -36,8 +36,16 @@ jobs:
           V="$(node -p "require('./packages/cli/package.json').version")"
           [ "${GITHUB_REF_NAME}" = "v${V}" ] || { echo "tag ${GITHUB_REF_NAME} does not match packages/cli version ${V}"; exit 1; }
           echo "version=${V}" >> "$GITHUB_OUTPUT"
-      - name: Publish @nexodigital/nexo
-        run: npm publish -w packages/cli --provenance --access public
+      # Each package is skipped when its version is already on npm, so re-running a half-failed release finishes it.
+      - name: Publish @nexodigital/nexo (when its version is new)
+        shell: bash
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          if npm view "@nexodigital/nexo@${V}" version >/dev/null 2>&1; then
+            echo "nexo ${V} is already published: kept"
+          else
+            npm publish -w packages/cli --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish @nexodigital/agent-os-nexo (when its version is new)

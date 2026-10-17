@@ -130,6 +130,7 @@ async function main(argv: string[]): Promise<number> {
     },
   });
   const [command, ...rest] = positionals;
+  ran = { command, root: values.root };
   if (values.version) return print(nexoVersion());
   if (values.help || !command) return print(HELP);
 
@@ -188,12 +189,14 @@ function print(text: string): number {
  * output is a protocol or that run under another program (memory mcp, framework plugin), never in CI, never when
  * stderr is not a terminal, and never at the cost of the command (1.5 s at most, failures ignored).
  */
-async function notice(argv: string[]): Promise<void> {
-  const command = argv.find((a) => !a.startsWith("-"));
+let ran: { command?: string; root?: string } = {};
+
+async function notice(): Promise<void> {
+  const { command, root: rootOpt } = ran;
   if (!command || ["memory", "framework", "self-update", "os"].includes(command)) return;
   if (!process.stderr.isTTY || process.env.CI || process.env.NEXO_NO_UPDATE_CHECK) return;
   try {
-    const root = findRoot();
+    const root = findRoot(rootOpt);
     const latest = await latestVersion(folder(root, readConfig(root), "state"));
     const current = nexoVersion();
     if (latest && newer(latest, current)) console.error(updateNotice(current, latest));
@@ -204,7 +207,7 @@ async function notice(argv: string[]): Promise<void> {
 
 main(process.argv.slice(2)).then(
   async (code) => {
-    await notice(process.argv.slice(2));
+    await notice();
     process.exit(code);
   },
   (error: unknown) => {

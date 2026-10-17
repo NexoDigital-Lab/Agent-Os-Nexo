@@ -271,7 +271,7 @@ export function clearChoicesCache(): void {
  * Turns one CLI's stdout into names: strip colour codes and list/table decoration, then keep only short,
  * plain, name-shaped lines — log lines (`14:32:11 INFO …: …`), sentences (`No extensions installed.`),
  * column tables and long paths all drop out. A trailing ` (role)` suffix is removed on agent lists, the
- * shape `opencode agent list` prints. Anything suspicious degrades away instead of being
+ * shape a plain-text agent list prints. Anything suspicious degrades away instead of being
  * guessed at: a missing name is an empty list, not a wrong one.
  */
 function parseNames(stdout: string | undefined, isAgent: boolean): string[] {
@@ -279,7 +279,12 @@ function parseNames(stdout: string | undefined, isAgent: boolean): string[] {
   for (const raw of String(stdout ?? "").split(/\r?\n/)) {
     const line = raw.replace(ANSI, "").trim().replace(BULLET, "").replace(TABLE_EDGE, "").trim();
     if (!line || !/^[A-Za-z0-9]/.test(line)) continue; // empty or still decorated (table borders, ellipses)
-    if (line.length > 80 || line.includes(":") || line.endsWith(".")) continue; // prose, logs, URLs
+    // A `:` opens a log timestamp (`14:32:11 …`) or prose (`Note: …`, `INFO: …`), never a name: a model id's
+    // tag comes after the name and carries no space (`ollama/qwen3:8b`), so a colon that shares the line with
+    // a space is noise and every model the provider exposes still reaches the Composer's dropdown.
+    // A sentence and a URL (`https://…`) are prose, not names either.
+    if (line.length > 80 || /^\d{1,2}:\d{2}/.test(line) || line.includes("://") || line.endsWith(".")) continue;
+    if (line.includes(":") && /\s/.test(line)) continue;
     if (/\s{2,}/.test(line)) continue; // table columns, not a name
     const name = isAgent ? (AGENT_LINE.exec(line)?.[1] ?? line) : line;
     if (isAgent ? AGENT_RE.test(name) : CHOICE_RE.test(name)) out.push(name);
@@ -287,15 +292,49 @@ function parseNames(stdout: string | undefined, isAgent: boolean): string[] {
   return out;
 }
 
-/** `opencode agent list` + `opencode models`, spawned in the project cwd. */
+/**
+ * OpenCode v2 lists its agents as JSON from `debug agents` (v1's `agent list` is gone). Hidden agents
+ * stay out of the picker; an id that does not reach `--agent` is dropped rather than guessed at. A
+ * malformed payload answers an empty list — never a wrong one.
+ */
+export function parseOpencodeAgents(stdout: string | undefined): string[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(String(stdout ?? "").replace(/^\uFEFF/, ""));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+  const out: string[] = [];
+  for (const item of data) {
+    if (!item || typeof item !== "object") continue;
+    const { id, hidden } = item as { id?: unknown; hidden?: unknown };
+    if (hidden === true) continue;
+    if (typeof id === "string" && AGENT_RE.test(id)) out.push(id);
+  }
+  return out;
+}
+
+/**
+ * `opencode debug agents` (JSON) + `opencode models`, spawned in the project cwd. The two are read one
+ * at a time, not in a Promise.all: OpenCode v2 removed `agent list`, and one dead subcommand must not
+ * take the model list down with it (it did, and the Composer's dropdown went empty).
+ */
 async function opencodeChoices(cwd: string): Promise<{ agents: string[]; models: string[] }> {
   const cli = resolveCli(["opencode"], process.platform, providerExec.find);
   if (!cli) return { agents: [], models: [] };
-  const [agentsOut, modelsOut] = await Promise.all([
-    providerExec.run(cli.cmd, [...cli.pre, "agent", "list"], { timeout: 15_000, cwd }),
-    providerExec.run(cli.cmd, [...cli.pre, "models"], { timeout: 15_000, cwd }),
+  const opts = { timeout: 15_000, cwd };
+  const [agents, models] = await Promise.all([
+    providerExec
+      .run(cli.cmd, [...cli.pre, "debug", "agents"], opts)
+      .then((out) => parseOpencodeAgents(out.stdout))
+      .catch(() => [] as string[]),
+    providerExec
+      .run(cli.cmd, [...cli.pre, "models"], opts)
+      .then((out) => parseNames(out.stdout, false))
+      .catch(() => [] as string[]),
   ]);
-  return { agents: parseNames(agentsOut.stdout, true), models: parseNames(modelsOut.stdout, false) };
+  return { agents, models };
 }
 
 /**
@@ -335,7 +374,7 @@ async function geminiChoices(cwd: string): Promise<{ agents: string[]; models: s
 }
 
 /**
- * Agent and model lists for one provider in a project cwd: opencode (agent list + models), codex (a
+ * Agent and model lists for one provider in a project cwd: opencode (debug agents + models), codex (a
  * $CODEX_HOME profile scan) and gemini (`gemini -l` extensions);
  * claude and unknown ids answer empty without spawning. Failures also answer empty — never throw. A
  * successful non-empty list is cached 60 s per id+cwd; empty and failed answers are not cached, so a CLI

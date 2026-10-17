@@ -362,10 +362,48 @@ test("askWithProvider rejects malformed model/agent with 400 before spawning", a
   assert.equal(runCalls.length, 1);
 });
 
-test("listProviderChoices parses opencode agent-list and models output, and caches per id+cwd", async () => {
+test("listProviderChoices: opencode v2 reads agents from `debug agents` JSON, and models survive a dead agent command", async () => {
   findHits = { opencode: "/usr/bin/opencode" };
+  // OpenCode v2 removed `agent list`; agents come from `debug agents` as JSON. Hidden agents stay out.
+  const agentsJson = JSON.stringify([
+    { id: "build", mode: "primary", hidden: false },
+    { id: "explore", mode: "subagent", hidden: false },
+    { id: "gentle-orchestrator", mode: "primary", hidden: false },
+    { id: "compaction", mode: "primary", hidden: true },
+  ]);
   runReply = (args) => {
-    if (args.includes("agent")) return { stdout: "build (primary)\nexplore (subagent)\ngentle-ai-worker (subagent)\n" };
+    if (args.includes("debug") && args.includes("agents")) return { stdout: agentsJson };
+    if (args.includes("models")) return { stdout: "ollama/qwen3:8b\nopencode-go/mimo-v2.5\n" };
+    return { stdout: "" };
+  };
+  const r = await providers.listProviderChoices("opencode", "/v2-proj");
+  assert.deepEqual(r.agents, ["build", "explore", "gentle-orchestrator"], "the hidden agent stays out; ids pass AGENT_RE");
+  assert.deepEqual(r.models, ["ollama/qwen3:8b", "opencode-go/mimo-v2.5"], "models reach the dropdown with their ':' tag intact");
+});
+
+test("listProviderChoices: opencode v2 — a removed agent subcommand no longer takes the models down with it", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  // v2 rejects `agent list` with a non-zero exit. The old Promise.all rejected with it, so the models
+  // never reached the Composer even though `opencode models` still works.
+  runReply = (args) => {
+    if (args.includes("agent")) return { err: true };
+    if (args.includes("models")) return { stdout: "opencode-go/mimo-v2.5\n" };
+    return { stdout: "" };
+  };
+  const r = await providers.listProviderChoices("opencode", "/v2-partial");
+  assert.deepEqual(r.models, ["opencode-go/mimo-v2.5"], "a dead agent command must not empty the model list");
+  assert.deepEqual(r.agents, []);
+});
+
+test("listProviderChoices parses opencode `debug agents` JSON and models output, and caches per id+cwd", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  const agentsJson = JSON.stringify([
+    { id: "build", mode: "primary", hidden: false },
+    { id: "explore", mode: "subagent", hidden: false },
+    { id: "gentle-ai-worker", mode: "subagent", hidden: false },
+  ]);
+  runReply = (args) => {
+    if (args.includes("debug") && args.includes("agents")) return { stdout: agentsJson };
     if (args.includes("models")) return { stdout: "opencode/mimo-v2.6-flash-free\nopencode/mimo-v2.6-pro\n" };
     return { stdout: "" };
   };
@@ -444,24 +482,56 @@ test("listProviderChoices: codex profiles come from a $CODEX_HOME scan (files + 
   }
 });
 
-test("listProviderChoices: `opencode agent list`/`models` output is parsed conservatively — prose, logs and long lines degrade away", async () => {
+test("listProviderChoices: `opencode models` output is parsed conservatively — prose, logs and long lines degrade away", async () => {
   findHits = { opencode: "/usr/bin/opencode" };
   const longName = `model-${"x".repeat(80)}`; // > 80 chars: dropped even without a colon
   runReply = (args) => {
-    if (args.includes("agent")) {
-      // ANSI colour, CRLF, list/table decoration, an MCP-style log line and a sentence: only the names survive.
-      return { stdout: "\u001b[32mbuild\u001b[0m (primary)\r\n- planner\r\n• reviewer\r\n| tester\r\n14:32:11 INFO registered MCP server foo:bar\r\nNo agent named that.\r\n" };
-    }
+    if (args.includes("debug") && args.includes("agents")) return { stdout: "[]" };
     if (args.includes("models")) {
-      return { stdout: `gemini-3.5-flash-medium\r\nGemini 3.5 Flash (Medium)\r\n${longName}\r\n` };
+      return { stdout: `gemini-3.5-flash-medium\r\nGemini 3.5 Flash (Medium)\r\n14:32:11 INFO registered MCP server foo:bar\r\nNo model named that.\r\n${longName}\r\n` };
     }
     return { stdout: "" };
   };
   assert.deepEqual(await providers.listProviderChoices("opencode", "/oc-proj"), {
-    agents: ["build", "planner", "reviewer", "tester"],
+    agents: [],
     models: ["gemini-3.5-flash-medium", "Gemini 3.5 Flash (Medium)"],
   });
   assert.equal(runCalls.length, 2);
+});
+
+test("listProviderChoices: a big `debug agents` answer survives — Node's 1 MiB execFile default cut it off", async () => {
+  // `opencode debug agents` prints every agent with its settings; past a few dozen agents that is over
+  // Node's 1 MiB execFile default, and the run dies with ERR_CHILD_PROCESS_STDIO_MAXBUFFER. The empty
+  // catch then turned a dead process into an empty agent list, so the picker showed nothing.
+  // The payload travels as a file, not an argv: an argument that size is ENAMETOOLONG before it is stdout.
+  const big = JSON.stringify(Array.from({ length: 40 }, (_, i) => ({ id: `agent-${i}`, mode: "primary", hidden: false, description: "x".repeat(30_000) })));
+  assert.ok(big.length > 1024 * 1024, "the fixture is larger than Node's default execFile buffer");
+  const file = tempDir("big-agents-");
+  writeFileSync(join(file, "payload.json"), big, "utf8");
+  // Import `run` directly: `providerExec.run` is a stub inside this file's beforeEach, so it would measure
+  // the stub and ignore the buffer the fix sets.
+  const { run } = await import("../../../host/server/http.ts");
+  const out = await run(process.execPath, ["-e", "process.stdout.write(require('fs').readFileSync(process.argv[1],'utf8'))", join(file, "payload.json")], { timeout: 15_000 });
+  assert.ok(out.stdout.length > 1024 * 1024, "run() must carry a payload past Node's 1 MiB execFile default");
+});
+
+test("listProviderChoices: model ids keep their `:` tag (the full list the user's provider exposes); log lines still drop", async () => {
+  findHits = { opencode: "/usr/bin/opencode" };
+  runReply = (args) => {
+    // The shape `opencode models` prints for a local runtime: a `:tag` and an `@quantization` are part of the id.
+    if (args.includes("models")) {
+      return { stdout: "opencode-go/mimo-v2.5\nollama/qwen3:8b\nollama/gemma4:latest\nlmstudio/qwen3.5-4b@q4_1\n" };
+    }
+    // An agent entry that is not valid JSON degrades away: a malformed payload answers an empty list,
+    // never a wrong one. The `:` filter stays for the plain-text model lines above.
+    if (args.includes("agent")) {
+      return { stdout: "not json at all" };
+    }
+    return { stdout: "" };
+  };
+  const r = await providers.listProviderChoices("opencode", "/colon-proj");
+  assert.deepEqual(r.models, ["opencode-go/mimo-v2.5", "ollama/qwen3:8b", "ollama/gemma4:latest", "lmstudio/qwen3.5-4b@q4_1"], "every model the provider exposes reaches the Composer dropdown");
+  assert.deepEqual(r.agents, [], "a malformed agent payload degrades to an empty list, never a wrong one");
 });
 
 test("listProviderChoices: `gemini -l` lists extensions (agents) and never models; noise lines are dropped", async () => {
@@ -493,7 +563,7 @@ test("listProviderChoices: an empty (failed) run is not cached — the next call
   assert.deepEqual(await providers.listProviderChoices("opencode", "/fresh"), { agents: [], models: [] });
   assert.equal(runCalls.length, 2);
   runReply = (args) => {
-    if (args.includes("agent")) return { stdout: "build (primary)\n" };
+    if (args.includes("debug") && args.includes("agents")) return { stdout: JSON.stringify([{ id: "build", mode: "primary", hidden: false }]) };
     if (args.includes("models")) return { stdout: "opencode/mimo-v2.6-pro\n" };
     return { stdout: "" };
   };
@@ -531,7 +601,12 @@ test("GET /providers/choices: claude has supports.model but listProviderChoices 
 test("GET /providers/choices: opencode returns parsed choices from the project cwd", async () => {
   findHits = { opencode: "/usr/bin/opencode" };
   runReply = (args) => {
-    if (args.includes("agent")) return { stdout: "build (primary)\nexplore (subagent)\n" };
+    if (args.includes("debug") && args.includes("agents")) {
+      return { stdout: JSON.stringify([
+        { id: "build", mode: "primary", hidden: false },
+        { id: "explore", mode: "subagent", hidden: false },
+      ]) };
+    }
     if (args.includes("models")) return { stdout: "opencode/mimo-a\n" };
     return { stdout: "" };
   };

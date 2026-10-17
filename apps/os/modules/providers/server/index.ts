@@ -40,7 +40,7 @@ const register: ModuleServer = (ctx) => {
     const id = String(req.query.id ?? "");
     const meta = providerById(id);
     if (!meta || !(meta.supports.agent || meta.supports.model)) throw httpError(400, `No choices for provider: ${id}`);
-    // Listing spawns the CLI (`opencode agent list`, `gemini -l`): never one the environment does not enable.
+    // Listing spawns the CLI (`opencode debug agents`, `gemini -l`): never one the environment does not enable.
     if (!isGoverned(meta.id, envTools(ctx.env.root))) throw httpError(400, `${meta.label} is not enabled in this Nexo environment`);
     const project = String(req.query.project ?? "");
     const cwd = projectPath(project);

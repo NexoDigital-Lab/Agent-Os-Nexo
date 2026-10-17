@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { projectOfPath } from "../../projects/server/projects.ts";
 import { listOpencodeSessions } from "./usage-opencode.ts";
+import { listCodexSessions } from "./usage-codex.ts";
 
 export const PROJECTS_DIR = path.join(os.homedir(), ".claude", "projects");
 
@@ -230,6 +231,7 @@ export function registerUsageAdapter(provider: string, read: (days: number) => S
 }
 
 registerUsageAdapter("opencode", listOpencodeSessions);
+registerUsageAdapter("codex", listCodexSessions);
 
 /** Sessions from every provider (or just `provider`), newest first. */
 export function listSessions(days = 7, provider = "all"): SessionUsage[] {

@@ -9,7 +9,7 @@ import { deflateRawSync, gzipSync } from "node:zlib";
 import type { ChildProcess } from "node:child_process";
 import { freshEnv, tempDir } from "./helpers.ts";
 import { tarGzMember, zipMember } from "../src/core/archive.ts";
-import { assetFor, engramPaths, installEngram, memoryConnection, nexoCommand, sha256, type EngramPin } from "../src/core/engram.ts";
+import { assetFor, engramPaths, installEngram, memoryConnection, nexoCommand, sha256, usableNexoCommand, type EngramPin } from "../src/core/engram.ts";
 import { allowedTools, answerLocally, canonicalProject, engramArgs, engramEnv, filterCall, fromClient, fromServer, NEXO_MEMORY_INSTRUCTIONS, observationProject, ProxySession, runProxy } from "../src/core/memoryproxy.ts";
 import { memory, memoryProject, memoryReads, memoryWrites } from "../src/commands/memory.ts";
 import { loadPermissions } from "../src/core/permissions.ts";
@@ -587,4 +587,52 @@ test("the memory connection names nexo by absolute path where an AI's PATH may l
   assert.equal(memoryConnection(root, "linux").command, launcher);
   rmSync(launcher);
   assert.equal(nexoCommand(root, "linux", { PATH: bin }), join(bin, "nexo"), "a launcher that is gone is skipped");
+});
+
+test("the memory connection never names a nexo that lasts one run: npx's cache, node_modules/.bin, a relative dir", { skip: process.platform === "win32" }, async () => {
+  const root = await freshEnv();
+  const npx = join(root, ".npm", "_npx", "abc123", "node_modules", ".bin");
+  const local = join(root, "repo", "node_modules", ".bin");
+  const global = join(root, "global-bin");
+  for (const d of [npx, local, global]) writeFileSync(join(ensureDirSync(d), "nexo"), "");
+  const before = process.cwd();
+  try {
+    process.chdir(join(root, "repo"));
+    assert.equal(nexoCommand(root, "linux", { PATH: `node_modules/.bin:${npx}:${local}:${global}` }), join(global, "nexo"));
+    assert.equal(nexoCommand(root, "linux", { PATH: `${npx}:${local}` }), "nexo", "only temporary ones: the bare name");
+  } finally {
+    process.chdir(before);
+  }
+  assert.equal(usableNexoCommand(join(global, "nexo"), "linux"), true);
+  assert.equal(usableNexoCommand(join(npx, "nexo"), "linux"), false);
+  assert.equal(usableNexoCommand("node_modules/.bin/nexo", "linux"), false);
+  assert.equal(usableNexoCommand(join(root, "gone", "nexo"), "linux"), false);
+  assert.equal(usableNexoCommand("nexo", "linux", { PATH: global }), true, "the bare name, with a lasting nexo to find");
+  assert.equal(usableNexoCommand("nexo", "linux", { PATH: `${npx}:${local}` }), false, "only npx's: the AIs would find nothing");
+  assert.equal(usableNexoCommand("cmd", "win32", { PATH: "" }), false);
+  assert.equal(usableNexoCommand(42, "linux"), false);
+});
+
+test("doctor judges the saved memory command by itself, not by the nexo its own PATH finds first", { skip: process.platform === "win32" }, async () => {
+  const { diagnose } = await import("../src/commands/doctor.ts");
+  const root = await freshEnv();
+  const archive = releaseArchive();
+  const pin = pinFor(archive, (await import("../src/core/engram.ts")).readPin().version);
+  await memory("install", { root }, { pin, fetcher: async () => archive });
+  const connection = join(root, "library", "connections", "memory.json");
+  const saved = JSON.parse(readFileSync(connection, "utf8"));
+  const kept = join(root, "kept-bin", "nexo");
+  writeFileSync(join(ensureDirSync(join(root, "kept-bin")), "nexo"), "");
+  const other = join(root, "other-bin");
+  writeFileSync(join(ensureDirSync(other), "nexo"), "");
+  const path = process.env.PATH;
+  process.env.PATH = other; // doctor run from somewhere that sees another nexo first (agent-os, the desktop app)
+  try {
+    writeJson(connection, { ...saved, command: kept });
+    assert.deepEqual(diagnose(root).filter((f) => f.area === "memory").map((f) => f.level), ["ok"], "a lasting saved nexo is fine");
+    writeJson(connection, { ...saved, command: join(root, ".npm", "_npx", "x", "node_modules", ".bin", "nexo") });
+    assert.match(diagnose(root).filter((f) => f.area === "memory").map((f) => f.message).join("\n"), /gone or temporary \(npx, node_modules\/\.bin\)/);
+  } finally {
+    process.env.PATH = path;
+  }
 });

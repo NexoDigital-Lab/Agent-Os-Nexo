@@ -64,17 +64,35 @@ OS and CPU when a tag `desktop-v<version>` is pushed, and attaches them with the
 GitHub release that a maintainer publishes after checking it. `nexo os desktop [<tag>]` downloads the installer for
 the current machine and verifies its checksum.
 
-## Publishing to npm (not done yet)
+## Publishing to npm
 
-What is missing, in order:
+`.github/workflows/release.yml` runs on a tag `v<version>`:
 
-1. **The `@nexodigital` npm organization** and an automation token with publish rights, stored as the repository
-   secret `NPM_TOKEN`. The token never goes in the repository or in a local file someone could commit.
-2. **A release workflow**: on a tag `v<version>`, run `npm run check`, then `npm publish --access public
-   --provenance` for each package (the CLI's `prepack` builds `dist/`).
-3. **Versions**: the CLI follows `0.x` until the team calls it stable; agent-os-nexo's package version is the
-   release Nexo ships, while each user's builds count from their own `1.0.0` (`nexo os build`).
-4. **A first release check**: `npx @nexodigital/nexo@<version> init <tmp> --yes --os yes` on Linux, macOS and
-   Windows, the same flow the CI `install` job runs from the checkout today.
+1. `npm ci` and `npm run check`; the tag must equal `packages/cli/package.json`'s version.
+2. `npm publish --provenance --access public` of the CLI (its `prepack` builds `dist/`), and of agent-os-nexo when
+   the version in `apps/os/package.json` is not on npm yet.
+3. On Linux, macOS and Windows: `npm install --global @nexodigital/nexo@<version>`, then `init --os yes --memory
+   engram`, `doctor`, `os start|status|stop` — the published packages, never the checkout.
 
-When this is done, update the status line in the root `README.md` and the `--from` notes above.
+To release: bump `packages/cli` (and `apps/os` when agent-os-nexo changed), merge to `main`, push the tag
+`v<cli version>`. A published version can never be published again, so a fix is always a new version.
+
+**Before the first release** (one time): publish rights on the `@nexodigital` npm organization and an automation
+token stored as the repository secret `NPM_TOKEN` — never in the repository or a local file someone could commit.
+`0.1.0` / `1.0.0` were published by hand on 2026-10-07 from an older tree; mark them `npm deprecate` after the first
+real release. When it is out, update the status line in the root `README.md` and the `--from` notes above.
+
+Versions: the CLI follows `0.x` until the team calls it stable; agent-os-nexo's package version is the release Nexo
+ships, while each user's builds count from their own `1.0.0` (`nexo os build`).
+
+## Updates on a user's machine
+
+- **The CLI**: after a command, at most once a day, nexo asks the registry for the latest version (1.5 s at most,
+  cached in `.state/nexo/update-check.json`, never in CI, never when stderr is not a terminal, never for `memory`,
+  `framework` or `os`, off with `NEXO_NO_UPDATE_CHECK=1`) and says on stderr when a newer one is out; `nexo doctor`
+  reports it too. `nexo self-update` then upgrades with the package manager that installed it (`npm install
+  --global`, `pnpm add --global`, `yarn global add`, `bun add --global`); an npx run always fetches the latest.
+- **agent-os-nexo**: `nexo os update` downloads the latest `@nexodigital/agent-os-nexo` and merges it into the
+  user's own version (see above).
+- Either way the memory connection is rewritten for the `nexo` installed now, and it never names a temporary one
+  (npx's cache, a project's `node_modules/.bin`).

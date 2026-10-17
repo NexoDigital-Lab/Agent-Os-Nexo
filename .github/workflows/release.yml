@@ -1,0 +1,91 @@
+name: release
+
+# A tag v<version> publishes the CLI (@nexodigital/nexo, that version) and agent-os-nexo (@nexodigital/agent-os-nexo,
+# the version in apps/os/package.json, only when it is not on npm yet) with npm provenance, then installs the release
+# from npm on every OS the way a user would. The token is the repository secret NPM_TOKEN (an npm automation token
+# with publish rights on @nexodigital); it never lives in the repository.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run check
+      - id: version
+        name: The tag must match the CLI's version
+        shell: bash
+        run: |
+          V="$(node -p "require('./packages/cli/package.json').version")"
+          [ "${GITHUB_REF_NAME}" = "v${V}" ] || { echo "tag ${GITHUB_REF_NAME} does not match packages/cli version ${V}"; exit 1; }
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
+      # Each package is skipped when its version is already on npm, so re-running a half-failed release finishes it.
+      - name: Publish @nexodigital/nexo (when its version is new)
+        shell: bash
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          if npm view "@nexodigital/nexo@${V}" version >/dev/null 2>&1; then
+            echo "nexo ${V} is already published: kept"
+          else
+            npm publish -w packages/cli --provenance --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish @nexodigital/agent-os-nexo (when its version is new)
+        shell: bash
+        run: |
+          OS_V="$(node -p "require('./apps/os/package.json').version")"
+          if npm view "@nexodigital/agent-os-nexo@${OS_V}" version >/dev/null 2>&1; then
+            echo "agent-os-nexo ${OS_V} is already published: kept"
+          else
+            npm publish -w apps/os --provenance --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # The first-release check of docs/release.md, on every release: install from npm, never from the checkout.
+  from-npm:
+    needs: publish
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install the published CLI and agent-os-nexo into a fresh environment
+        shell: bash
+        env:
+          V: ${{ needs.publish.outputs.version }}
+          NEXO_NO_UPDATE_CHECK: "1"
+        run: |
+          # The registry can take a moment to serve a new version.
+          for i in $(seq 1 30); do npm view "@nexodigital/nexo@${V}" version >/dev/null 2>&1 && break; sleep 10; done
+          npm install --global "@nexodigital/nexo@${V}"
+          [ "$(nexo --version)" = "${V}" ]
+          ENV="${RUNNER_TEMP}/env"
+          nexo init "$ENV" --yes --tools claude --name CI --email ci@example.com --language en --os yes --memory engram
+          nexo doctor --root "$ENV"
+          nexo os start --root "$ENV" --port 4799
+          nexo os status --root "$ENV"
+          nexo os stop --root "$ENV"

@@ -3,7 +3,7 @@
 // Engram's own setup, hooks, HTTP server and cloud are never used: agents reach it only through `nexo memory mcp`.
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import { tarGzMember, zipMember } from "./archive.ts";
 import { folder, TOOLS, type EnvironmentConfig } from "./config.ts";
 import type { Connection } from "./connections.ts";
@@ -152,11 +152,14 @@ export function memoryConnection(root: string, platform: string = process.platfo
   };
 }
 
+/** A `nexo` that is only there for one run or one folder: npx's cache, a project's node_modules/.bin, a relative dir. */
+export const ephemeralNexo = (p: string): boolean => !isAbsolute(p) || /[\\/](_npx|node_modules[\\/]\.bin)[\\/]/.test(p);
+
 /**
  * How an AI starts `nexo`. Outside Windows, the launcher's absolute path when it is known (the one self-update wrote,
- * else the first `nexo` on this PATH): an AI's PATH is often not the user's (desktop launchers skip the shell
- * profile, and a `node` shim may drop ~/.local/bin), so a bare `nexo` would not be found. On Windows the bare name,
- * since the path would go through cmd's command line.
+ * else the first lasting `nexo` on this PATH — never one npx or `npm run` put there for a single run): an AI's PATH
+ * is often not the user's (desktop launchers skip the shell profile, and a `node` shim may drop ~/.local/bin), so a
+ * bare `nexo` would not be found. On Windows the bare name, since the path would go through cmd's command line.
  */
 export function nexoCommand(root: string, platform: string = process.platform, env: NodeJS.ProcessEnv = process.env): string {
   if (platform === "win32") return "nexo";
@@ -167,7 +170,26 @@ export function nexoCommand(root: string, platform: string = process.platform, e
     launcher = undefined; // not an environment with a config yet
   }
   if (launcher && existsSync(launcher)) return launcher;
-  return findOnPath("nexo", env, platform as NodeJS.Platform) ?? "nexo";
+  return lastingNexoOnPath(env, platform) ?? "nexo";
+}
+
+/** The first `nexo` on PATH that is not temporary (npx's cache, node_modules/.bin, a relative dir), or null. */
+export function lastingNexoOnPath(env: NodeJS.ProcessEnv = process.env, platform: string = process.platform): string | null {
+  const sep = platform === "win32" ? ";" : ":";
+  for (const dir of String(env.PATH ?? env.Path ?? "").split(sep).filter((d) => isAbsolute(d))) {
+    const found = findOnPath("nexo", { PATH: dir }, platform as NodeJS.Platform);
+    if (found && !ephemeralNexo(found)) return found;
+  }
+  return null;
+}
+
+/** Whether the command a saved memory connection starts still reaches a lasting `nexo`: its absolute path still
+ * there, or — for the bare name (and Windows' `cmd /c nexo`) — a lasting `nexo` on PATH to resolve it to. */
+export function usableNexoCommand(command: unknown, platform: string = process.platform, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (typeof command !== "string" || !command) return false;
+  if (command === "nexo" || (platform === "win32" && command === "cmd")) return lastingNexoOnPath(env, platform) !== null;
+  if (platform === "win32") return false;
+  return !ephemeralNexo(command) && existsSync(command);
 }
 
 export const memoryConnectionFile = (libraryDir: string): string => join(libraryDir, "connections", `${MEMORY_CONNECTION}.json`);

@@ -1,6 +1,6 @@
 {
   "name": "monitor",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Token use and estimated cost of every AI session, and the plan's usage limits in the rail",
   "owner": "nexo",
   "dependsOn": ["shell", "sessions"],

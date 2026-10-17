@@ -224,10 +224,13 @@ Un cliente HTTP con colecciones, entornos e importación de curl / Postman.
 - **Rutas:** `GET/PUT /http`, `POST /http/send`. **Guarda:** data (colecciones, entornos).
 
 ## monitor
-Uso de tokens y costo estimado de cada sesión de IA, y los límites de uso del plan en el riel.
+Uso de tokens y costo estimado de cada sesión de IA — transcripts de Claude Code, el almacén
+SQLite de OpenCode, los rollouts de Codex y los chats de Gemini (listados sin cifras de uso: la CLI
+no las guarda) — con un selector de proveedor cuya vista general los cubre a todos, más los límites
+de uso del plan en el riel.
 - **Depende de:** shell, sessions. **Vista:** Monitor. **Aporta:** `rail.footer`, una contribución a
   sesiones (lee los límites de uso).
-- **Rutas:** `GET /limits`, `GET /usage/summary`, `GET /usage/sessions`.
+- **Rutas:** `GET /limits`, `GET /usage/summary` (días, proveedor), `GET /usage/sessions` (días, proveedor).
 
 ## extensions
 Extensiones de VS Code por proyecto (recomendadas por stack o por un agente, sincronizadas a

@@ -1,5 +1,5 @@
 // Helpers every module's server code shares: errors, JSON files, the route wrapper, request guards.
-import { execFile } from "node:child_process";
+import { execFile, type ExecFileOptions } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
@@ -8,7 +8,17 @@ import { promisify } from "node:util";
 import type { NextFunction, Request, Response } from "express";
 import { accessCookie, hasAccess, OPEN_PATHS, validToken } from "./access.ts";
 
-export const run = promisify(execFile);
+/**
+ * `execFile` promisified. Its callers ask a CLI for its full answer — a model list, an agent list, a chat
+ * reply — so stdout is the payload, not a log tail: Node's 1 MiB `execFile` default cut a 1.2 MB
+ * `opencode debug agents` answer off with ERR_CHILD_PROCESS_STDIO_MAXBUFFER. The buffer is a hard cap, not
+ * a hint, so it sits above what a provider can reasonably answer; a run that really exceeds it still fails
+ * loudly instead of silently truncating. Callers may lower it per call.
+ */
+export const RUN_MAX_BUFFER = 64 * 1024 * 1024;
+const execFileText = promisify(execFile);
+export const run = (file: string, args: string[], opts: ExecFileOptions = {}): Promise<{ stdout: string; stderr: string }> =>
+  execFileText(file, args, { maxBuffer: RUN_MAX_BUFFER, ...opts, encoding: "utf8" });
 
 /** An Error the `h()` route wrapper turns into `{ error }` with this HTTP status. */
 export function httpError(status: number, message: string, extra: Record<string, unknown> = {}): Error & { status: number } {

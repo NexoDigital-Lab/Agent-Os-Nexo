@@ -66,7 +66,8 @@ const chats3 = join(home, ".gemini", "tmp", "empty-root", "chats");
 mkdirSync(chats3, { recursive: true });
 writeFileSync(join(home, ".gemini", "tmp", "empty-root", ".project_root"), "");
 writeFileSync(join(chats3, "session-2026-10-17T06-30-dddd.jsonl"), jl({ sessionId: "dddd", projectHash: "er", startTime: start, lastUpdated: end, kind: "subagent" }));
-const fresh = new Date();
+// Whole seconds: some filesystems (APFS on CI) read a millisecond mtime back 1 ms early.
+const fresh = new Date(Math.floor(Date.now() / 1000) * 1000);
 utimesSync(join(chats, A), fresh, fresh);
 utimesSync(join(chats2, "session-2026-10-17T06-00-cccc.jsonl"), fresh, fresh);
 utimesSync(join(chats3, "session-2026-10-17T06-30-dddd.jsonl"), fresh, fresh);
